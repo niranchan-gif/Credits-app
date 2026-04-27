@@ -1,17 +1,34 @@
-# credit
+# Credits — Loan Manager
 
-A new Flutter project.
+A professional Flutter app for managing personal micro-lending.
+
+## Features
+
+- **Borrower Management** — Add, edit, and delete borrowers with unique codes
+- **Multi-Loan Support** — Each borrower can have multiple active loans
+- **Daily Collection Tracking** — Tabbed view: Collect / Paid / Completed
+- **Swipe-to-Pay** — Quickly record payments by swiping a borrower card
+- **Partial Payment Indicator** — Shows `X/Y` badge with amber colour when only some loans are paid today
+- **Indian Currency Formatting** — All amounts displayed in ₹ Indian format
+- **Reports Screen** — Global financial summary (Total Due, Collected, Pending, On-Hand)
+- **Excel Export** — Export borrower and loan data to `.xlsx`
+- **App Lock** — Biometric / PIN security via `local_auth` + `flutter_secure_storage`
+- **Expense Tracking** — Deduct on-hand expenses with full history
+
+## Tech Stack
+
+- Flutter (Dart)
+- SQLite (`sqflite`) — local database, no cloud dependency
+- Provider — state management
+- `local_auth` — biometric authentication
+- `flutter_secure_storage` — secure PIN storage
+- `excel` — Excel export
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+```bash
+flutter pub get
+flutter run
+```
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+> Requires Android SDK / Xcode for device deployment.

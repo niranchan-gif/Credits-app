@@ -43,3 +43,13 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Scratch / debug files
+analyze.txt
+analyze2.txt
+flutter_01.png
+
+# Firebase leftover config (not used)
+firebase.json
+firestore.rules
+storage.rules
