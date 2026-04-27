@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "342303905651",
+    "project_id": "credits-b6778",
+    "storage_bucket": "credits-b6778.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:342303905651:android:73f9560ca436060422d706",
+        "android_client_info": {
+          "package_name": "com.example.credit"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAmcgmU35JLZeW6Qu1FZZY8yfAevbLBi44"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
