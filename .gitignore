@@ -44,6 +44,9 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# API keys and secrets (never commit these)
+dart_defines.env
+
 # Scratch / debug files
 analyze.txt
 analyze2.txt

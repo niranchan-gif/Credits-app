@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import 'package:intl/intl.dart';
+
 import '../models/borrower.dart';
 import '../models/loan.dart';
 import '../providers/loan_provider.dart';
+import '../utils/app_colors.dart';
+import '../widgets/premium_card.dart';
 
 class AddLoanScreen extends StatefulWidget {
   final Borrower borrower;
@@ -56,10 +61,9 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
       initialDate: _loanDate,
       firstDate: DateTime(2000),
       lastDate: DateTime.now(),
+      builder: (context, child) => Theme(data: Theme.of(context).copyWith(colorScheme: Theme.of(context).colorScheme.copyWith(primary: AppColors.accent, surface: Theme.of(context).colorScheme.surface)), child: child!),
     );
-    if (picked != null) {
-      setState(() => _loanDate = picked);
-    }
+    if (picked != null) setState(() => _loanDate = picked);
   }
 
   Future<void> _save() async {
@@ -72,8 +76,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
     final loan = Loan(
       borrowerId: widget.borrower.id!,
       loanAmount: double.parse(_loanAmountCtrl.text.trim()),
-      interestAmount: double.parse(
-          _interestAmountCtrl.text.trim().isEmpty ? '0' : _interestAmountCtrl.text.trim()),
+      interestAmount: double.parse(_interestAmountCtrl.text.trim().isEmpty ? '0' : _interestAmountCtrl.text.trim()),
       loanDate: _loanDate,
       installmentDays: installmentDays,
       endDate: _calculatedEndDate,
@@ -81,120 +84,93 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
     );
 
     await context.read<LoanProvider>().addLoan(loan);
-
     if (mounted) Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FF),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1E3A5F),
-        title: const Text('Add New Loan', style: TextStyle(color: Colors.white)),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
+        title: const Text('Add New Loan'),
       ),
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
           children: [
-            _sectionLabel('Loan Details for ${widget.borrower.name}'),
-            _buildField(
-              controller: _loanAmountCtrl,
-              label: 'Loan Amount (₹)',
-              icon: Icons.currency_rupee,
-              keyboardType: TextInputType.number,
-              validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'Amount required';
-                if (double.tryParse(v) == null) return 'Enter valid amount';
-                return null;
-              },
-            ),
-            const SizedBox(height: 12),
-              GestureDetector(
-                onTap: _pickDate,
-                child: AbsorbPointer(
-                  child: InputDecorator(
-                    decoration: _inputDecoration('Loan Date', Icons.calendar_today),
-                    child: Text(
-                      '${_loanDate.day}/${_loanDate.month}/${_loanDate.year}',
-                      style: const TextStyle(fontSize: 16),
+            _sectionLabel('Borrower: ${widget.borrower.name}'),
+            PremiumCard(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  _buildField(
+                    controller: _loanAmountCtrl,
+                    label: 'Loan Amount (₹)',
+                    icon: LucideIcons.coins,
+                    keyboardType: TextInputType.number,
+                    validator: (v) => v == null || v.trim().isEmpty ? 'Amount required' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  GestureDetector(
+                    onTap: _pickDate,
+                    child: AbsorbPointer(
+                      child: _buildField(
+                        controller: TextEditingController(text: DateFormat('dd MMMM yyyy').format(_loanDate)),
+                        label: 'Loan Date',
+                        icon: LucideIcons.calendar,
+                        readOnly: true,
+                      ),
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              _buildField(
-                controller: _installmentDaysCtrl,
-                label: 'Installment Days (Optional)',
-                icon: Icons.timer,
-                keyboardType: TextInputType.number,
-                onChanged: (v) => setState(() {}),
-                validator: (v) {
-                  if (v != null && v.trim().isNotEmpty && int.tryParse(v) == null) {
-                    return 'Enter a valid number of days';
-                  }
-                  return null;
-                },
-              ),
-              if (_calculatedEndDate != null) ...[
-                const SizedBox(height: 4),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(
-                    'End Date: ${_calculatedEndDate!.day}/${_calculatedEndDate!.month}/${_calculatedEndDate!.year}',
-                    style: const TextStyle(
-                      color: Colors.green,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
+                  const SizedBox(height: 16),
+                  _buildField(
+                    controller: _installmentDaysCtrl,
+                    label: 'Duration (Days)',
+                    icon: LucideIcons.timer,
+                    keyboardType: TextInputType.number,
+                    onChanged: (v) => setState(() {}),
                   ),
-                ),
-              ],
-              const SizedBox(height: 12),
-            _buildField(
-              controller: _interestAmountCtrl,
-              label: 'Interest Amount (₹)',
-              icon: Icons.currency_rupee,
-              keyboardType: TextInputType.number,
-              validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'Amount required';
-                if (double.tryParse(v) == null) return 'Invalid';
-                return null;
-              },
+                  if (_calculatedEndDate != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(color: AppColors.accent.withOpacity( 0.1), borderRadius: BorderRadius.circular(12)),
+                      child: Text(
+                        'Ends on: ${DateFormat('dd MMM yyyy').format(_calculatedEndDate!)}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  _buildField(
+                    controller: _interestAmountCtrl,
+                    label: 'Interest Amount (₹)',
+                    icon: LucideIcons.trendingUp,
+                    keyboardType: TextInputType.number,
+                    validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 24),
+            _sectionLabel('Additional Notes'),
             _buildField(
               controller: _notesCtrl,
-              label: 'Notes (Optional)',
-              icon: Icons.notes,
-              maxLines: 2,
+              label: 'Internal Notes',
+              icon: LucideIcons.stickyNote,
+              maxLines: 3,
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 40),
             SizedBox(
-              height: 52,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1E3A5F),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                ),
-                icon: _isSaving
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.save, color: Colors.white),
-                label: const Text(
-                  'Save Loan',
-                  style: TextStyle(color: Colors.white, fontSize: 16),
-                ),
+              height: 56,
+              child: ElevatedButton(
                 onPressed: _isSaving ? null : _save,
+                child: _isSaving 
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text('Create Loan'),
               ),
             ),
           ],
@@ -205,30 +181,8 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
 
   Widget _sectionLabel(String label) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Text(label,
-          style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-              color: Color(0xFF1E3A5F))),
-    );
-  }
-
-  InputDecoration _inputDecoration(String label, IconData icon) {
-    return InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon, color: const Color(0xFF1E3A5F)),
-      filled: true,
-      fillColor: Colors.white,
-      border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none),
-      enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade200)),
-      focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF1E3A5F))),
+      padding: const EdgeInsets.only(left: 4, bottom: 12),
+      child: Text(label, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant)),
     );
   }
 
@@ -240,6 +194,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
     String? Function(String?)? validator,
     void Function(String)? onChanged,
     int maxLines = 1,
+    bool readOnly = false,
   }) {
     return TextFormField(
       controller: controller,
@@ -247,7 +202,12 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
       maxLines: maxLines,
       validator: validator,
       onChanged: onChanged,
-      decoration: _inputDecoration(label, icon),
+      readOnly: readOnly,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, size: 20),
+      ),
     );
   }
 }
+

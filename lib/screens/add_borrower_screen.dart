@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+
+import 'package:intl/intl.dart';
 import '../models/borrower.dart';
 import '../models/loan.dart';
 import '../providers/loan_provider.dart';
+import '../utils/app_colors.dart';
+import '../widgets/premium_card.dart';
 
 class AddBorrowerScreen extends StatefulWidget {
-  final Borrower? borrower; // null = add mode, non-null = edit mode
+  final Borrower? borrower;
 
   const AddBorrowerScreen({super.key, this.borrower});
 
@@ -52,7 +58,6 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
     _notesCtrl = TextEditingController(text: b?.notes ?? '');
 
     if (b == null) {
-      // Auto-generate next borrower code when adding new
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         final code = await context.read<LoanProvider>().generateBorrowerCode();
         if (mounted) setState(() => _codeCtrl.text = code);
@@ -79,6 +84,19 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
       initialDate: _loanDate,
       firstDate: DateTime(2000),
       lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: AppColors.accent,
+              onPrimary: Colors.white,
+              surface: Theme.of(context).colorScheme.surface,
+              onSurface: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
     if (picked != null) {
       setState(() => _loanDate = picked);
@@ -91,20 +109,13 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
     final provider = context.read<LoanProvider>();
     final phone = _phoneCtrl.text.trim();
 
-    // Check for duplicate phone number (only if phone is provided)
     if (phone.isNotEmpty) {
-      final existingBorrowers =
-          provider.borrowers.where((b) => b.phone == phone);
+      final existingBorrowers = provider.borrowers.where((b) => b.phone == phone);
       if (existingBorrowers.isNotEmpty) {
-        final isDuplicate =
-            !_isEditMode || existingBorrowers.first.id != widget.borrower?.id;
+        final isDuplicate = !_isEditMode || existingBorrowers.first.id != widget.borrower?.id;
         if (isDuplicate) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content:
-                  Text('A borrower with this phone number already exists!'),
-              backgroundColor: Colors.redAccent,
-            ),
+            const SnackBar(content: Text('A borrower with this phone already exists!'), backgroundColor: AppColors.error),
           );
           return;
         }
@@ -118,8 +129,7 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
       borrowerCode: _codeCtrl.text.trim(),
       name: _nameCtrl.text.trim(),
       phone: _phoneCtrl.text.trim(),
-      address:
-          _addressCtrl.text.trim().isEmpty ? null : _addressCtrl.text.trim(),
+      address: _addressCtrl.text.trim().isEmpty ? null : _addressCtrl.text.trim(),
       notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
     );
 
@@ -128,11 +138,9 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
       final daysText = _installmentDaysCtrl.text.trim();
       final installmentDays = daysText.isNotEmpty ? int.tryParse(daysText) : null;
       initialLoan = Loan(
-        borrowerId: 0, // Will be set in provider
+        borrowerId: 0,
         loanAmount: double.parse(_loanAmountCtrl.text.trim()),
-        interestAmount: double.parse(_interestAmountCtrl.text.trim().isEmpty
-            ? '0'
-            : _interestAmountCtrl.text.trim()),
+        interestAmount: double.parse(_interestAmountCtrl.text.trim().isEmpty ? '0' : _interestAmountCtrl.text.trim()),
         loanDate: _loanDate,
         installmentDays: installmentDays,
         endDate: _calculatedEndDate,
@@ -151,161 +159,139 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FF),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1E3A5F),
-        title: Text(
-          _isEditMode ? 'Edit Borrower' : 'Add Borrower',
-          style: const TextStyle(color: Colors.white),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
+        title: Text(_isEditMode ? 'Edit Borrower' : 'New Borrower'),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _sectionLabel('Borrower ID'),
-            _buildField(
-              controller: _codeCtrl,
-              label: 'Borrower ID (Auto-generated)',
-              icon: Icons.badge,
-              readOnly: _isEditMode, // Can't change ID in edit mode
-              validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'ID required' : null,
-            ),
-            const SizedBox(height: 20),
-            _sectionLabel('Personal Info'),
-            _buildField(
-              controller: _nameCtrl,
-              label: 'Full Name',
-              icon: Icons.person,
-              validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'Name required' : null,
-            ),
-            const SizedBox(height: 12),
-            _buildField(
-              controller: _phoneCtrl,
-              label: 'Phone Number',
-              icon: Icons.phone,
-              keyboardType: TextInputType.phone,
-              validator: (v) {
-                if (v == null || v.trim().isEmpty) return null;
-                if (v.trim().length < 10) {
-                  return 'Phone must be at least 10 digits';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 12),
-            _buildField(
-              controller: _addressCtrl,
-              label: 'Address (Optional)',
-              icon: Icons.location_on,
-              maxLines: 2,
-            ),
-            if (!_isEditMode) ...[
-              const SizedBox(height: 20),
-              _sectionLabel('Initial Loan Details'),
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.all(24),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _sectionLabel('Borrower ID').animate().fadeIn(delay: 100.ms).slideX(begin: -0.1),
               _buildField(
-                controller: _loanAmountCtrl,
-                label: 'Loan Amount (₹)',
-                icon: Icons.currency_rupee,
-                keyboardType: TextInputType.number,
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Amount required';
-                  if (double.tryParse(v) == null) return 'Enter valid amount';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              // Loan Date picker
-              GestureDetector(
-                onTap: _pickDate,
-                child: AbsorbPointer(
-                  child: InputDecorator(
-                    decoration: _inputDecoration('Loan Date', Icons.calendar_today),
-                    child: Text(
-                      '${_loanDate.day}/${_loanDate.month}/${_loanDate.year}',
-                      style: const TextStyle(fontSize: 16),
+                controller: _codeCtrl,
+                label: 'Borrower Code',
+                icon: LucideIcons.check,
+                readOnly: true,
+                validator: (v) => v == null || v.trim().isEmpty ? 'ID required' : null,
+              ).animate().fadeIn(delay: 200.ms).slideX(begin: -0.1),
+              const SizedBox(height: 24),
+              
+              _sectionLabel('Personal Details').animate().fadeIn(delay: 300.ms).slideX(begin: -0.1),
+              PremiumCard(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    _buildField(
+                      controller: _nameCtrl,
+                      label: 'Full Name',
+                      icon: LucideIcons.user,
+                      validator: (v) => v == null || v.trim().isEmpty ? 'Name required' : null,
                     ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              _buildField(
-                controller: _installmentDaysCtrl,
-                label: 'Installment Days (Optional)',
-                icon: Icons.timer,
-                keyboardType: TextInputType.number,
-                onChanged: (v) => setState(() {}),
-                validator: (v) {
-                  if (v != null && v.trim().isNotEmpty && int.tryParse(v) == null) {
-                    return 'Enter a valid number of days';
-                  }
-                  return null;
-                },
-              ),
-              if (_calculatedEndDate != null) ...[
-                const SizedBox(height: 4),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(
-                    'End Date: ${_calculatedEndDate!.day}/${_calculatedEndDate!.month}/${_calculatedEndDate!.year}',
-                    style: const TextStyle(
-                      color: Colors.green,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
+                    const SizedBox(height: 16),
+                    _buildField(
+                      controller: _phoneCtrl,
+                      label: 'Phone Number',
+                      icon: LucideIcons.phone,
+                      keyboardType: TextInputType.phone,
+                      validator: (v) => v != null && v.isNotEmpty && v.trim().length < 10 ? 'Enter valid phone' : null,
                     ),
-                  ),
+                    const SizedBox(height: 16),
+                    _buildField(
+                      controller: _addressCtrl,
+                      label: 'Address (Optional)',
+                      icon: LucideIcons.mapPin,
+                      maxLines: 2,
+                    ),
+                  ],
                 ),
+              ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.1),
+              const SizedBox(height: 24),
+
+              if (!_isEditMode) ...[
+                _sectionLabel('Loan Information').animate().fadeIn(delay: 500.ms).slideX(begin: -0.1),
+                PremiumCard(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      _buildField(
+                        controller: _loanAmountCtrl,
+                        label: 'Loan Amount (₹)',
+                        icon: LucideIcons.coins,
+                        keyboardType: TextInputType.number,
+                        validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                      ),
+                      const SizedBox(height: 16),
+                      GestureDetector(
+                        onTap: _pickDate,
+                        child: AbsorbPointer(
+                          child: _buildField(
+                            controller: TextEditingController(text: DateFormat('dd MMMM yyyy').format(_loanDate)),
+                            label: 'Loan Date',
+                            icon: LucideIcons.calendar,
+                            readOnly: true,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildField(
+                        controller: _installmentDaysCtrl,
+                        label: 'Duration (Days)',
+                        icon: LucideIcons.timer,
+                        keyboardType: TextInputType.number,
+                        onChanged: (v) => setState(() {}),
+                      ),
+                      if (_calculatedEndDate != null) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(color: AppColors.accent.withOpacity( 0.1), borderRadius: BorderRadius.circular(12)),
+                          child: Text(
+                            'Ends on: ${DateFormat('dd MMM yyyy').format(_calculatedEndDate!)}',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 16),
+                      _buildField(
+                        controller: _interestAmountCtrl,
+                        label: 'Interest Amount (₹)',
+                        icon: LucideIcons.trendingUp,
+                        keyboardType: TextInputType.number,
+                        validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                      ),
+                    ],
+                  ),
+                ).animate().fadeIn(delay: 600.ms).slideY(begin: 0.1),
+                const SizedBox(height: 24),
               ],
-              const SizedBox(height: 12),
+
+              _sectionLabel('Additional Notes').animate().fadeIn(delay: 700.ms).slideX(begin: -0.1),
               _buildField(
-                controller: _interestAmountCtrl,
-                label: 'Interest Amount (₹)',
-                icon: Icons.currency_rupee,
-                keyboardType: TextInputType.number,
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Amount required';
-                  if (double.tryParse(v) == null) return 'Invalid';
-                  return null;
-                },
-              ),
+                controller: _notesCtrl,
+                label: 'Internal Notes',
+                icon: LucideIcons.stickyNote,
+                maxLines: 3,
+              ).animate().fadeIn(delay: 800.ms).slideY(begin: 0.1),
+              const SizedBox(height: 40),
+
+              SizedBox(
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: _isSaving ? null : _save,
+                  child: _isSaving 
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : Text(_isEditMode ? 'Update Profile' : 'Create Borrower'),
+                ),
+              ).animate().fadeIn(delay: 900.ms).scale(begin: const Offset(0.95, 0.95)),
             ],
-            _buildField(
-              controller: _notesCtrl,
-              label: 'Notes (Optional)',
-              icon: Icons.notes,
-              maxLines: 2,
-            ),
-            const SizedBox(height: 28),
-            SizedBox(
-              height: 52,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1E3A5F),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                ),
-                icon: _isSaving
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.save, color: Colors.white),
-                label: Text(
-                  _isEditMode ? 'Update Borrower' : 'Save Borrower',
-                  style: const TextStyle(color: Colors.white, fontSize: 16),
-                ),
-                onPressed: _isSaving ? null : _save,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -313,29 +299,8 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
 
   Widget _sectionLabel(String label) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Text(label,
-          style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-              color: Color(0xFF1E3A5F))),
-    );
-  }
-
-  InputDecoration _inputDecoration(String label, IconData icon) {
-    return InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon, color: const Color(0xFF1E3A5F)),
-      filled: true,
-      fillColor: Colors.white,
-      border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-      enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade200)),
-      focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF1E3A5F))),
+      padding: const EdgeInsets.only(left: 4, bottom: 12),
+      child: Text(label, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant)),
     );
   }
 
@@ -356,10 +321,11 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
       validator: validator,
       onChanged: onChanged,
       readOnly: readOnly,
-      style: readOnly
-          ? const TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)
-          : null,
-      decoration: _inputDecoration(label, icon),
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, size: 20),
+      ),
     );
   }
 }
+

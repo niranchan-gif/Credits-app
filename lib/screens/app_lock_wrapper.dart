@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
+import '../services/backup_freshness_service.dart';
 import 'app_lock_screen.dart';
 
 class AppLockWrapper extends StatefulWidget {
@@ -31,6 +32,17 @@ class _AppLockWrapperState extends State<AppLockWrapper> with WidgetsBindingObse
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      BackupFreshnessService.isAppInForeground = true;
+      if (!_isLocked) {
+        BackupFreshnessService().checkFreshness();
+      }
+    } else if (state == AppLifecycleState.paused || 
+               state == AppLifecycleState.inactive || 
+               state == AppLifecycleState.detached) {
+      BackupFreshnessService.isAppInForeground = false;
+    }
+
     // Lock the app when it goes to the background (paused).
     // Doing this on 'resumed' causes an infinite loop because the OS biometric prompt 
     // triggers 'paused' and then 'resumed' when it closes.
@@ -40,15 +52,33 @@ class _AppLockWrapperState extends State<AppLockWrapper> with WidgetsBindingObse
   }
 
   Future<void> _checkLockStatus() async {
-    final enabled = await _authService.isLockEnabled();
-    if (enabled && !_isLocked) {
-      setState(() => _isLocked = true);
+    try {
+      debugPrint("AppLockWrapper: Checking lock status...");
+      final enabled = await _authService.isLockEnabled();
+      debugPrint("AppLockWrapper: Lock enabled: $enabled");
+      if (enabled && !_isLocked) {
+        setState(() => _isLocked = true);
+      } else if (!enabled) {
+        // App Lock is disabled, check freshness on cold start
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          BackupFreshnessService().checkFreshness();
+        });
+      }
+    } catch (e, stack) {
+      debugPrint("AppLockWrapper: Error checking lock status: $e\n$stack");
+    } finally {
+      if (mounted) {
+        setState(() => _isChecking = false);
+      }
     }
-    setState(() => _isChecking = false);
   }
 
   void _onUnlocked() {
     setState(() => _isLocked = false);
+    // Check freshness on unlock
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      BackupFreshnessService().checkFreshness();
+    });
   }
 
   @override
@@ -58,3 +88,4 @@ class _AppLockWrapperState extends State<AppLockWrapper> with WidgetsBindingObse
     return widget.child;
   }
 }
+

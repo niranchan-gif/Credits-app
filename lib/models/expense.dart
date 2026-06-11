@@ -1,9 +1,15 @@
+import '../utils/date_parser.dart';
+
 class Expense {
   int? id;
   double amount;
   DateTime expenseDate;
   String category;
   String? notes;
+  int updatedAt;
+  int createdAt;
+  String? lastModifiedDevice;
+  bool isDeleted;
 
   Expense({
     this.id,
@@ -11,25 +17,39 @@ class Expense {
     required this.expenseDate,
     required this.category,
     this.notes,
+    this.updatedAt = 0,
+    this.createdAt = 0,
+    this.lastModifiedDevice,
+    this.isDeleted = false,
   });
 
   Map<String, dynamic> toMap() {
-    return {
-      'id': id,
+    final map = <String, dynamic>{
       'amount': amount,
       'expense_date': expenseDate.toIso8601String(),
       'category': category,
       'notes': notes,
+      'updated_at': updatedAt,
+      'created_at': createdAt,
+      'last_modified_device': lastModifiedDevice,
+      'is_deleted': isDeleted ? 1 : 0,
     };
+    if (id != null) map['id'] = id;
+    return map;
   }
 
   factory Expense.fromMap(Map<String, dynamic> map) {
     return Expense(
       id: map['id'],
-      amount: (map['amount'] as num).toDouble(),
-      expenseDate: DateTime.parse(map['expense_date']),
+      amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
+      expenseDate: DateParser.safeParse(map['expense_date']),
       category: map['category'] ?? 'General',
       notes: map['notes'],
+      updatedAt: map['updated_at'] ?? DateTime.now().millisecondsSinceEpoch,
+      createdAt: map['created_at'] ?? DateTime.now().millisecondsSinceEpoch,
+      lastModifiedDevice: map['last_modified_device'],
+      isDeleted: (map['is_deleted'] ?? 0) == 1,
     );
   }
 }
+

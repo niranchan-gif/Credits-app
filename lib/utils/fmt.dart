@@ -10,3 +10,4 @@ final _inrFmt = NumberFormat.currency(
 /// Format a [double] as Indian Rupees with commas, no decimals.
 /// e.g. fmtINR(100000) → "₹1,00,000"
 String fmtINR(double amount) => _inrFmt.format(amount);
+

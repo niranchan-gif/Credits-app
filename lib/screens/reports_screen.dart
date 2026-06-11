@@ -1,6 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+
 import '../database/db_helper.dart';
+import '../services/backup_freshness_service.dart';
 import '../models/borrower.dart';
 import '../models/loan.dart';
 import '../models/payment.dart';
@@ -8,9 +13,26 @@ import '../providers/loan_provider.dart';
 import '../services/excel_export_service.dart';
 import '../utils/actions.dart';
 import '../utils/fmt.dart';
+import '../utils/app_colors.dart';
+import '../widgets/premium_card.dart';
 import 'investment_screen.dart';
-import 'add_expense_dialog.dart';
-import 'expense_history_screen.dart';
+import 'on_hand_cash_screen.dart';
+
+class ReportSummary {
+  final Map<String, dynamic> globalSummary;
+  final List<BorrowerReport> reports;
+  final double totalInvested;
+  final double totalExpenses;
+  final double totalServiceCosts;
+
+  ReportSummary({
+    required this.globalSummary,
+    required this.reports,
+    required this.totalInvested,
+    required this.totalExpenses,
+    required this.totalServiceCosts,
+  });
+}
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -20,68 +42,131 @@ class ReportsScreen extends StatefulWidget {
 }
 
 class _ReportsScreenState extends State<ReportsScreen> {
-  Map<String, dynamic>? _summary;
-  List<_BorrowerReport> _reports = [];
+  ReportSummary? _cachedSummary;
   bool _loading = true;
   bool _exporting = false;
-  double _totalInvested = 0.0;
-  double _totalExpenses = 0.0;
+  bool _isLoadingReports = false;
+  bool _hasError = false;
+  String _errorMessage = '';
+
+  Map<String, dynamic>? get _summary => _cachedSummary?.globalSummary;
+  List<BorrowerReport> get _reports => _cachedSummary?.reports ?? [];
+  double get _totalInvested => _cachedSummary?.totalInvested ?? 0.0;
+  double get _totalExpenses => _cachedSummary?.totalExpenses ?? 0.0;
+  double get _totalServiceCosts => _cachedSummary?.totalServiceCosts ?? 0.0;
 
   @override
   void initState() {
     super.initState();
     _loadReports();
+    // Invalidate and refresh cache dynamically whenever LoanProvider notifies changes
+    context.read<LoanProvider>().addListener(_onProviderChanged);
   }
 
-  Future<void> _loadReports() async {
-    if (!mounted) return;
-    setState(() => _loading = true);
+  @override
+  void dispose() {
+    try {
+      context.read<LoanProvider>().removeListener(_onProviderChanged);
+    } catch (_) {}
+    super.dispose();
+  }
 
-    final provider = context.read<LoanProvider>();
-    // Force fresh borrower list from DB (catches deletions done in other screens)
-    await provider.loadBorrowers();
-    final summary = provider.globalSummary;
-    final borrowers = provider.borrowers;
-    final totalInvested = await DBHelper().getTotalInvested();
-    final totalExpenses = await DBHelper().getTotalExpenses();
-
-    final reports = <_BorrowerReport>[];
-    for (final b in borrowers) {
-      final loans = await provider.getLoans(b.id!);
-      // Only aggregate active (uncleared) loans
-      final activeLoans = loans.where((l) => l.status == 'active').toList();
-      double totalLoanAmount = 0;
-      double totalInterest = 0;
-      double totalDue = 0;
-      double totalPaid = 0;
-
-      for (var loan in activeLoans) {
-        totalLoanAmount += loan.loanAmount;
-        totalInterest += loan.interestAmount;
-        totalDue += loan.totalDue();
-        totalPaid += await provider.getTotalPaid(loan.id!);
-      }
-
-      reports.add(_BorrowerReport(
-        borrower: b,
-        totalLoanAmount: totalLoanAmount,
-        totalInterest: totalInterest,
-        totalDue: totalDue,
-        totalPaid: totalPaid,
-      ));
-    }
-
-    reports.sort((a, b) => b.balance.compareTo(a.balance));
-
+  void _onProviderChanged() {
     if (mounted) {
-      setState(() {
-        _summary = summary;
-        _reports = reports;
-        _totalInvested = totalInvested;
-        _totalExpenses = totalExpenses;
-        _loading = false;
-      });
+      _loadReports(force: true);
     }
+  }
+
+  Future<void> _loadReports({bool force = false}) async {
+    if (_isLoadingReports) return;
+    if (_cachedSummary != null && !force) {
+      setState(() {
+        _loading = false;
+        _hasError = false;
+      });
+      return;
+    }
+
+    setState(() {
+      // Premium UI: Only show full-screen spinner if no cached data exists
+      if (_cachedSummary == null) {
+        _loading = true;
+      }
+      _hasError = false;
+      _errorMessage = '';
+      _isLoadingReports = true;
+    });
+
+    try {
+      final summary = await _calculateSummary().timeout(const Duration(seconds: 10));
+      if (mounted) {
+        setState(() {
+          _cachedSummary = summary;
+          _loading = false;
+          _isLoadingReports = false;
+        });
+      }
+    } on TimeoutException catch (_) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _isLoadingReports = false;
+          _hasError = true;
+          _errorMessage = "Loading took too long. Please verify your database integrity.";
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _isLoadingReports = false;
+          _hasError = true;
+          _errorMessage = "Failed to load reports: $e";
+        });
+      }
+    }
+  }
+
+  Future<ReportSummary> _calculateSummary() async {
+    final dbHelper = DBHelper();
+    
+    // 1. Get global summary in one fast query
+    final globalSummary = await dbHelper.getGlobalSummary();
+    
+    // 2. Get reports breakdown in one highly-optimized query
+    final rawReports = await dbHelper.getReportsBreakdown();
+    
+    // 3. Get total invested, total expenses, and total service costs
+    final totalInvested = await dbHelper.getTotalInvested();
+    final totalExpenses = await dbHelper.getTotalExpenses();
+    final totalServiceCosts = await dbHelper.getTotalServiceCosts();
+    
+    final reports = rawReports.map((map) {
+      final borrower = Borrower.fromMap(map);
+      return BorrowerReport(
+        borrower: borrower,
+        totalLoanAmount: (map['total_loan_amount'] as num).toDouble(),
+        totalInterest: (map['total_interest_amount'] as num).toDouble(),
+        totalDue: (map['total_due'] as num).toDouble(),
+        totalPaid: (map['total_paid'] as num).toDouble(),
+      );
+    }).toList();
+    
+    // Sort reports by balance descending
+    reports.sort((a, b) => b.balance.compareTo(a.balance));
+    
+    return ReportSummary(
+      globalSummary: globalSummary,
+      reports: reports,
+      totalInvested: totalInvested,
+      totalExpenses: totalExpenses,
+      totalServiceCosts: totalServiceCosts,
+    );
+  }
+
+  Future<void> _onRefresh() async {
+    await BackupFreshnessService().checkFreshness();
+    await _loadReports(force: true);
   }
 
   Future<void> _exportOverallExcel() async {
@@ -109,12 +194,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
         }
       }
 
+      final summary = _cachedSummary?.globalSummary ?? provider.globalSummary;
+      final totalInv = _cachedSummary?.totalInvested ?? await DBHelper().getTotalInvested();
+
       final path = await ExcelExportService.exportOverallReport(
         borrowers: borrowers,
         loansPerBorrower: loansPerBorrower,
         paymentsPerLoan: paymentsPerLoan,
-        summary: provider.globalSummary,
-        totalInvested: await DBHelper().getTotalInvested(),
+        summary: summary,
+        totalInvested: totalInv,
+        expenses: await DBHelper().getAllExpenses(),
+        serviceCosts: await DBHelper().getAllServiceCosts(),
       );
 
       if (!mounted) return;
@@ -122,12 +212,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
         messenger: messenger,
         path: path,
       );
-      await _loadReports();
+      await _loadReports(force: true);
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(SnackBar(
         content: Text('Export failed: $e'),
-        backgroundColor: Colors.redAccent,
+        backgroundColor: AppColors.error,
       ));
     } finally {
       if (mounted) setState(() => _exporting = false);
@@ -136,35 +226,69 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // All-time totals: used ONLY for On Hand formula (Invested − ever lent + ever returned)
+    if (_loading) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        appBar: AppBar(
+          title: const Text('Financial Reports'),
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(color: AppColors.accent),
+        ),
+      );
+    }
+
+    if (_hasError) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        appBar: AppBar(
+          title: const Text('Financial Reports'),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(LucideIcons.alertTriangle, color: AppColors.error, size: 48),
+                const SizedBox(height: 16),
+                Text(
+                  _errorMessage,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: () => _loadReports(force: true),
+                  icon: const Icon(LucideIcons.refreshCw, size: 16),
+                  label: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     final totalLoanedEver = (_summary?['totalLoaned'] ?? 0.0) as double;
     final totalCollectedEver = (_summary?['totalCollected'] ?? 0.0) as double;
 
-    // Active-loan totals: used for Collected / Pending display cards
     final activeCollected = (_summary?['activePending'] != null
         ? ((_summary?['totalDue'] ?? 0.0) as double) -
             ((_summary?['totalPending'] ?? 0.0) as double)
         : totalCollectedEver);
     final totalBorrowers = _summary?['totalBorrowers'] ?? 0;
 
-    // Compute from per-borrower active-loan reports (only active loans in _reports)
     final totalToRecover =
         _reports.fold<double>(0.0, (sum, r) => sum + r.totalDue);
     final totalPending = (_summary?['totalPending'] ?? 0.0) as double;
 
-    // On Hand = Invested − ever lent (principal only) + ever returned − expenses
-    // This stays correct even after all loans are cleared.
-    final onHand = _totalInvested - totalLoanedEver + totalCollectedEver - _totalExpenses;
+    final onHand = context.watch<LoanProvider>().onHand;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FF),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1E3A5F),
-        title: const Text('📊 Reports', style: TextStyle(color: Colors.white)),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
+        title: const Text('Financial Reports'),
         actions: [
           IconButton(
             tooltip: 'Download Excel',
@@ -173,355 +297,235 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent),
                   )
-                : const Icon(Icons.download_outlined, color: Colors.white),
+                : const Icon(LucideIcons.download),
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(14),
-              children: [
-                // ── Overall Summary header row ─────────────────────
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _sectionLabel('Overall Summary'),
-                    GestureDetector(
+          ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+          : RefreshIndicator(
+              onRefresh: _onRefresh,
+              color: AppColors.accent,
+              backgroundColor: Theme.of(context).colorScheme.surface,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 100),
+                children: [
+                  _buildHeaderSection(),
+                  const SizedBox(height: 24),
+                  
+                  _buildStatRow(
+                    _statCard('On Hand Cash', fmtINR(onHand), LucideIcons.home, 
+                      onHand >= 0 ? AppColors.success : AppColors.error, 
                       onTap: () async {
                         await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const InvestmentScreen()));
-                        if (mounted) await _loadReports();
-                      },
-                      child: Row(
-                        children: [
-                          Icon(Icons.savings_outlined,
-                              size: 15, color: Colors.orangeAccent.shade700),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Investments',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.orangeAccent.shade700,
-                            ),
-                          ),
-                          Icon(Icons.chevron_right,
-                              size: 16, color: Colors.orangeAccent.shade700),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-
-                // ── On Hand — full width ───────────────────────────
-                Row(children: [
-                  _statCard(
-                      'On Hand',
-                      fmtINR(onHand),
-                      Icons.account_balance,
-                      onHand >= 0 ? Colors.green : Colors.redAccent,
-                      () => _showOnHandOptions(context)),
-                ]),
-                const SizedBox(height: 10),
-
-                // ── 2×2 stat grid ──────────────────────────────────
-                Row(children: [
-                  _statCard('Borrowers', '$totalBorrowers', Icons.people,
-                      Colors.blueAccent, null),
-                  const SizedBox(width: 10),
-                  _statCard('To Recover', fmtINR(totalToRecover),
-                      Icons.receipt_long, Colors.deepOrangeAccent, null),
-                ]),
-                const SizedBox(height: 10),
-                Row(children: [
-                  _statCard('Collected', fmtINR(activeCollected),
-                      Icons.check_circle, Colors.greenAccent, null),
-                  const SizedBox(width: 10),
-                  _statCard('Pending', fmtINR(totalPending),
-                      Icons.pending_actions, Colors.redAccent, null),
-                ]),
-                const SizedBox(height: 14),
-
-                // ── Warning: over-deployed ────────────────────────
-                if (onHand < 0 && _totalInvested > 0)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 14),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.redAccent, width: 1.2),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.warning_amber_rounded,
-                            color: Colors.redAccent, size: 22),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Over-deployed! You have lent ${fmtINR(totalLoanedEver)} '
-                            'but only ${fmtINR(_totalInvested)} is invested. '
-                            'Add more investment or recover pending dues.',
-                            style: const TextStyle(
-                                color: Colors.redAccent,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500),
-                          ),
-                        ),
-                      ],
-                    ),
+                          context,
+                          MaterialPageRoute(builder: (_) => const OnHandCashScreen()),
+                        );
+                        if (mounted) _loadReports(force: true);
+                      }),
                   ),
+                  const SizedBox(height: 16),
+                  
+                  Row(
+                    children: [
+                      _statCard('Borrowers', '$totalBorrowers', LucideIcons.users, AppColors.info),
+                      const SizedBox(width: 16),
+                      _statCard('To Recover', fmtINR(totalToRecover), LucideIcons.coins, AppColors.warning),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  Row(
+                    children: [
+                      _statCard('Collected', fmtINR(activeCollected), LucideIcons.checkCircle, AppColors.success),
+                      const SizedBox(width: 16),
+                      _statCard('Pending', fmtINR(totalPending), LucideIcons.clock, AppColors.error),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
 
-                // ── Per Borrower Breakdown ─────────────────────
-                _sectionLabel('Per Borrower Breakdown'),
-                const SizedBox(height: 8),
-                ..._reports.map((r) => _buildBorrowerReportRow(r)),
-              ],
+                  if (onHand < 0 && _totalInvested > 0)
+                    _buildWarningCard(totalLoanedEver),
+
+
+
+                  _sectionLabel('Borrower Breakdown'),
+                  const SizedBox(height: 16),
+                  ..._reports.asMap().entries.map((entry) => 
+                    _buildBorrowerReportCard(entry.value)
+                      .animate()
+                      .fadeIn(duration: 400.ms, delay: (entry.key * 50).ms)
+                      .slideY(begin: 0.1, end: 0)
+                  ),
+                ],
+              ),
             ),
     );
   }
 
-  void _showOnHandOptions(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+  Widget _buildHeaderSection() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        _sectionLabel('Overall Summary'),
+        TextButton.icon(
+          onPressed: () async {
+            await Navigator.push(context, MaterialPageRoute(builder: (_) => const InvestmentScreen()));
+            if (mounted) await _loadReports(force: true);
+          },
+          icon: const Icon(LucideIcons.coins, size: 16),
+          label: const Text('Investments'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWarningCard(double totalLoanedEver) {
+    return PremiumCard(
+      color: AppColors.error.withOpacity( 0.1),
+      margin: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.all(16),
+      borderRadius: 16,
+      border: Border.all(color: AppColors.error.withOpacity( 0.3)),
+      child: Row(
+        children: [
+          const Icon(LucideIcons.alertTriangle, color: AppColors.error, size: 24),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              'Over-deployed! You have lent ${fmtINR(totalLoanedEver)} but only ${fmtINR(_totalInvested)} is invested.',
+              style: const TextStyle(color: AppColors.error, fontSize: 13, fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
       ),
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(16),
+    );
+  }
+
+
+  Widget _sectionLabel(String label) {
+    return Text(label, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Theme.of(context).colorScheme.onSurface));
+  }
+
+  Widget _statCard(String label, String value, IconData icon, Color color, {VoidCallback? onTap}) {
+    return Expanded(
+      child: PremiumCard(
+        padding: EdgeInsets.zero,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(24),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: color.withOpacity( 0.1), borderRadius: BorderRadius.circular(12)),
+                  child: Icon(icon, color: color, size: 20),
+                ),
+                const SizedBox(height: 16),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Theme.of(context).colorScheme.onSurface)),
+                ),
+                Text(label, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatRow(Widget card) {
+    return Row(children: [card]);
+  }
+
+  Widget _buildBorrowerReportCard(BorrowerReport r) {
+    final b = r.borrower;
+    final progress = r.totalDue > 0 ? (r.totalPaid / r.totalDue).clamp(0.0, 1.0) : 0.0;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: PremiumCard(
+        padding: const EdgeInsets.all(20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(color: AppColors.accent.withOpacity( 0.1), borderRadius: BorderRadius.circular(8)),
+                  child: Text(b.borrowerCode, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.accent)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: Text(b.name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Theme.of(context).colorScheme.onSurface))),
+                Text(fmtINR(r.balance), style: TextStyle(color: r.balance > 0 ? AppColors.error : AppColors.success, fontWeight: FontWeight.bold)),
+              ],
             ),
             const SizedBox(height: 20),
-            const Text(
-              'Cash Management',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _miniStatItem('Principal', fmtINR(r.totalLoanAmount)),
+                _miniStatItem('Interest', fmtINR(r.totalInterest)),
+                _miniStatItem('Collected', fmtINR(r.totalPaid)),
+              ],
             ),
             const SizedBox(height: 20),
-            ListTile(
-              leading: const Icon(Icons.add_circle_outline,
-                  color: Color(0xFF0F2545)),
-              title: const Text('Add Expense'),
-              subtitle: const Text('Record an expense from your on-hand cash'),
-              onTap: () async {
-                Navigator.pop(ctx);
-                await showDialog(
-                  context: context,
-                  builder: (_) => const AddExpenseDialog(),
-                );
-                // Refresh reports after expense is added
-                if (mounted) await _loadReports();
-              },
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.history, color: Color(0xFF0F2545)),
-              title: const Text('View Expense History'),
-              subtitle: const Text('See all recorded expenses'),
-              onTap: () {
-                Navigator.pop(ctx);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const ExpenseHistoryScreen(),
+            Stack(
+              children: [
+                Container(height: 6, decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(3))),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 1000),
+                  height: 6,
+                  width: (MediaQuery.of(context).size.width - 80) * progress,
+                  decoration: BoxDecoration(
+                    gradient: AppColors.primaryGradient,
+                    borderRadius: BorderRadius.circular(3),
                   ),
-                );
-              },
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Progress', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6), fontSize: 11)),
+                Text('${(progress * 100).toStringAsFixed(0)}%', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 11, fontWeight: FontWeight.bold)),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _sectionLabel(String label) {
-    return Text(label,
-        style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
-            color: Color(0xFF1E3A5F)));
-  }
-
-  Widget _statCard(String label, String value, IconData icon, Color color,
-      VoidCallback? onTap) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2))
-            ],
-            border: onTap != null
-                ? Border.all(color: color.withValues(alpha: 0.3), width: 1.2)
-                : null,
-          ),
-          child: Row(
-            children: [
-              CircleAvatar(
-                backgroundColor: color.withValues(alpha: 0.15),
-                child: Icon(icon, color: color, size: 20),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(value,
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                              color: color)),
-                    ),
-                    Text(label,
-                        style:
-                            const TextStyle(fontSize: 11, color: Colors.grey)),
-                  ],
-                ),
-              ),
-              if (onTap != null)
-                Icon(Icons.chevron_right,
-                    color: color.withValues(alpha: 0.6), size: 18),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBorrowerReportRow(_BorrowerReport r) {
-    final b = r.borrower;
-    final progress =
-        r.totalDue > 0 ? (r.totalPaid / r.totalDue).clamp(0.0, 1.0) : 0.0;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 4,
-              offset: const Offset(0, 2))
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E3A5F).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(b.borrowerCode,
-                  style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E3A5F))),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(b.name,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis),
-            ),
-            const SizedBox(width: 8),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(fmtINR(r.balance),
-                  style: TextStyle(
-                      color: r.balance > 0 ? Colors.red : Colors.green,
-                      fontWeight: FontWeight.bold)),
-            ),
-          ]),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _miniStat('Principal', fmtINR(r.totalLoanAmount)),
-              _miniStat('Interest', fmtINR(r.totalInterest)),
-              _miniStat('To Recover', fmtINR(r.totalDue)),
-              _miniStat('Collected', fmtINR(r.totalPaid)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 5,
-              backgroundColor: Colors.grey[200],
-              valueColor: AlwaysStoppedAnimation<Color>(
-                  progress >= 1.0 ? Colors.green : Colors.blue),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _miniStat(String label, String value) {
-    return Expanded(
-      child: Column(
-        children: [
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(value,
-                style:
-                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-          ),
-          Text(label,
-              style: const TextStyle(fontSize: 10, color: Colors.grey)),
-        ],
-      ),
+  Widget _miniStatItem(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6))),
+        const SizedBox(height: 2),
+        Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Theme.of(context).colorScheme.onSurface)),
+      ],
     );
   }
 }
 
-class _BorrowerReport {
+class BorrowerReport {
   final Borrower borrower;
   final double totalLoanAmount;
   final double totalInterest;
   final double totalDue;
   final double totalPaid;
 
-  _BorrowerReport({
+  BorrowerReport({
     required this.borrower,
     required this.totalLoanAmount,
     required this.totalInterest,
@@ -531,3 +535,4 @@ class _BorrowerReport {
 
   double get balance => totalDue - totalPaid;
 }
+

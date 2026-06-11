@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
-import '../database/db_helper.dart';
+import 'package:provider/provider.dart';
+import '../providers/loan_provider.dart';
 import '../utils/fmt.dart';
+import '../utils/date_parser.dart';
 
 class InvestmentScreen extends StatefulWidget {
   const InvestmentScreen({super.key});
@@ -11,30 +14,6 @@ class InvestmentScreen extends StatefulWidget {
 }
 
 class _InvestmentScreenState extends State<InvestmentScreen> {
-  final DBHelper _db = DBHelper();
-  List<Map<String, dynamic>> _investments = [];
-  double _totalInvested = 0;
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
-  }
-
-  Future<void> _loadData() async {
-    setState(() => _loading = true);
-    final list = await _db.getAllInvestments();
-    final total = await _db.getTotalInvested();
-    if (mounted) {
-      setState(() {
-        _investments = list;
-        _totalInvested = total;
-        _loading = false;
-      });
-    }
-  }
-
   void _showAddDialog() {
     final amountCtrl = TextEditingController();
     final notesCtrl = TextEditingController();
@@ -45,6 +24,7 @@ class _InvestmentScreenState extends State<InvestmentScreen> {
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      backgroundColor: Theme.of(context).colorScheme.surface,
       builder: (ctx) {
         return StatefulBuilder(builder: (ctx, setModal) {
           return Padding(
@@ -112,8 +92,8 @@ class _InvestmentScreenState extends State<InvestmentScreen> {
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1E3A5F),
-                      foregroundColor: Colors.white,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
@@ -125,15 +105,15 @@ class _InvestmentScreenState extends State<InvestmentScreen> {
                       final amount =
                           double.tryParse(amountCtrl.text.trim()) ?? 0;
                       if (amount <= 0) return;
-                      await _db.insertInvestment({
-                        'amount': amount,
-                        'inv_date': selectedDate.toIso8601String(),
-                        'notes': notesCtrl.text.trim().isEmpty
-                            ? null
-                            : notesCtrl.text.trim(),
-                      });
+                      
+                      // Use provider to insert and trigger backup pending
+                      await Provider.of<LoanProvider>(context, listen: false).addInvestment(
+                        amount,
+                        selectedDate,
+                        notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim(),
+                      );
+                      
                       if (ctx.mounted) Navigator.pop(ctx);
-                      _loadData();
                     },
                   ),
                 ),
@@ -146,6 +126,7 @@ class _InvestmentScreenState extends State<InvestmentScreen> {
   }
 
   Future<void> _deleteInvestment(int id) async {
+    final provider = Provider.of<LoanProvider>(context, listen: false);
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -163,134 +144,151 @@ class _InvestmentScreenState extends State<InvestmentScreen> {
       ),
     );
     if (confirm == true) {
-      await _db.deleteInvestment(id);
-      _loadData();
+      await provider.deleteInvestment(id);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FF),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1E3A5F),
-        title: const Text('Investments',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
+        title: const Text('Investments'),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                // ── Total Banner ────────────────────────────────
-                Container(
-                  width: double.infinity,
-                  color: const Color(0xFF1E3A5F),
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Total Invested',
-                          style:
-                              TextStyle(color: Colors.white60, fontSize: 13)),
-                      const SizedBox(height: 4),
-                      Text(
-                        fmtINR(_totalInvested),
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        '${_investments.length} transaction${_investments.length == 1 ? '' : 's'}',
-                        style: const TextStyle(
-                            color: Colors.white54, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
+      body: Consumer<LoanProvider>(
+        builder: (context, provider, _) {
+          final investments = provider.investments;
+          final totalInvested = provider.totalInvested;
 
-                // ── History List ────────────────────────────────
-                Expanded(
-                  child: _investments.isEmpty
-                      ? const Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.savings_outlined,
-                                  size: 64, color: Colors.grey),
-                              SizedBox(height: 12),
-                              Text('No investments yet.\nTap + to add one.',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(color: Colors.grey)),
-                            ],
-                          ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(14),
-                          itemCount: _investments.length,
-                          itemBuilder: (ctx, i) {
-                            final inv = _investments[i];
-                            final date = DateTime.parse(inv['inv_date']);
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 10),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
-                              elevation: 2,
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor:
-                                      const Color(0xFF1E3A5F).withValues(alpha: 0.12),
-                                  child: const Icon(Icons.arrow_upward,
-                                      color: Color(0xFF1E3A5F)),
-                                ),
-                                title: FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    fmtINR((inv['amount'] as num).toDouble()),
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 17,
-                                        color: Color(0xFF1E3A5F)),
-                                  ),
-                                ),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(DateFormat('dd MMM yyyy').format(date),
-                                        style: const TextStyle(fontSize: 12)),
-                                    if (inv['notes'] != null &&
-                                        (inv['notes'] as String).isNotEmpty)
-                                      Text(inv['notes'],
-                                          style: const TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey)),
-                                  ],
-                                ),
-                                trailing: IconButton(
-                                  icon: const Icon(Icons.delete_outline,
-                                      color: Colors.redAccent),
-                                  onPressed: () =>
-                                      _deleteInvestment(inv['id'] as int),
+          return Column(
+            children: [
+              // ── Total Banner ────────────────────────────────
+              Container(
+                width: double.infinity,
+                color: Theme.of(context).colorScheme.primary,
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Total Invested',
+                        style: TextStyle(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onPrimary
+                                .withOpacity(0.7),
+                            fontSize: 13)),
+                    const SizedBox(height: 4),
+                    Text(
+                      fmtINR(totalInvested),
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.onPrimary,
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      '${investments.length} transaction${investments.length == 1 ? '' : 's'}',
+                      style: TextStyle(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onPrimary
+                              .withOpacity(0.7),
+                          fontSize: 12),
+                    ),
+                  ],
+                ),
+              ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.2, end: 0, curve: Curves.easeOutCubic),
+
+              // ── History List ────────────────────────────────
+              Expanded(
+                child: investments.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.savings_outlined,
+                                size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                            const SizedBox(height: 12),
+                            Text('No investments yet.\nTap + to add one.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(14),
+                        itemCount: investments.length,
+                        itemBuilder: (ctx, i) {
+                          final inv = investments[i];
+                          final date = DateParser.safeParse(inv['inv_date']);
+                          return Card(
+                            color: Theme.of(context).colorScheme.surface,
+                            margin: const EdgeInsets.only(bottom: 10),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            elevation: 2,
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor:
+                                    Theme.of(context).colorScheme.primary.withOpacity(0.12),
+                                child: Icon(Icons.arrow_upward,
+                                    color: Theme.of(context).colorScheme.primary),
+                              ),
+                              title: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  fmtINR((inv['amount'] as num?)?.toDouble() ?? 0.0),
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 17,
+                                      color: Theme.of(context).colorScheme.onSurface),
                                 ),
                               ),
-                            );
-                          },
-                        ),
-                ),
-              ],
-            ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(DateFormat('dd MMM yyyy').format(date),
+                                      style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                                  if (inv['notes'] != null &&
+                                      (inv['notes'] as String).isNotEmpty)
+                                    Text(inv['notes'],
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                                ],
+                              ),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.delete_outline,
+                                    color: Colors.redAccent),
+                                onPressed: () =>
+                                    _deleteInvestment(inv['id'] as int),
+                              ),
+                            ),
+                          )
+                              .animate()
+                              .fadeIn(
+                                  duration: 350.ms,
+                                  delay: Duration(milliseconds: i * 40))
+                              .slideY(
+                                  begin: 0.15,
+                                  end: 0,
+                                  duration: 350.ms,
+                                  delay: Duration(milliseconds: i * 40),
+                                  curve: Curves.easeOutCubic);
+                        },
+                      ),
+              ),
+            ],
+          );
+        },
+      ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: const Color(0xFF1E3A5F),
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Add Investment',
-            style: TextStyle(color: Colors.white)),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        icon: Icon(Icons.add, color: Theme.of(context).colorScheme.onPrimary),
+        label: Text('Add Investment',
+            style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
         onPressed: _showAddDialog,
       ),
     );

@@ -3,9 +3,11 @@ import 'package:excel/excel.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+
 import '../models/borrower.dart';
 import '../models/loan.dart';
 import '../models/payment.dart';
+import '../utils/date_parser.dart';
 
 class ExcelExportService {
   static Future<void> _requestStoragePermission() async {
@@ -122,13 +124,14 @@ class ExcelExportService {
     // Remove default empty sheet
     excel.delete('Sheet1');
 
-    // ── Save File ────────────────────────────────────────────────
-    final dir = await _getSaveDirectory();
-    final fileName =
-        'Borrower_${borrower.borrowerCode}_${borrower.name.replaceAll(' ', '_')}_${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.xlsx';
-    final file = File('${dir.path}/$fileName');
     final bytes = excel.encode();
     if (bytes == null) throw Exception('Failed to encode Excel file.');
+    final fileName =
+        'Borrower_${borrower.borrowerCode}_${borrower.name.replaceAll(' ', '_')}_${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.xlsx';
+
+    // ── Save File ────────────────────────────────────────────────
+    final dir = await _getSaveDirectory();
+    final file = File('${dir.path}/$fileName');
     await file.writeAsBytes(bytes);
     return file.path;
   }
@@ -215,12 +218,13 @@ class ExcelExportService {
 
     excel.delete('Sheet1');
 
-    final dir = await _getSaveDirectory();
-    final fileName =
-        'Loan_${borrower.borrowerCode}_${DateFormat('yyyyMMdd').format(loan.loanDate)}_${DateFormat('HHmm').format(DateTime.now())}.xlsx';
-    final file = File('${dir.path}/$fileName');
     final bytes = excel.encode();
     if (bytes == null) throw Exception('Failed to encode Excel file.');
+    final fileName =
+        'Loan_${borrower.borrowerCode}_${DateFormat('yyyyMMdd').format(loan.loanDate)}_${DateFormat('HHmm').format(DateTime.now())}.xlsx';
+
+    final dir = await _getSaveDirectory();
+    final file = File('${dir.path}/$fileName');
     await file.writeAsBytes(bytes);
     return file.path;
   }
@@ -232,6 +236,8 @@ class ExcelExportService {
     required Map<int, List<Payment>> paymentsPerLoan,
     required Map<String, dynamic> summary,
     required double totalInvested,
+    required List<Map<String, dynamic>> expenses,
+    required List<Map<String, dynamic>> serviceCosts,
   }) async {
     await _requestStoragePermission();
 
@@ -244,7 +250,9 @@ class ExcelExportService {
     final totalDue = (summary['totalDue'] as num?)?.toDouble() ?? 0.0;
     final totalPending = (summary['totalPending'] as num?)?.toDouble() ?? 0.0;
     final activeCollected = totalDue - totalPending;
-    final onHand = totalInvested - totalLoanedEver + totalCollectedEver;
+    final totalExpenses = expenses.fold<double>(0.0, (s, e) => s + ((e['amount'] as num?)?.toDouble() ?? 0.0));
+    final totalServiceCosts = serviceCosts.fold<double>(0.0, (s, sc) => s + ((sc['amount'] as num?)?.toDouble() ?? 0.0));
+    final onHand = totalInvested - totalLoanedEver + totalCollectedEver - totalExpenses + totalServiceCosts;
 
     final summarySheet = excel['Overall Summary'];
     excel.setDefaultSheet('Overall Summary');
@@ -257,6 +265,7 @@ class ExcelExportService {
         ['Total Loaned Ever', totalLoanedEver.toStringAsFixed(2)]);
     _addRow(summarySheet,
         ['Total Collected Ever', totalCollectedEver.toStringAsFixed(2)]);
+    _addRow(summarySheet, ['Total Service Costs', totalServiceCosts.toStringAsFixed(2)]);
     _addRow(summarySheet, ['On Hand', onHand.toStringAsFixed(2)]);
     summarySheet.appendRow([TextCellValue('')]);
     _addHeaderRow(summarySheet, ['Active Loans', 'Amount']);
@@ -275,6 +284,8 @@ class ExcelExportService {
       'To Recover',
       'Collected',
       'Pending',
+      'Loan Age (Days)',
+      'Overdue Status',
     ]);
 
     for (final borrower in borrowers) {
@@ -305,6 +316,8 @@ class ExcelExportService {
         due.toStringAsFixed(2),
         paid.toStringAsFixed(2),
         (due - paid).toStringAsFixed(2),
+        borrower.loanAgeDays.toString(),
+        borrower.overdueStatus,
       ]);
     }
 
@@ -371,15 +384,63 @@ class ExcelExportService {
       }
     }
 
+    final expenseSheet = excel['Expense History'];
+    _addHeaderRow(expenseSheet, [
+      'Date',
+      'Amount (₹)',
+      'Category',
+      'Notes',
+    ]);
+
+    final sortedExpenses = List<Map<String, dynamic>>.from(expenses)
+      ..sort((a, b) => (a['expense_date'] as String).compareTo(b['expense_date'] as String));
+
+    for (final expense in sortedExpenses) {
+      final dateStr = expense['expense_date']?.toString() ?? '';
+      final d = DateParser.safeParse(dateStr);
+      
+      _addRow(expenseSheet, [
+        DateFormat('dd/MM/yyyy HH:mm').format(d),
+        (expense['amount'] as num).toDouble().toStringAsFixed(2),
+        expense['category']?.toString() ?? '-',
+        expense['notes']?.toString() ?? '-',
+      ]);
+    }
+
+    final serviceCostsSheet = excel['SERVICE_COSTS'];
+    _addHeaderRow(serviceCostsSheet, [
+      'Date',
+      'Amount (₹)',
+      'Description',
+      'Created By',
+    ]);
+
+    final sortedServiceCosts = List<Map<String, dynamic>>.from(serviceCosts)
+      ..sort((a, b) => (a['dateCreated'] as String).compareTo(b['dateCreated'] as String));
+
+    for (final sc in sortedServiceCosts) {
+      final dateStr = sc['dateCreated']?.toString() ?? '';
+      final d = DateParser.safeParse(dateStr);
+      
+      _addRow(serviceCostsSheet, [
+        DateFormat('dd/MM/yyyy HH:mm').format(d),
+        (sc['amount'] as num).toDouble().toStringAsFixed(2),
+        sc['description']?.toString() ?? '-',
+        sc['createdBy']?.toString() ?? '-',
+      ]);
+    }
+
     excel.delete('Sheet1');
 
-    final dir = await _getSaveDirectory();
-    final fileName =
-        'Credits_Overall_Report_${DateFormat('yyyyMMdd_HHmm').format(now)}.xlsx';
-    final file = File('${dir.path}/$fileName');
     final bytes = excel.encode();
     if (bytes == null) throw Exception('Failed to encode Excel file.');
+    final fileName =
+        'Credits_Overall_Report_${DateFormat('yyyyMMdd_HHmm').format(now)}.xlsx';
+
+    final dir = await _getSaveDirectory();
+    final file = File('${dir.path}/$fileName');
     await file.writeAsBytes(bytes);
     return file.path;
   }
 }
+

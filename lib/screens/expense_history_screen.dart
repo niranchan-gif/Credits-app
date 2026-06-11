@@ -15,21 +15,9 @@ class _ExpenseHistoryScreenState extends State<ExpenseHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F4F8),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        elevation: 0,
-        backgroundColor: const Color(0xFF0F2545),
-        title: const Text(
-          'Expense History',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
+        title: const Text('Expense History'),
       ),
       body: Consumer<LoanProvider>(
         builder: (context, provider, _) {
@@ -64,11 +52,11 @@ class _ExpenseHistoryScreenState extends State<ExpenseHistoryScreen> {
                 margin: const EdgeInsets.all(16),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.06),
+                      color: Colors.black.withOpacity( 0.06),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     )
@@ -77,11 +65,11 @@ class _ExpenseHistoryScreenState extends State<ExpenseHistoryScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'Total Expenses',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.grey,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                     FittedBox(
@@ -121,11 +109,11 @@ class _ExpenseHistoryScreenState extends State<ExpenseHistoryScreen> {
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.surface,
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.04),
+                            color: Colors.black.withOpacity( 0.04),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           )
@@ -140,7 +128,7 @@ class _ExpenseHistoryScreenState extends State<ExpenseHistoryScreen> {
                             decoration: BoxDecoration(
                               color: (categoryColors[expense.category] ??
                                       const Color(0xFF666666))
-                                  .withValues(alpha: 0.1),
+                                  .withOpacity( 0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Icon(
@@ -176,9 +164,9 @@ class _ExpenseHistoryScreenState extends State<ExpenseHistoryScreen> {
                                     padding: const EdgeInsets.only(top: 4),
                                     child: Text(
                                       expense.notes!,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 11,
-                                        color: Colors.grey,
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.7),
                                         fontStyle: FontStyle.italic,
                                       ),
                                       maxLines: 1,
@@ -256,9 +244,10 @@ class _ExpenseHistoryScreenState extends State<ExpenseHistoryScreen> {
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
+              final messenger = ScaffoldMessenger.of(context);
               await context.read<LoanProvider>().deleteExpense(expenseId);
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
+                messenger.showSnackBar(
                   const SnackBar(content: Text('Expense deleted')),
                 );
               }
@@ -270,3 +259,4 @@ class _ExpenseHistoryScreenState extends State<ExpenseHistoryScreen> {
     );
   }
 }
+
