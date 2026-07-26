@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../services/backup_freshness_service.dart';
+import '../services/auto_backup_manager.dart';
 import 'app_lock_screen.dart';
 
 class AppLockWrapper extends StatefulWidget {

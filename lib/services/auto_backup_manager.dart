@@ -1,11 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:path/path.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sqflite/sqflite.dart';
 import 'google_drive_service.dart';
-import 'backup_service.dart';
 import 'notification_service.dart';
 import 'google_drive_excel_backup_service.dart';
 import '../database/db_helper.dart';
@@ -39,10 +36,54 @@ class AutoBackupManager {
 
   /// Helper function to check if active internet connection is available
   static Future<bool> isInternetAvailable() async {
-
     try {
-      final result = await InternetAddress.lookup('clients3.google.com').timeout(const Duration(seconds: 4));
-      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+      final completer = Completer<bool>();
+      int pending = 0;
+
+      void launchCheck(Future<bool> future) {
+        pending++;
+        future.then((success) {
+          if (success && !completer.isCompleted) {
+            completer.complete(true);
+          } else {
+            pending--;
+            if (pending == 0 && !completer.isCompleted) {
+              completer.complete(false);
+            }
+          }
+        }).catchError((_) {
+          pending--;
+          if (pending == 0 && !completer.isCompleted) {
+            completer.complete(false);
+          }
+        });
+      }
+
+      // 1. Direct socket connections (fastest, bypasses DNS problems and ad-blockers)
+      for (final ip in ['8.8.8.8', '1.1.1.1', '208.67.222.222']) {
+        launchCheck(Future(() async {
+          final socket = await Socket.connect(ip, 53, timeout: const Duration(milliseconds: 2000));
+          socket.destroy();
+          return true;
+        }));
+      }
+
+      // 2. Domain lookups (fallback in case port 53 is restricted by firewall)
+      for (final domain in ['google.com', 'cloudflare.com', 'apple.com', 'clients3.google.com']) {
+        launchCheck(Future(() async {
+          final result = await InternetAddress.lookup(domain).timeout(const Duration(milliseconds: 2000));
+          return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+        }));
+      }
+
+      // Safety timeout: never block longer than 2.5 seconds total
+      Future.delayed(const Duration(milliseconds: 2500), () {
+        if (!completer.isCompleted) {
+          completer.complete(false);
+        }
+      });
+
+      return await completer.future;
     } catch (_) {
       return false;
     }
@@ -191,25 +232,9 @@ class AutoBackupManager {
 
     try {
       onProgress?.call(0.05);
-      // 1. Run WAL checkpoint to ensure database file bytes are up-to-date
-      final db = await DBHelper().database;
-      try {
-        await db.rawQuery('PRAGMA wal_checkpoint(FULL)');
-      } catch (e) {
-        debugPrint('AutoBackupManager: WAL checkpoint failed: $e');
-      }
+      final currentChecksum = await GoogleDriveExcelBackupService.calculateSQLiteChecksum();
 
-      final dbPath = await getDatabasesPath();
-      final Uint8List dbBytes;
-      final dbFile = File(join(dbPath, 'loan_manager.db'));
-      if (!await dbFile.exists()) {
-        throw Exception('Database file does not exist.');
-      }
-      dbBytes = await dbFile.readAsBytes();
-
-      final currentChecksum = BackupService.calculateSHA256(dbBytes);
-
-      // 2. Perform Smart Upload Optimization: Check if database has changed
+      // Perform Smart Upload Optimization: Check if database has changed
       final lastChecksum = prefs.getString('last_backed_up_db_checksum');
       if (currentChecksum == lastChecksum && !forceManual) {
         debugPrint('AutoBackupManager: Database is UNCHANGED (checksum matches). Skipping upload to save resources.');
@@ -219,46 +244,11 @@ class AutoBackupManager {
         return;
       }
 
-      String? email = _driveService.currentUser?.email ?? prefs.getString('google_drive_account_email');
-
-      // 3. Create encrypted backup package
-      final encryptedBytes = await BackupService.createEncryptedBackup(email: email);
-
-      // Read metadata for upload
-      final borrowerCount = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM borrowers WHERE COALESCE(is_deleted, 0) = 0')) ?? 0;
-      final loanCount = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM loans WHERE COALESCE(is_deleted, 0) = 0')) ?? 0;
-      final paymentCount = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM payments WHERE COALESCE(is_deleted, 0) = 0')) ?? 0;
-      final expenseCount = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM expenses WHERE COALESCE(is_deleted, 0) = 0')) ?? 0;
-      final investmentCount = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM investments WHERE COALESCE(is_deleted, 0) = 0')) ?? 0;
-      final serviceCostCount = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM service_costs WHERE COALESCE(is_deleted, 0) = 0')) ?? 0;
-
-      final metadata = {
-        'app_version': '1.0.0',
-        'schema_version': 12,
-        'backup_timestamp': DateTime.now().toUtc().toIso8601String(),
-        'borrower_count': borrowerCount,
-        'loan_count': loanCount,
-        'payment_count': paymentCount,
-        'expense_count': expenseCount,
-        'investment_count': investmentCount,
-        'service_cost_count': serviceCostCount,
-        'device_info': '${Platform.operatingSystem} - ${Platform.localHostname}',
-        'android_version': Platform.operatingSystemVersion,
-        'database_checksum': currentChecksum,
-      };
-
-      // 4. Upload ZIP backup to Google Drive
-      await _driveService.uploadBackup(
-        encryptedBytes,
-        metadata,
-        onProgress: (p) => onProgress?.call(0.1 + p * 0.5),
-      );
-
-      // 4b. Perform the persistent Excel backup on Google Drive
+      // Perform daily Google Drive Excel snapshot backup
       debugPrint('AutoBackupManager: Triggering Google Drive Excel snapshot backup...');
       await GoogleDriveExcelBackupService().performBackup(
         force: true,
-        onProgress: (p) => onProgress?.call(0.6 + p * 0.4),
+        onProgress: onProgress,
       );
 
       // 5. Success cleanup

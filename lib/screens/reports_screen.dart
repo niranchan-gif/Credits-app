@@ -17,6 +17,8 @@ import '../utils/app_colors.dart';
 import '../widgets/premium_card.dart';
 import 'investment_screen.dart';
 import 'on_hand_cash_screen.dart';
+import 'completed_loans_screen.dart';
+import 'date_range_report_screen.dart';
 
 class ReportSummary {
   final Map<String, dynamic> globalSummary;
@@ -345,6 +347,29 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       _statCard('Pending', fmtINR(totalPending), LucideIcons.clock, AppColors.error),
                     ],
                   ),
+                  const SizedBox(height: 16),
+                  
+                  Row(
+                    children: [
+                      _statCard('Completed', fmtINR(totalCollectedEver), LucideIcons.checkSquare, AppColors.success, 
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const CompletedLoansScreen()),
+                          );
+                          if (mounted) _loadReports(force: true);
+                        }),
+                      const SizedBox(width: 16),
+                      _statCard('Date Range', 'Select Period', LucideIcons.calendarRange, AppColors.secondary, 
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const DateRangeReportScreen()),
+                          );
+                          if (mounted) _loadReports(force: true);
+                        }),
+                    ],
+                  ),
                   const SizedBox(height: 24),
 
                   if (onHand < 0 && _totalInvested > 0)
@@ -357,8 +382,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   ..._reports.asMap().entries.map((entry) => 
                     _buildBorrowerReportCard(entry.value)
                       .animate()
-                      .fadeIn(duration: 400.ms, delay: (entry.key * 50).ms)
-                      .slideY(begin: 0.1, end: 0)
+                      .fadeIn(duration: 400.ms)
+                      .slideX(begin: 0.1, end: 0)
                   ),
                 ],
               ),
@@ -461,7 +486,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(color: AppColors.accent.withOpacity( 0.1), borderRadius: BorderRadius.circular(8)),
-                  child: Text(b.borrowerCode, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.accent)),
+                  child: Text(b.displayBorrowerCode, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.accent)),
                 ),
                 const SizedBox(width: 12),
                 Expanded(child: Text(b.name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Theme.of(context).colorScheme.onSurface))),

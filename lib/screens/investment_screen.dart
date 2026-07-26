@@ -268,15 +268,8 @@ class _InvestmentScreenState extends State<InvestmentScreen> {
                             ),
                           )
                               .animate()
-                              .fadeIn(
-                                  duration: 350.ms,
-                                  delay: Duration(milliseconds: i * 40))
-                              .slideY(
-                                  begin: 0.15,
-                                  end: 0,
-                                  duration: 350.ms,
-                                  delay: Duration(milliseconds: i * 40),
-                                  curve: Curves.easeOutCubic);
+                              .fadeIn(duration: 400.ms)
+                              .slideX(begin: 0.1, end: 0);
                         },
                       ),
               ),

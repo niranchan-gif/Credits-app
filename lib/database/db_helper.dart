@@ -3,6 +3,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 import '../models/borrower.dart';
 import '../models/loan.dart';
 import '../models/payment.dart';
@@ -14,6 +15,8 @@ class DBHelper {
   factory DBHelper() => _instance;
   DBHelper._internal();
 
+  static const _databaseName = "loan_manager.db";
+  static const _databaseVersion = 15;
   static Database? _database;
   static bool isRestoring = false;
 
@@ -57,7 +60,7 @@ class DBHelper {
     debugPrint('Database: Opening at $path');
     return await openDatabase(
       path,
-      version: 12,
+      version: _databaseVersion,
       onCreate: _createTables,
       onUpgrade: _upgradeTables,
       onOpen: (db) async {
@@ -92,28 +95,28 @@ class DBHelper {
   Future<void> _validateDatabaseSchema(Database db) async {
     final expectedSchema = {
       'borrowers': [
-        'id', 'borrower_code', 'name', 'phone', 'address', 'notes',
-        'updated_at', 'created_at', 'last_modified_device', 'is_deleted'
+        'id', 'sync_id', 'borrower_code', 'name', 'phone', 'address', 'notes',
+        'updated_at', 'created_at', 'last_modified_device', 'is_deleted', 'is_dummy', 'is_closed'
       ],
       'loans': [
-        'id', 'borrower_id', 'loan_amount', 'interest_amount', 'loan_date',
+        'id', 'sync_id', 'borrower_id', 'borrower_sync_id', 'loan_amount', 'interest_amount', 'loan_date',
         'installment_days', 'end_date', 'status', 'notes',
         'updated_at', 'created_at', 'last_modified_device', 'is_deleted'
       ],
       'payments': [
-        'id', 'loan_id', 'amount', 'payment_date', 'notes',
+        'id', 'sync_id', 'loan_id', 'loan_sync_id', 'amount', 'payment_date', 'notes',
         'updated_at', 'created_at', 'last_modified_device', 'is_deleted'
       ],
       'investments': [
-        'id', 'amount', 'inv_date', 'notes',
+        'id', 'sync_id', 'amount', 'inv_date', 'notes',
         'updated_at', 'created_at', 'last_modified_device', 'is_deleted'
       ],
       'expenses': [
-        'id', 'amount', 'expense_date', 'category', 'notes',
+        'id', 'sync_id', 'amount', 'expense_date', 'category', 'notes',
         'updated_at', 'created_at', 'last_modified_device', 'is_deleted'
       ],
       'service_costs': [
-        'id', 'amount', 'description', 'dateCreated', 'createdBy', 'timestamp', 'is_deleted'
+        'id', 'sync_id', 'amount', 'description', 'dateCreated', 'createdBy', 'timestamp', 'is_deleted'
       ],
     };
 
@@ -161,7 +164,7 @@ class DBHelper {
   }
 
   Future<void> _normalizeDatabaseData(Database db) async {
-    debugPrint('DBHelper: Running database data normalization...');
+    debugPrint('DBHelper: Running database data normalization (batched)...');
     final nowMs = DateTime.now().millisecondsSinceEpoch;
 
     // 1. Borrowers table
@@ -172,6 +175,8 @@ class DBHelper {
         updated_at = CASE WHEN updated_at IS NULL OR updated_at = 0 THEN $nowMs ELSE updated_at END,
         is_deleted = CASE WHEN is_deleted IS NULL THEN 0 ELSE is_deleted END
     ''');
+
+    final batch = db.batch();
 
     // 2. Loans table
     final loans = await db.query('loans');
@@ -189,7 +194,7 @@ class DBHelper {
         newEndDate = DateParser.safeParse(rawEndDate).toIso8601String().replaceAll('T', ' ');
       }
 
-      await db.update(
+      batch.update(
         'loans',
         {
           if (newLoanDate != null) 'loan_date': newLoanDate,
@@ -216,7 +221,7 @@ class DBHelper {
         newPaymentDate = DateParser.safeParse(rawPaymentDate).toIso8601String().replaceAll('T', ' ');
       }
 
-      await db.update(
+      batch.update(
         'payments',
         {
           if (newPaymentDate != null) 'payment_date': newPaymentDate,
@@ -241,7 +246,7 @@ class DBHelper {
         newExpenseDate = DateParser.safeParse(rawExpenseDate).toIso8601String().replaceAll('T', ' ');
       }
 
-      await db.update(
+      batch.update(
         'expenses',
         {
           if (newExpenseDate != null) 'expense_date': newExpenseDate,
@@ -266,7 +271,7 @@ class DBHelper {
         newInvDate = DateParser.safeParse(rawInvDate).toIso8601String().replaceAll('T', ' ');
       }
 
-      await db.update(
+      batch.update(
         'investments',
         {
           if (newInvDate != null) 'inv_date': newInvDate,
@@ -280,6 +285,7 @@ class DBHelper {
       );
     }
 
+    await batch.commit(noResult: true);
     debugPrint('DBHelper: Database data normalization complete!');
   }
 
@@ -288,7 +294,8 @@ class DBHelper {
     await db.execute('''
       CREATE TABLE borrowers (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        borrower_code TEXT NOT NULL UNIQUE,
+        sync_id TEXT NOT NULL,
+        borrower_code TEXT NOT NULL,
         name TEXT NOT NULL,
         phone TEXT NOT NULL,
         address TEXT,
@@ -296,14 +303,18 @@ class DBHelper {
         updated_at INTEGER NOT NULL DEFAULT 0,
         created_at INTEGER NOT NULL DEFAULT 0,
         last_modified_device TEXT,
-        is_deleted INTEGER NOT NULL DEFAULT 0
+        is_deleted INTEGER NOT NULL DEFAULT 0,
+        is_dummy INTEGER NOT NULL DEFAULT 0,
+        is_closed INTEGER NOT NULL DEFAULT 0
       )
     ''');
 
     await db.execute('''
       CREATE TABLE loans (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sync_id TEXT NOT NULL,
         borrower_id INTEGER NOT NULL,
+        borrower_sync_id TEXT,
         loan_amount REAL NOT NULL,
         interest_amount REAL NOT NULL,
         loan_date TEXT NOT NULL,
@@ -322,7 +333,9 @@ class DBHelper {
     await db.execute('''
       CREATE TABLE payments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sync_id TEXT NOT NULL,
         loan_id INTEGER NOT NULL,
+        loan_sync_id TEXT,
         amount REAL NOT NULL,
         payment_date TEXT NOT NULL,
         notes TEXT,
@@ -337,6 +350,7 @@ class DBHelper {
     await db.execute('''
       CREATE TABLE investments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sync_id TEXT NOT NULL,
         amount REAL NOT NULL,
         inv_date TEXT NOT NULL,
         notes TEXT,
@@ -350,6 +364,7 @@ class DBHelper {
     await db.execute('''
       CREATE TABLE expenses (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sync_id TEXT NOT NULL,
         amount REAL NOT NULL,
         expense_date TEXT NOT NULL,
         category TEXT NOT NULL,
@@ -364,6 +379,7 @@ class DBHelper {
     await db.execute('''
       CREATE TABLE service_costs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sync_id TEXT NOT NULL,
         amount REAL NOT NULL,
         description TEXT,
         dateCreated TEXT NOT NULL,
@@ -381,6 +397,14 @@ class DBHelper {
     ''');
 
     // Create Indexes
+    await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_borrowers_active_code ON borrowers(borrower_code) WHERE is_dummy = 0');
+    await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_borrowers_sync_id ON borrowers(sync_id)');
+    await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_loans_sync_id ON loans(sync_id)');
+    await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_payments_sync_id ON payments(sync_id)');
+    await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_investments_sync_id ON investments(sync_id)');
+    await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_expenses_sync_id ON expenses(sync_id)');
+    await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_service_costs_sync_id ON service_costs(sync_id)');
+    
     await db.execute('CREATE INDEX IF NOT EXISTS idx_borrowers_code ON borrowers(borrower_code)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_borrowers_phone ON borrowers(phone)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_loans_borrower ON loans(borrower_id)');
@@ -489,6 +513,104 @@ class DBHelper {
       ''');
     }
 
+    // Migrate to version 13: add is_dummy and partial unique index
+    if (oldVersion < 13) {
+      debugPrint('DBHelper ▶ Migrating to version 13 (Dummy Borrower Support)');
+      final tblExists = Sqflite.firstIntValue(await db.rawQuery(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='borrowers'"
+      )) ?? 0;
+      if (tblExists > 0) {
+        await db.execute('ALTER TABLE borrowers RENAME TO borrowers_v12_old');
+        await db.execute('''
+          CREATE TABLE borrowers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            borrower_code TEXT NOT NULL,
+            name TEXT NOT NULL,
+            phone TEXT NOT NULL,
+            address TEXT,
+            notes TEXT,
+            updated_at INTEGER NOT NULL DEFAULT 0,
+            created_at INTEGER NOT NULL DEFAULT 0,
+            last_modified_device TEXT,
+            is_deleted INTEGER NOT NULL DEFAULT 0,
+            is_dummy INTEGER NOT NULL DEFAULT 0
+          )
+        ''');
+        
+        final oldColumns = await db.rawQuery('PRAGMA table_info(borrowers_v12_old)');
+        final oldColNames = oldColumns.map((row) => row['name'] as String).toSet();
+        
+        final expectedCols = [
+          'id', 'borrower_code', 'name', 'phone', 'address', 'notes',
+          'updated_at', 'created_at', 'last_modified_device', 'is_deleted'
+        ];
+        
+        final intersectCols = expectedCols.where((c) => oldColNames.contains(c)).toList();
+        final colsStr = intersectCols.join(', ');
+        
+        if (intersectCols.isNotEmpty) {
+          await db.execute(
+            'INSERT INTO borrowers ($colsStr) SELECT $colsStr FROM borrowers_v12_old'
+          );
+        }
+        await db.execute('DROP TABLE IF EXISTS borrowers_v12_old');
+        await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_borrowers_active_code ON borrowers(borrower_code) WHERE is_dummy = 0');
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_borrowers_code ON borrowers(borrower_code)');
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_borrowers_phone ON borrowers(phone)');
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_borrowers_created ON borrowers(created_at)');
+      }
+    }
+
+    // Migrate to version 14: Add sync_id and relational sync_ids
+    if (oldVersion < 14) {
+      debugPrint('DBHelper ▶ Migrating to version 14 (Adding sync_id UUID to all tables)');
+      final uuid = const Uuid();
+      final tables = ['borrowers', 'loans', 'payments', 'investments', 'expenses', 'service_costs'];
+      
+      for (final table in tables) {
+        final tblExists = Sqflite.firstIntValue(await db.rawQuery(
+          "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='$table'"
+        )) ?? 0;
+        
+        if (tblExists > 0) {
+          // Add primary sync_id
+          await db.execute('ALTER TABLE $table ADD COLUMN sync_id TEXT NOT NULL DEFAULT ""');
+          
+          // Generate UUID for each row
+          final rows = await db.query(table, columns: ['id']);
+          for (final row in rows) {
+            final id = row['id'];
+            final generatedId = uuid.v4();
+            await db.update(table, {'sync_id': generatedId}, where: 'id = ?', whereArgs: [id]);
+          }
+          
+          await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_${table}_sync_id ON $table(sync_id)');
+        }
+      }
+      
+      // Add relational columns
+      await db.execute('ALTER TABLE loans ADD COLUMN borrower_sync_id TEXT');
+      await db.execute('ALTER TABLE payments ADD COLUMN loan_sync_id TEXT');
+      
+      // Stage 2: Relationship Migration (Backfill foreign sync_ids)
+      debugPrint('DBHelper ▶ Backfilling relational UUIDs...');
+      await db.execute('''
+        UPDATE loans 
+        SET borrower_sync_id = (SELECT sync_id FROM borrowers WHERE id = loans.borrower_id)
+      ''');
+      
+      await db.execute('''
+        UPDATE payments 
+        SET loan_sync_id = (SELECT sync_id FROM loans WHERE id = payments.loan_id)
+      ''');
+    }
+
+    // Migrate to version 15: add is_closed to borrowers
+    if (oldVersion < 15) {
+      debugPrint('DBHelper ▶ Migrating to version 15 (Adding is_closed flag to borrowers)');
+      await db.execute('ALTER TABLE borrowers ADD COLUMN is_closed INTEGER NOT NULL DEFAULT 0');
+    }
+
     debugPrint('DBHelper ▶ Migration completed successfully.');
   }
 
@@ -499,7 +621,7 @@ class DBHelper {
   Future<String> generateBorrowerCode() async {
     final db = await database;
     final result = await db.rawQuery(
-        'SELECT borrower_code FROM borrowers WHERE COALESCE(is_deleted, 0) = 0 ORDER BY CAST(borrower_code AS INTEGER) DESC LIMIT 1');
+        'SELECT borrower_code FROM borrowers WHERE COALESCE(is_deleted, 0) = 0 AND COALESCE(is_dummy, 0) = 0 ORDER BY CAST(borrower_code AS INTEGER) DESC LIMIT 1');
     if (result.isEmpty) return '1';
     final last = result.first['borrower_code'] as String;
     final nextNum = (int.tryParse(last) ?? 0) + 1;
@@ -521,9 +643,12 @@ class DBHelper {
     return await db.insert('borrowers', map);
   }
 
-  Future<List<Borrower>> getAllBorrowers({bool includeDeleted = false, int? limit, int? offset}) async {
+  Future<List<Borrower>> getAllBorrowers({bool includeDeleted = false, bool includeDummy = false, int? limit, int? offset}) async {
     final db = await database;
-    final deletedClause = includeDeleted ? '' : 'AND COALESCE(b.is_deleted, 0) = 0';
+    String deletedClause = includeDeleted ? '' : 'AND COALESCE(b.is_deleted, 0) = 0';
+    if (!includeDummy) {
+      deletedClause += ' AND COALESCE(b.is_dummy, 0) = 0';
+    }
     final limitClause = limit != null ? 'LIMIT $limit' : '';
     final offsetClause = offset != null ? 'OFFSET $offset' : '';
     final maps = await db.rawQuery('''
@@ -565,14 +690,14 @@ class DBHelper {
 
   Future<bool> isDatabaseEmpty() async {
     final db = await database;
-    final result = await db.rawQuery('SELECT COUNT(*) as count FROM borrowers');
+    final result = await db.rawQuery('SELECT COUNT(*) as count FROM borrowers WHERE COALESCE(is_dummy, 0) = 0');
     final count = Sqflite.firstIntValue(result) ?? 0;
     return count == 0;
   }
 
   Future<Borrower?> getBorrowerById(int id) async {
     final db = await database;
-    final maps = await db.query('borrowers', where: 'id = ?', whereArgs: [id]);
+    final maps = await db.query('borrowers', where: 'id = ? AND COALESCE(is_dummy, 0) = 0', whereArgs: [id]);
     if (maps.isEmpty) return null;
     return Borrower.fromMap(maps.first);
   }
@@ -580,7 +705,7 @@ class DBHelper {
   Future<Borrower?> getBorrowerByPhone(String phone) async {
     final db = await database;
     final maps =
-        await db.query('borrowers', where: 'phone = ? AND COALESCE(is_deleted, 0) = 0', whereArgs: [phone]);
+        await db.query('borrowers', where: 'phone = ? AND COALESCE(is_deleted, 0) = 0 AND COALESCE(is_dummy, 0) = 0', whereArgs: [phone]);
     if (maps.isEmpty) return null;
     return Borrower.fromMap(maps.first);
   }
@@ -589,7 +714,7 @@ class DBHelper {
     final db = await database;
     final maps = await db.query(
       'borrowers',
-      where: '(name LIKE ? OR phone LIKE ? OR borrower_code LIKE ?) AND COALESCE(is_deleted, 0) = 0',
+      where: '(name LIKE ? OR phone LIKE ? OR borrower_code LIKE ?) AND COALESCE(is_deleted, 0) = 0 AND COALESCE(is_dummy, 0) = 0',
       whereArgs: ['%$query%', '%$query%', '%$query%'],
       orderBy: 'CAST(borrower_code AS INTEGER) ASC',
     );
@@ -600,6 +725,15 @@ class DBHelper {
     await _onMutation();
     final db = await database;
     borrower.updatedAt = DateTime.now().millisecondsSinceEpoch;
+    
+    // Resurrect dummy borrower logic
+    if (borrower.id != null) {
+      final existing = await db.query('borrowers', where: 'id = ?', whereArgs: [borrower.id]);
+      if (existing.isNotEmpty && existing.first['is_dummy'] == 1) {
+        borrower.isDummy = false;
+      }
+    }
+    
     return await db.update(
       'borrowers',
       borrower.toMap(),
@@ -630,6 +764,28 @@ class DBHelper {
         WHERE id = ?
       ''', [now, now, id]);
     });
+  }
+
+
+
+  Future<void> moveToDummyBorrower(int id) async {
+    await _onMutation();
+    final db = await database;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    
+    await db.update('borrowers', 
+      {'is_dummy': 1, 'updated_at': now},
+      where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> moveToActiveBorrower(int id) async {
+    await _onMutation();
+    final db = await database;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    
+    await db.update('borrowers', 
+      {'is_dummy': 0, 'updated_at': now},
+      where: 'id = ?', whereArgs: [id]);
   }
 
   Future<void> clearAllUserData() async {
@@ -728,6 +884,12 @@ class DBHelper {
   Future<int> insertLoan(Loan loan) async {
     await _onMutation();
     final db = await database;
+    
+    if (loan.borrowerSyncId == null) {
+      final b = await db.query('borrowers', columns: ['sync_id'], where: 'id = ?', whereArgs: [loan.borrowerId]);
+      if (b.isNotEmpty) loan.borrowerSyncId = b.first['sync_id'] as String?;
+    }
+    
     final now = DateTime.now().millisecondsSinceEpoch;
     loan.updatedAt = now;
     loan.createdAt = now;
@@ -786,6 +948,12 @@ class DBHelper {
   Future<int> insertPayment(Payment payment) async {
     await _onMutation();
     final db = await database;
+    
+    if (payment.loanSyncId == null) {
+      final l = await db.query('loans', columns: ['sync_id'], where: 'id = ?', whereArgs: [payment.loanId]);
+      if (l.isNotEmpty) payment.loanSyncId = l.first['sync_id'] as String?;
+    }
+    
     final now = DateTime.now().millisecondsSinceEpoch;
     payment.updatedAt = now;
     payment.createdAt = now;
@@ -1049,7 +1217,7 @@ class DBHelper {
         WHERE l.status = 'active' AND COALESCE(l.is_deleted, 0) = 0
         GROUP BY l.borrower_id
       ) lbs ON b.id = lbs.borrower_id
-      WHERE COALESCE(b.is_deleted, 0) = 0
+      WHERE COALESCE(b.is_deleted, 0) = 0 AND COALESCE(b.is_dummy, 0) = 0
     ''');
   }
 
@@ -1066,7 +1234,7 @@ class DBHelper {
     final allPaidRes =
         await db.rawQuery("SELECT SUM(amount) as total FROM payments WHERE COALESCE(is_deleted, 0) = 0");
 
-    final countRes = await db.rawQuery('SELECT COUNT(*) as cnt FROM borrowers WHERE COALESCE(is_deleted, 0) = 0');
+    final countRes = await db.rawQuery('SELECT COUNT(*) as cnt FROM borrowers WHERE COALESCE(is_deleted, 0) = 0 AND COALESCE(is_dummy, 0) = 0');
 
     final activePrincipal =
         (activeLoanRes.first['principal'] as num?)?.toDouble() ?? 0.0;
@@ -1150,6 +1318,9 @@ class DBHelper {
     final db = await database;
     final now = DateTime.now().millisecondsSinceEpoch;
     final map = Map<String, dynamic>.from(data);
+    if (!map.containsKey('sync_id') || map['sync_id'] == null || map['sync_id'].toString().isEmpty) {
+      map['sync_id'] = const Uuid().v4();
+    }
     map['updated_at'] = now;
     map['created_at'] = now;
     map['is_deleted'] = 0;
@@ -1199,7 +1370,7 @@ class DBHelper {
       SELECT b.id
       FROM borrowers b
       WHERE
-        COALESCE(b.is_deleted, 0) = 0
+        COALESCE(b.is_deleted, 0) = 0 AND COALESCE(b.is_dummy, 0) = 0
         AND EXISTS (
           SELECT 1
           FROM loans active_l
@@ -1286,7 +1457,7 @@ class DBHelper {
       SELECT b.id
       FROM borrowers b
       WHERE
-        COALESCE(b.is_deleted, 0) = 0
+        COALESCE(b.is_deleted, 0) = 0 AND COALESCE(b.is_dummy, 0) = 0
         AND
         (SELECT COUNT(*) FROM loans l WHERE l.borrower_id = b.id AND l.status = 'active' AND COALESCE(l.is_deleted, 0) = 0) = 0
     ''');
@@ -1355,6 +1526,9 @@ class DBHelper {
     final db = await database;
     final now = DateTime.now().millisecondsSinceEpoch;
     final map = Map<String, dynamic>.from(data);
+    if (!map.containsKey('sync_id') || map['sync_id'] == null || map['sync_id'].toString().isEmpty) {
+      map['sync_id'] = const Uuid().v4();
+    }
     map['timestamp'] = now;
     map['is_deleted'] = 0;
     return await db.insert('service_costs', map);
@@ -1431,6 +1605,138 @@ class DBHelper {
   Future<void> deleteRestoreMeta(String key) async {
     final db = await database;
     await db.delete('restore_meta', where: 'key = ?', whereArgs: [key]);
+  }
+
+  Future<int> getTodayCompletedLoansCount() async {
+    final db = await database;
+    final bounds = _getTodayRangeBounds();
+    final result = await db.rawQuery('''
+      SELECT COUNT(*) as count 
+      FROM loans 
+      WHERE status = 'cleared' 
+        AND SUBSTR(REPLACE(end_date, 'T', ' '), 1, 10) = ? 
+        AND COALESCE(is_deleted, 0) = 0
+    ''', [bounds[0].substring(0, 10)]);
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  Future<List<Map<String, dynamic>>> getCompletedLoans() async {
+    final db = await database;
+    return await db.rawQuery('''
+      SELECT l.id, l.loan_amount, l.interest_amount, l.loan_date, l.end_date, b.name as borrower_name, b.borrower_code 
+      FROM loans l 
+      JOIN borrowers b ON l.borrower_id = b.id 
+      WHERE l.status = 'cleared' 
+        AND COALESCE(l.is_deleted, 0) = 0 
+        AND COALESCE(b.is_deleted, 0) = 0 
+      ORDER BY l.end_date DESC
+    ''');
+  }
+
+  Future<List<Map<String, dynamic>>> getRecentCollections() async {
+    final db = await database;
+    return await db.rawQuery('''
+      SELECT p.id, p.amount, p.payment_date, p.notes, b.name as borrower_name, b.borrower_code, l.loan_amount
+      FROM payments p 
+      JOIN loans l ON p.loan_id = l.id 
+      JOIN borrowers b ON l.borrower_id = b.id 
+      WHERE COALESCE(p.is_deleted, 0) = 0 
+        AND COALESCE(l.is_deleted, 0) = 0 
+        AND COALESCE(b.is_deleted, 0) = 0 
+      ORDER BY p.payment_date DESC
+    ''');
+  }
+
+  Future<Map<String, dynamic>> getDateRangeReport(DateTime start, DateTime end) async {
+    final db = await database;
+    final startStr = '${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')}';
+    final endStr = '${end.year}-${end.month.toString().padLeft(2, '0')}-${end.day.toString().padLeft(2, '0')}';
+
+    final loansRes = await db.rawQuery('''
+      SELECT SUM(loan_amount) as total_lent 
+      FROM loans 
+      WHERE SUBSTR(REPLACE(loan_date, 'T', ' '), 1, 10) BETWEEN ? AND ? 
+        AND COALESCE(is_deleted, 0) = 0
+    ''', [startStr, endStr]);
+
+    final paymentsRes = await db.rawQuery('''
+      SELECT SUM(amount) as total_collected 
+      FROM payments 
+      WHERE SUBSTR(REPLACE(payment_date, 'T', ' '), 1, 10) BETWEEN ? AND ? 
+        AND COALESCE(is_deleted, 0) = 0
+    ''', [startStr, endStr]);
+
+    final expensesRes = await db.rawQuery('''
+      SELECT SUM(amount) as total_expenses 
+      FROM expenses 
+      WHERE SUBSTR(REPLACE(expense_date, 'T', ' '), 1, 10) BETWEEN ? AND ? 
+        AND COALESCE(is_deleted, 0) = 0
+    ''', [startStr, endStr]);
+
+    final loansList = await db.rawQuery('''
+      SELECT l.id, l.loan_amount as amount, l.loan_date as date, b.name as borrower_name, b.borrower_code, 'Lent' as type
+      FROM loans l
+      JOIN borrowers b ON l.borrower_id = b.id
+      WHERE SUBSTR(REPLACE(l.loan_date, 'T', ' '), 1, 10) BETWEEN ? AND ?
+        AND COALESCE(l.is_deleted, 0) = 0
+        AND COALESCE(b.is_deleted, 0) = 0
+    ''', [startStr, endStr]);
+
+    final paymentsList = await db.rawQuery('''
+      SELECT p.id, p.amount as amount, p.payment_date as date, b.name as borrower_name, b.borrower_code, 'Collected' as type
+      FROM payments p
+      JOIN loans l ON p.loan_id = l.id
+      JOIN borrowers b ON l.borrower_id = b.id
+      WHERE SUBSTR(REPLACE(p.payment_date, 'T', ' '), 1, 10) BETWEEN ? AND ?
+        AND COALESCE(p.is_deleted, 0) = 0
+        AND COALESCE(l.is_deleted, 0) = 0
+        AND COALESCE(b.is_deleted, 0) = 0
+        AND COALESCE(b.is_dummy, 0) = 0
+    ''', [startStr, endStr]);
+
+    final expensesList = await db.rawQuery('''
+      SELECT id, amount, expense_date as date, category as borrower_name, '' as borrower_code, 'Expense' as type
+      FROM expenses
+      WHERE SUBSTR(REPLACE(expense_date, 'T', ' '), 1, 10) BETWEEN ? AND ?
+        AND COALESCE(is_deleted, 0) = 0
+    ''', [startStr, endStr]);
+
+    final startMs = DateTime(start.year, start.month, start.day, 0, 0, 0).millisecondsSinceEpoch;
+    final endMs = DateTime(end.year, end.month, end.day, 23, 59, 59, 999).millisecondsSinceEpoch;
+
+    final newBorrowers = await db.rawQuery('''
+      SELECT id, borrower_code, name, phone, address, created_at
+      FROM borrowers
+      WHERE created_at BETWEEN ? AND ?
+        AND COALESCE(is_deleted, 0) = 0
+        AND COALESCE(is_dummy, 0) = 0
+    ''', [startMs, endMs]);
+
+    final closedLoans = await db.rawQuery('''
+      SELECT l.id, l.loan_amount, l.interest_amount, l.end_date, b.name as borrower_name, b.borrower_code
+      FROM loans l
+      JOIN borrowers b ON l.borrower_id = b.id
+      WHERE l.status = 'cleared'
+        AND SUBSTR(REPLACE(l.end_date, 'T', ' '), 1, 10) BETWEEN ? AND ?
+        AND COALESCE(l.is_deleted, 0) = 0
+        AND COALESCE(b.is_deleted, 0) = 0
+        AND COALESCE(b.is_dummy, 0) = 0
+    ''', [startStr, endStr]);
+
+    final transactions = <Map<String, dynamic>>[];
+    transactions.addAll(loansList);
+    transactions.addAll(paymentsList);
+    transactions.addAll(expensesList);
+    transactions.sort((a, b) => (b['date'] as String).compareTo(a['date'] as String));
+
+    return {
+      'totalLent': (loansRes.first['total_lent'] as num?)?.toDouble() ?? 0.0,
+      'totalCollected': (paymentsRes.first['total_collected'] as num?)?.toDouble() ?? 0.0,
+      'totalExpenses': (expensesRes.first['total_expenses'] as num?)?.toDouble() ?? 0.0,
+      'transactions': transactions,
+      'newBorrowers': newBorrowers,
+      'closedLoans': closedLoans,
+    };
   }
 }
 

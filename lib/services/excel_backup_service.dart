@@ -263,9 +263,17 @@ class ExcelBackupService {
 
   static Map<String, dynamic> _sanitizeMap(Map<String, dynamic> map, List<String> validColumns) {
     final sanitized = <String, dynamic>{};
+    
+    final normalizedKeyMap = <String, String>{};
+    for (final k in map.keys) {
+      final normK = k.toLowerCase().replaceAll(RegExp(r'[\s_]'), '');
+      normalizedKeyMap[normK] = k;
+    }
+    
     for (final col in validColumns) {
-      if (map.containsKey(col)) {
-        sanitized[col] = map[col];
+      final normCol = col.toLowerCase().replaceAll(RegExp(r'[\s_]'), '');
+      if (normalizedKeyMap.containsKey(normCol)) {
+        sanitized[col] = map[normalizedKeyMap[normCol]];
       }
     }
     return sanitized;
@@ -328,19 +336,63 @@ class ExcelBackupService {
           if (map.isEmpty) continue;
           
           final oldId = map['id'].toString();
-          
+          final oldSyncId = map['sync_id']?.toString() ?? '';
           final sanitized = _sanitizeMap(map, [
-            'borrower_code', 'name', 'phone', 'address', 'notes',
-            'updated_at', 'created_at', 'last_modified_device', 'is_deleted'
+            'id', 'sync_id', 'borrower_code', 'name', 'phone', 'address', 'notes',
+            'updated_at', 'created_at', 'last_modified_device', 'is_deleted', 'is_dummy', 'is_closed'
           ]);
           
-          // Duplicate detection via borrower_code
-          final existing = await txn.query('borrowers', where: 'borrower_code = ?', whereArgs: [sanitized['borrower_code']]);
+          if (sanitized['sync_id'] == null || sanitized['sync_id'].toString().isEmpty) {
+            sanitized['sync_id'] = const Uuid().v4();
+          }
+          
+          // Duplicate detection via sync_id or internal id
+          List<Map<String, dynamic>> existing = [];
+          if (oldSyncId.isNotEmpty) {
+            existing = await txn.query('borrowers', where: 'sync_id = ?', whereArgs: [oldSyncId]);
+          }
+          if (existing.isEmpty) {
+            final parsedId = int.tryParse(oldId);
+            existing = parsedId != null ? await txn.query('borrowers', where: 'id = ?', whereArgs: [parsedId]) : [];
+          }
+          
           if (existing.isNotEmpty) {
             if (merge) {
               final exId = existing.first['id'] as int;
               borrowerIdMap[oldId] = exId;
-              await txn.update('borrowers', sanitized, where: 'id = ?', whereArgs: [exId]);
+              
+              final updateData = Map<String, dynamic>.from(sanitized);
+              updateData.remove('id'); // Do not overwrite local ID
+              
+              // Ensure borrower_code is strictly updated from the backup record
+              String? backupCode;
+              for (final entry in map.entries) {
+                final k = entry.key.toLowerCase().replaceAll(RegExp(r'[\s_]'), '');
+                if (k == 'borrowercode') {
+                  backupCode = entry.value?.toString();
+                  break;
+                }
+              }
+              
+              if (backupCode != null && backupCode.trim().isNotEmpty) {
+                updateData['borrower_code'] = backupCode;
+              }
+              
+              await txn.update('borrowers', updateData, where: 'id = ?', whereArgs: [exId]);
+              
+              // Validation: Verify the update was persisted to SQLite
+              final check = await txn.query('borrowers', where: 'id = ?', whereArgs: [exId]);
+              if (check.isNotEmpty) {
+                final savedCode = check.first['borrower_code'];
+                final expectedCode = updateData['borrower_code'];
+                if (savedCode != expectedCode) {
+                  debugPrint('[Restore Validation Failed] Borrower $exId code is $savedCode, but expected $expectedCode');
+                } else {
+                  debugPrint('[Restore Validation Success] Borrower $exId code correctly updated to $savedCode');
+                }
+              }
+            } else {
+              borrowerIdMap[oldId] = existing.first['id'] as int;
             }
           } else {
             final newId = await txn.insert('borrowers', sanitized);
@@ -367,16 +419,27 @@ class ExcelBackupService {
           if (map.isEmpty) continue;
           
           final oldId = map['id'].toString();
+          final oldSyncId = map['sync_id']?.toString() ?? '';
           final oldBorrowerId = map['borrower_id'].toString();
           
           final sanitized = _sanitizeMap(map, [
-            'loan_amount', 'interest_amount', 'loan_date',
+            'id', 'sync_id', 'borrower_sync_id', 'loan_amount', 'interest_amount', 'loan_date',
             'installment_days', 'end_date', 'status', 'notes',
             'updated_at', 'created_at', 'last_modified_device', 'is_deleted'
           ]);
+
+          if (sanitized['sync_id'] == null || sanitized['sync_id'].toString().isEmpty) {
+            sanitized['sync_id'] = const Uuid().v4();
+          }
           
           sanitized['borrower_id'] = borrowerIdMap[oldBorrowerId] ?? int.tryParse(oldBorrowerId);
           if (sanitized['borrower_id'] == null) continue; // Orphaned
+
+          // Backfill borrower_sync_id if missing but we mapped the borrower
+          if (sanitized['borrower_sync_id'] == null || sanitized['borrower_sync_id'].toString().isEmpty) {
+             final b = await txn.query('borrowers', where: 'id = ?', whereArgs: [sanitized['borrower_id']]);
+             if (b.isNotEmpty) sanitized['borrower_sync_id'] = b.first['sync_id'];
+          }
 
           if (sanitized['loan_date'] != null) {
             sanitized['loan_date'] = DateParser.safeParse(sanitized['loan_date']).toIso8601String().replaceAll('T', ' ');
@@ -385,15 +448,24 @@ class ExcelBackupService {
             sanitized['end_date'] = DateParser.safeParse(sanitized['end_date']).toIso8601String().replaceAll('T', ' ');
           }
 
-          // Duplicate detection via borrower_id + loan_date + loan_amount
-          final existing = await txn.query('loans', 
-            where: 'borrower_id = ? AND loan_date = ? AND loan_amount = ?', 
-            whereArgs: [sanitized['borrower_id'], sanitized['loan_date'], sanitized['loan_amount']]
-          );
-          if (existing.isNotEmpty && merge) {
+          // Duplicate detection via sync_id or borrower_id + loan_date + loan_amount
+          List<Map<String, dynamic>> existing = [];
+          if (oldSyncId.isNotEmpty) {
+            existing = await txn.query('loans', where: 'sync_id = ?', whereArgs: [oldSyncId]);
+          }
+          if (existing.isEmpty) {
+            existing = await txn.query('loans', 
+              where: 'borrower_id = ? AND loan_date = ? AND loan_amount = ?', 
+              whereArgs: [sanitized['borrower_id'], sanitized['loan_date'], sanitized['loan_amount']]
+            );
+          }
+          
+          if (existing.isNotEmpty) {
             final exId = existing.first['id'] as int;
             loanIdMap[oldId] = exId;
-            await txn.update('loans', sanitized, where: 'id = ?', whereArgs: [exId]);
+            if (merge) {
+              await txn.update('loans', sanitized, where: 'id = ?', whereArgs: [exId]);
+            }
           } else {
             final newId = await txn.insert('loans', sanitized);
             loanIdMap[oldId] = newId;
@@ -418,26 +490,43 @@ class ExcelBackupService {
           if (map.isEmpty) continue;
           
           final oldLoanId = map['loan_id'].toString();
+          final oldSyncId = map['sync_id']?.toString() ?? '';
           
           final sanitized = _sanitizeMap(map, [
-            'amount', 'payment_date', 'notes',
+            'id', 'sync_id', 'loan_sync_id', 'amount', 'payment_date', 'notes',
             'updated_at', 'created_at', 'last_modified_device', 'is_deleted'
           ]);
           
+          if (sanitized['sync_id'] == null || sanitized['sync_id'].toString().isEmpty) {
+            sanitized['sync_id'] = const Uuid().v4();
+          }
+
           sanitized['loan_id'] = loanIdMap[oldLoanId] ?? int.tryParse(oldLoanId);
           if (sanitized['loan_id'] == null) continue;
+
+          if (sanitized['loan_sync_id'] == null || sanitized['loan_sync_id'].toString().isEmpty) {
+             final l = await txn.query('loans', where: 'id = ?', whereArgs: [sanitized['loan_id']]);
+             if (l.isNotEmpty) sanitized['loan_sync_id'] = l.first['sync_id'];
+          }
 
           if (sanitized['payment_date'] != null) {
             sanitized['payment_date'] = DateParser.safeParse(sanitized['payment_date']).toIso8601String().replaceAll('T', ' ');
           }
 
-          // Duplicate detection via loan_id + payment_date + amount
-          final existing = await txn.query('payments', 
-            where: 'loan_id = ? AND payment_date = ? AND amount = ?', 
-            whereArgs: [sanitized['loan_id'], sanitized['payment_date'], sanitized['amount']]
-          );
-          if (existing.isNotEmpty && merge) {
-            await txn.update('payments', sanitized, where: 'id = ?', whereArgs: [existing.first['id']]);
+          // Duplicate detection via sync_id or loan_id + payment_date + amount
+          List<Map<String, dynamic>> existing = [];
+          if (oldSyncId.isNotEmpty) {
+            existing = await txn.query('payments', where: 'sync_id = ?', whereArgs: [oldSyncId]);
+          }
+          if (existing.isEmpty) {
+            existing = await txn.query('payments', 
+              where: 'loan_id = ? AND payment_date = ? AND amount = ?', 
+              whereArgs: [sanitized['loan_id'], sanitized['payment_date'], sanitized['amount']]
+            );
+          }
+          
+          if (existing.isNotEmpty) {
+            if (merge) await txn.update('payments', sanitized, where: 'id = ?', whereArgs: [existing.first['id']]);
           } else {
             await txn.insert('payments', sanitized);
           }
@@ -460,19 +549,30 @@ class ExcelBackupService {
 
             if (map.isEmpty) continue;
             
+            final oldSyncId = map['sync_id']?.toString() ?? '';
             final sanitized = _sanitizeMap(map, [
-              'amount', 'expense_date', 'category', 'notes',
+              'id', 'sync_id', 'amount', 'expense_date', 'category', 'notes',
               'updated_at', 'created_at', 'last_modified_device', 'is_deleted'
             ]);
+
+            if (sanitized['sync_id'] == null || sanitized['sync_id'].toString().isEmpty) {
+              sanitized['sync_id'] = const Uuid().v4();
+            }
 
             if (sanitized['expense_date'] != null) {
               sanitized['expense_date'] = DateParser.safeParse(sanitized['expense_date']).toIso8601String().replaceAll('T', ' ');
             }
 
-            final existing = await txn.query('expenses', 
-              where: 'created_at = ?', 
-              whereArgs: [sanitized['created_at']]
-            );
+            List<Map<String, dynamic>> existing = [];
+            if (oldSyncId.isNotEmpty) {
+              existing = await txn.query('expenses', where: 'sync_id = ?', whereArgs: [oldSyncId]);
+            }
+            if (existing.isEmpty) {
+              existing = await txn.query('expenses', 
+                where: 'created_at = ?', 
+                whereArgs: [sanitized['created_at']]
+              );
+            }
             if (existing.isNotEmpty && merge) {
               await txn.update('expenses', sanitized, where: 'id = ?', whereArgs: [existing.first['id']]);
             } else {
@@ -498,19 +598,30 @@ class ExcelBackupService {
 
             if (map.isEmpty) continue;
             
+            final oldSyncId = map['sync_id']?.toString() ?? '';
             final sanitized = _sanitizeMap(map, [
-              'amount', 'inv_date', 'notes',
+              'id', 'sync_id', 'amount', 'inv_date', 'notes',
               'updated_at', 'created_at', 'last_modified_device', 'is_deleted'
             ]);
+
+            if (sanitized['sync_id'] == null || sanitized['sync_id'].toString().isEmpty) {
+              sanitized['sync_id'] = const Uuid().v4();
+            }
 
             if (sanitized['inv_date'] != null) {
               sanitized['inv_date'] = DateParser.safeParse(sanitized['inv_date']).toIso8601String().replaceAll('T', ' ');
             }
 
-            final existing = await txn.query('investments', 
-              where: 'created_at = ?', 
-              whereArgs: [sanitized['created_at']]
-            );
+            List<Map<String, dynamic>> existing = [];
+            if (oldSyncId.isNotEmpty) {
+              existing = await txn.query('investments', where: 'sync_id = ?', whereArgs: [oldSyncId]);
+            }
+            if (existing.isEmpty) {
+              existing = await txn.query('investments', 
+                where: 'created_at = ?', 
+                whereArgs: [sanitized['created_at']]
+              );
+            }
             if (existing.isNotEmpty && merge) {
               await txn.update('investments', sanitized, where: 'id = ?', whereArgs: [existing.first['id']]);
             } else {
@@ -536,15 +647,26 @@ class ExcelBackupService {
 
             if (map.isEmpty) continue;
             
+            final oldSyncId = map['sync_id']?.toString() ?? '';
             final sanitized = _sanitizeMap(map, [
-              'amount', 'description', 'dateCreated', 'createdBy', 'timestamp', 'is_deleted'
+              'id', 'sync_id', 'amount', 'description', 'dateCreated', 'createdBy', 'timestamp', 'is_deleted'
             ]);
 
+            if (sanitized['sync_id'] == null || sanitized['sync_id'].toString().isEmpty) {
+              sanitized['sync_id'] = const Uuid().v4();
+            }
+
             // Duplicate detection
-            final existing = await txn.query('service_costs', 
-              where: 'timestamp = ?', 
-              whereArgs: [sanitized['timestamp']]
-            );
+            List<Map<String, dynamic>> existing = [];
+            if (oldSyncId.isNotEmpty) {
+              existing = await txn.query('service_costs', where: 'sync_id = ?', whereArgs: [oldSyncId]);
+            }
+            if (existing.isEmpty) {
+              existing = await txn.query('service_costs', 
+                where: 'timestamp = ?', 
+                whereArgs: [sanitized['timestamp']]
+              );
+            }
             if (existing.isNotEmpty && merge) {
               await txn.update('service_costs', sanitized, where: 'id = ?', whereArgs: [existing.first['id']]);
             } else {
@@ -600,11 +722,15 @@ class ExcelBackupService {
           await secureStorage.delete(key: 'app_lock_pin');
           await secureStorage.delete(key: 'app_lock_biometric_enabled');
         }
-        debugPrint('[Restore] Settings restored successfully from backup Metadata.');
       }
     } catch (restoreSettingsError) {
       debugPrint('[Restore] Warning: Failed to restore app settings from Metadata sheet: $restoreSettingsError');
     }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('is_backup_blocked', false);
+    await prefs.setBool('last_drive_check_success', true);
+    await prefs.setString('local_db_last_modified_timestamp', DateTime.now().toUtc().toIso8601String());
   }
 
   static Map<String, dynamic> _rowToMap(List<String> headers, List<Data?> row) {

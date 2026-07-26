@@ -28,18 +28,15 @@ class BackupFreshnessService {
   bool _isDialogShowing = false;
 
   /// Check if backups and uploads are currently blocked.
-  /// Blocked if: Google Drive is newer (is_backup_blocked == true)
-  ///             OR if the last freshness check failed (last_drive_check_success == false)
-  ///             (provided the user is connected to Google Drive).
+  /// Blocked only if: Google Drive is newer (is_backup_blocked == true)
+  /// (provided the user is connected to Google Drive).
   Future<bool> areBackupsBlocked() async {
     final driveConnected = await GoogleDriveService().isConnected();
     if (!driveConnected) {
       return false; // Not connected: offline-first local mode, not blocked.
     }
     final prefs = await SharedPreferences.getInstance();
-    final isBlocked = prefs.getBool('is_backup_blocked') ?? false;
-    final lastCheckSuccess = prefs.getBool('last_drive_check_success') ?? false;
-    return isBlocked || !lastCheckSuccess;
+    return prefs.getBool('is_backup_blocked') ?? false;
   }
 
   /// Perform validation check silently. Returns true if backups are blocked.
@@ -158,7 +155,7 @@ class BackupFreshnessService {
       }
     } catch (e) {
       debugPrint('BackupFreshnessService Error during freshness check: $e');
-      isReadOnlyMode.value = true; // Set to read-only since check failed
+      isReadOnlyMode.value = false; // Do not lock local DB on API errors or exceptions while online
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('last_drive_check_success', false);
     } finally {

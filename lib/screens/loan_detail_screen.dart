@@ -94,7 +94,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(color: AppColors.accent.withOpacity( 0.1), borderRadius: BorderRadius.circular(8)),
-                      child: Text(widget.borrower.borrowerCode, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.accent, fontSize: 12)),
+                      child: Text(widget.borrower.displayBorrowerCode, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.accent, fontSize: 12)),
                     ),
                   ],
                 ),
@@ -387,7 +387,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
               ],
             ),
           ),
-        ).animate().fadeIn(duration: 400.ms, delay: (i * 50).ms).slideX(begin: 0.1, end: 0);
+        ).animate().fadeIn(duration: 400.ms).slideX(begin: 0.1, end: 0);
       },
     );
   }

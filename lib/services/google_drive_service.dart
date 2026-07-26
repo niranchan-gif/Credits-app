@@ -6,7 +6,6 @@ import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:googleapis_auth/googleapis_auth.dart' as gauth;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'backup_freshness_service.dart';
 
 class GoogleDriveService {
   static final GoogleDriveService _instance = GoogleDriveService._internal();
@@ -31,10 +30,14 @@ class GoogleDriveService {
         await _googleSignIn.signInSilently();
       } catch (e) {
         debugPrint('GoogleDriveService: Silent sign-in failed: $e');
-        return false;
       }
     }
-    return _googleSignIn.currentUser != null;
+    if (_googleSignIn.currentUser != null || connected) {
+      return true;
+    }
+    final prefs = await SharedPreferences.getInstance();
+    final email = prefs.getString('google_drive_account_email');
+    return email != null && email.isNotEmpty;
   }
 
   /// Connect Google Account (triggers login flow)
@@ -64,9 +67,9 @@ class GoogleDriveService {
       await prefs.remove('last_gdrive_backup_health');
       await prefs.remove('google_drive_excel_backup_file_id');
       await prefs.remove('last_excel_backup_checksum');
-      debugPrint('GoogleDriveService: Disconnected Google Account');
+      debugPrint('GoogleDriveService: Account disconnected.');
     } catch (e) {
-      debugPrint('GoogleDriveService: Signout failed: $e');
+      debugPrint('GoogleDriveService: Disconnect failed: $e');
       rethrow;
     }
   }
@@ -74,8 +77,25 @@ class GoogleDriveService {
   /// Get authenticated HTTP client using the active signed-in user's credentials
   Future<gauth.AuthClient> getAuthClient() async {
     // Attempt silent sign-in to refresh access token if it is expired/stale
-    GoogleSignInAccount? account = await _googleSignIn.signInSilently();
+    GoogleSignInAccount? account;
+    try {
+      account = await _googleSignIn.signInSilently();
+    } catch (e) {
+      debugPrint('GoogleDriveService: Silent sign-in error in getAuthClient: $e');
+    }
     account ??= _googleSignIn.currentUser;
+    
+    if (account == null) {
+      final prefs = await SharedPreferences.getInstance();
+      final email = prefs.getString('google_drive_account_email');
+      if (email != null && email.isNotEmpty) {
+        try {
+          account = await _googleSignIn.signIn();
+        } catch (e) {
+          debugPrint('GoogleDriveService: Interactive fallback sign-in failed: $e');
+        }
+      }
+    }
     
     if (account == null) {
       throw Exception('User is not signed in to a Google account.');
@@ -127,182 +147,6 @@ class GoogleDriveService {
     return createdFolder.id!;
   }
 
-  /// Uploads encrypted backup ZIP bytes to Google Drive.
-  /// Updates 'latest_backup.zip' and manages daily rolling backups.
-  Future<void> uploadBackup(
-    List<int> encryptedZipBytes,
-    Map<String, dynamic> metadata, {
-    void Function(double progress)? onProgress,
-  }) async {
-    if (await BackupFreshnessService().areBackupsBlocked()) {
-      throw Exception('Upload blocked: Google Drive has a newer backup or freshness validation failed.');
-    }
-    try {
-      final authClient = await getAuthClient();
-      final driveApi = drive.DriveApi(authClient);
-
-      // 1. Ensure backup folder exists
-      final folderId = await findOrCreateBackupsFolder(driveApi);
-
-      // Helper function to generate a fresh media stream for each upload to avoid "Stream has already been listened to" error.
-      drive.Media createMedia(double startProgress, double endProgress) {
-        try {
-          final baseStream = Stream<List<int>>.value(encryptedZipBytes);
-          final trackedStream = GoogleDriveService.trackStreamProgress(
-            baseStream,
-            encryptedZipBytes.length,
-            (p) {
-              if (onProgress != null) {
-                final overall = startProgress + (p * (endProgress - startProgress));
-                onProgress(overall);
-              }
-            },
-          );
-          return drive.Media(
-            trackedStream,
-            encryptedZipBytes.length,
-            contentType: 'application/zip',
-          );
-        } catch (e, stack) {
-          debugPrint('GoogleDriveService: Error creating media stream: $e\n$stack');
-          rethrow;
-        }
-      }
-
-      final metadataString = jsonEncode(metadata);
-
-      // ===================================================
-      // A. UPLOAD/UPDATE "latest_backup.zip"
-      // ===================================================
-      const latestFilename = 'latest_backup.zip';
-      final latestQuery = await driveApi.files.list(
-        q: "name = '$latestFilename' and '$folderId' in parents and trashed = false",
-        spaces: 'drive',
-        $fields: 'files(id)',
-      );
-
-      final latestFiles = latestQuery.files;
-      final fileMetadata = drive.File()
-        ..name = latestFilename
-        ..description = metadataString; // Save JSON metadata in file description!
-
-      drive.File uploadedFile;
-      if (latestFiles != null && latestFiles.isNotEmpty) {
-        // Replace existing latest_backup
-        final fileId = latestFiles.first.id!;
-        try {
-          uploadedFile = await driveApi.files.update(
-            fileMetadata,
-            fileId,
-            uploadMedia: createMedia(0.0, 0.5),
-          );
-          debugPrint('GoogleDriveService: Successfully updated latest_backup.zip ($fileId)');
-        } catch (e, stack) {
-          debugPrint('GoogleDriveService: Failed updating latest_backup.zip stream upload: $e\n$stack');
-          rethrow;
-        }
-      } else {
-        // Create new latest_backup
-        fileMetadata.parents = [folderId];
-        try {
-          uploadedFile = await driveApi.files.create(
-            fileMetadata,
-            uploadMedia: createMedia(0.0, 0.5),
-          );
-          debugPrint('GoogleDriveService: Successfully created latest_backup.zip (${uploadedFile.id})');
-        } catch (e, stack) {
-          debugPrint('GoogleDriveService: Failed creating latest_backup.zip stream upload: $e\n$stack');
-          rethrow;
-        }
-      }
-
-      // Save backup stats to local SharedPreferences
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('last_gdrive_backup_date', DateTime.now().toIso8601String());
-      await prefs.setString('last_gdrive_backup_size', '${(encryptedZipBytes.length / 1024).toStringAsFixed(1)} KB');
-      await prefs.setString('last_gdrive_backup_health', 'Healthy (Checksum Verified)');
-
-      // ===================================================
-      // B. UPLOAD "daily_backup_YYYY_MM_DD.zip"
-      // ===================================================
-      final todayStr = DateTime.now().toIso8601String().substring(0, 10).replaceAll('-', '_'); // YYYY_MM_DD
-      final dailyFilename = 'daily_backup_$todayStr.zip';
-
-      final dailyQuery = await driveApi.files.list(
-        q: "name = '$dailyFilename' and '$folderId' in parents and trashed = false",
-        spaces: 'drive',
-        $fields: 'files(id)',
-      );
-
-      final dailyFiles = dailyQuery.files;
-      final dailyMetadata = drive.File()
-        ..name = dailyFilename
-        ..description = metadataString;
-
-      if (dailyFiles != null && dailyFiles.isNotEmpty) {
-        // Replace today's daily backup if it already exists
-        try {
-          await driveApi.files.update(
-            dailyMetadata,
-            dailyFiles.first.id!,
-            uploadMedia: createMedia(0.5, 1.0),
-          );
-          debugPrint('GoogleDriveService: Updated daily snapshot: $dailyFilename');
-        } catch (e, stack) {
-          debugPrint('GoogleDriveService: Failed updating daily snapshot stream upload: $e\n$stack');
-          rethrow;
-        }
-      } else {
-        // Create new daily snapshot
-        dailyMetadata.parents = [folderId];
-        try {
-          await driveApi.files.create(
-            dailyMetadata,
-            uploadMedia: createMedia(0.5, 1.0),
-          );
-          debugPrint('GoogleDriveService: Created daily snapshot: $dailyFilename');
-        } catch (e, stack) {
-          debugPrint('GoogleDriveService: Failed creating daily snapshot stream upload: $e\n$stack');
-          rethrow;
-        }
-      }
-
-      // ===================================================
-      // C. ENFORCE 7-DAY SNAPSHOT RETENTION POLICY
-      // ===================================================
-      await _enforceRetentionPolicy(driveApi, folderId);
-    } catch (e, stack) {
-      debugPrint('GoogleDriveService: uploadBackup total operation failure: $e\n$stack');
-      rethrow;
-    }
-  }
-
-  /// Keep only the last 7 daily backups. Delete older backups.
-  Future<void> _enforceRetentionPolicy(drive.DriveApi driveApi, String folderId) async {
-    try {
-      final listResult = await driveApi.files.list(
-        q: "name contains 'daily_backup_' and '$folderId' in parents and trashed = false",
-        spaces: 'drive',
-        $fields: 'files(id, name, createdTime)',
-      );
-
-      final files = listResult.files;
-      if (files != null && files.length > 7) {
-        // Sort alphabetical by name (since filename has daily_backup_YYYY_MM_DD, oldest dates come first)
-        files.sort((a, b) => (a.name ?? '').compareTo(b.name ?? ''));
-        
-        final deleteCount = files.length - 7;
-        for (int i = 0; i < deleteCount; i++) {
-          final fileId = files[i].id!;
-          await driveApi.files.delete(fileId);
-          debugPrint('GoogleDriveService: Auto-deleted expired daily backup: ${files[i].name}');
-        }
-      }
-    } catch (e) {
-      debugPrint('GoogleDriveService: Failed to enforce retention policy: $e');
-    }
-  }
-
   /// Lists all backups currently stored in Google Drive
   Future<List<Map<String, dynamic>>> listBackups() async {
     final authClient = await getAuthClient();
@@ -310,9 +154,9 @@ class GoogleDriveService {
     final folderId = await findOrCreateBackupsFolder(driveApi);
 
     final listResult = await driveApi.files.list(
-      q: "'$folderId' in parents and trashed = false",
+      q: "(name contains 'credits_backup' and name endsWith '.xlsx') and '$folderId' in parents and trashed = false",
       spaces: 'drive',
-      $fields: 'files(id, name, size, description, createdTime)',
+      $fields: 'files(id, name, size, description, createdTime, modifiedTime)',
     );
 
     final files = listResult.files;
@@ -332,26 +176,18 @@ class GoogleDriveService {
         'name': file.name,
         'size': file.size != null ? '${(int.parse(file.size!) / 1024).toStringAsFixed(1)} KB' : 'Unknown',
         'createdTime': file.createdTime,
+        'modifiedTime': file.modifiedTime,
         'metadata': meta,
       });
     }
 
-    // Sort backups: latest modified/created first
-    list.sort((a, b) {
-      final nameA = a['name'] as String;
-      final nameB = b['name'] as String;
-      
-      // Keep latest_backup.zip at the very top of list
-      if (nameA == 'latest_backup.zip') return -1;
-      if (nameB == 'latest_backup.zip') return 1;
-
-      return nameB.compareTo(nameA);
-    });
+    // Sort backups by name descending (latest date first)
+    list.sort((a, b) => (b['name'] as String).compareTo(a['name'] as String));
 
     return list;
   }
 
-  /// Downloads backup ZIP file bytes from Google Drive
+  /// Downloads backup file bytes from Google Drive
   Future<List<int>> downloadBackup(
     String fileId, {
     void Function(double progress)? onProgress,

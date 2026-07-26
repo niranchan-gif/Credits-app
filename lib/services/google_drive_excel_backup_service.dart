@@ -9,8 +9,8 @@ import 'package:excel/excel.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../database/db_helper.dart';
 import 'google_drive_service.dart';
-import 'backup_service.dart';
 import 'backup_freshness_service.dart';
+import 'package:crypto/crypto.dart';
 
 class _ExcelGenerationParams {
   final List<Map<String, dynamic>> borrowers;
@@ -167,7 +167,7 @@ class GoogleDriveExcelBackupService {
   }
 
   /// Calculates a deterministic checksum based on all SQLite records.
-  Future<String> _calculateSQLiteChecksum() async {
+  static Future<String> calculateSQLiteChecksum() async {
     final db = await DBHelper().database;
     final borrowers = await db.rawQuery('SELECT * FROM borrowers ORDER BY id ASC');
     final loans = await db.rawQuery('SELECT * FROM loans ORDER BY id ASC');
@@ -184,7 +184,7 @@ class GoogleDriveExcelBackupService {
     buffer.write(jsonEncode(investments));
     buffer.write(jsonEncode(serviceCosts));
 
-    return BackupService.calculateSHA256(utf8.encode(buffer.toString()));
+    return sha256.convert(utf8.encode(buffer.toString())).toString();
   }
 
   /// Performs the Excel backup and uploads/updates the SINGLE persistent Excel file in Google Drive.
@@ -213,7 +213,7 @@ class GoogleDriveExcelBackupService {
       // Calculate Checksum of SQLite data
       debugPrint('[Backup] Reading SQLite data...');
       debugPrint('[Backup] Calculating checksum...');
-      final checksum = await _calculateSQLiteChecksum();
+      final checksum = await calculateSQLiteChecksum();
       
       final prefs = await SharedPreferences.getInstance();
       final lastSuccessfulChecksum = prefs.getString('last_successful_backup_checksum');

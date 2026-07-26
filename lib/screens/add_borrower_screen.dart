@@ -48,7 +48,7 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
   void initState() {
     super.initState();
     final b = widget.borrower;
-    _codeCtrl = TextEditingController(text: b?.borrowerCode ?? '');
+    _codeCtrl = TextEditingController(text: b?.displayBorrowerCode ?? '');
     _nameCtrl = TextEditingController(text: b?.name ?? '');
     _phoneCtrl = TextEditingController(text: b?.phone ?? '');
     _addressCtrl = TextEditingController(text: b?.address ?? '');
@@ -60,7 +60,7 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
     if (b == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         final code = await context.read<LoanProvider>().generateBorrowerCode();
-        if (mounted) setState(() => _codeCtrl.text = code);
+        if (mounted && _codeCtrl.text.isEmpty) setState(() => _codeCtrl.text = code);
       });
     }
   }
@@ -122,15 +122,33 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
       }
     }
 
+    // Validate borrower_code uniqueness if creating a borrower or editing a dummy borrower
+    if (!_isEditMode || (_isEditMode && widget.borrower?.isDummy == true)) {
+      final code = _codeCtrl.text.trim();
+      final existingWithCode = provider.borrowers.where((b) => b.borrowerCode.toLowerCase() == code.toLowerCase() && b.id != widget.borrower?.id);
+      if (existingWithCode.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('A borrower with this code already exists!'), backgroundColor: AppColors.error),
+        );
+        return;
+      }
+    }
+
     setState(() => _isSaving = true);
 
     final borrower = Borrower(
       id: widget.borrower?.id,
+      syncId: widget.borrower?.syncId,
       borrowerCode: _codeCtrl.text.trim(),
       name: _nameCtrl.text.trim(),
       phone: _phoneCtrl.text.trim(),
       address: _addressCtrl.text.trim().isEmpty ? null : _addressCtrl.text.trim(),
       notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+      isDummy: widget.borrower?.isDummy ?? false,
+      isClosed: widget.borrower?.isClosed ?? false,
+      isDeleted: widget.borrower?.isDeleted ?? false,
+      createdAt: widget.borrower?.createdAt ?? 0,
+      updatedAt: widget.borrower?.updatedAt ?? 0,
     );
 
     Loan? initialLoan;
@@ -176,7 +194,7 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
                 controller: _codeCtrl,
                 label: 'Borrower Code',
                 icon: LucideIcons.check,
-                readOnly: true,
+                readOnly: _isEditMode && widget.borrower?.isDummy != true,
                 validator: (v) => v == null || v.trim().isEmpty ? 'ID required' : null,
               ).animate().fadeIn(delay: 200.ms).slideX(begin: -0.1),
               const SizedBox(height: 24),

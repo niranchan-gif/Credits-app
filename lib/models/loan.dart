@@ -1,8 +1,11 @@
+import 'package:uuid/uuid.dart';
 import '../utils/date_parser.dart';
 
 class Loan {
   int? id;
+  String syncId;
   int borrowerId;
+  String? borrowerSyncId;
   double loanAmount;
   double interestAmount;
   DateTime loanDate;
@@ -17,7 +20,9 @@ class Loan {
 
   Loan({
     this.id,
+    String? syncId,
     required this.borrowerId,
+    this.borrowerSyncId,
     required this.loanAmount,
     required this.interestAmount,
     required this.loanDate,
@@ -29,12 +34,14 @@ class Loan {
     this.createdAt = 0,
     this.lastModifiedDevice,
     this.isDeleted = false,
-  });
+  }) : syncId = syncId ?? const Uuid().v4();
 
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+      'sync_id': syncId,
       'borrower_id': borrowerId,
+      'borrower_sync_id': borrowerSyncId,
       'loan_amount': loanAmount,
       'interest_amount': interestAmount,
       'loan_date': loanDate.toIso8601String(),
@@ -52,7 +59,9 @@ class Loan {
   factory Loan.fromMap(Map<String, dynamic> map) {
     return Loan(
       id: map['id'],
+      syncId: map['sync_id'],
       borrowerId: map['borrower_id'],
+      borrowerSyncId: map['borrower_sync_id'],
       loanAmount: (map['loan_amount'] as num?)?.toDouble() ?? 0.0,
       interestAmount: (map['interest_amount'] as num?)?.toDouble() ?? 0.0,
       loanDate: DateParser.safeParse(map['loan_date']),

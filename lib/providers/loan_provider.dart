@@ -75,6 +75,16 @@ class LoanProvider extends ChangeNotifier {
   double _todayCollection = 0.0;
   double get todayCollection => _todayCollection;
 
+  int _todayCompletedLoansCount = 0;
+  int get todayCompletedLoansCount => _todayCompletedLoansCount;
+
+  int get todayNewBorrowersCount {
+    final now = DateTime.now();
+    final startOfToday = DateTime(now.year, now.month, now.day).millisecondsSinceEpoch;
+    final endOfToday = DateTime(now.year, now.month, now.day, 23, 59, 59, 999).millisecondsSinceEpoch;
+    return _borrowers.where((b) => b.createdAt >= startOfToday && b.createdAt <= endOfToday).length;
+  }
+
   /// Service costs list
   List<ServiceCost> _serviceCosts = [];
   List<ServiceCost> get serviceCosts => _serviceCosts;
@@ -97,6 +107,12 @@ class LoanProvider extends ChangeNotifier {
 
   /// Loads borrowers AND refreshes global summary in one call.
   /// Called after every mutation so UI is always consistent.
+  // Getters for the new tabs
+  List<Borrower> get collectBorrowers => _borrowers.where((b) => !b.isDummy && !b.isClosed && b.totalBalance > 0 && !_paidTodayIds.contains(b.id)).toList();
+  List<Borrower> get paidBorrowers => _borrowers.where((b) => !b.isDummy && !b.isClosed && b.totalBalance > 0 && _paidTodayIds.contains(b.id)).toList();
+  List<Borrower> get closedBorrowers => _borrowers.where((b) => !b.isDummy && (b.isClosed || b.totalBalance <= 0)).toList();
+  List<Borrower> get dummyBorrowers => _borrowers.where((b) => b.isDummy).toList();
+
   Future<void> loadBorrowers({bool refresh = true}) async {
     if (refresh) {
       _borrowers = [];
@@ -114,7 +130,7 @@ class LoanProvider extends ChangeNotifier {
         WHERE is_deleted = 1 AND borrower_code NOT LIKE '%_del_%'
       ''');
 
-      final newBorrowers = await _db.getAllBorrowers();
+      final newBorrowers = await _db.getAllBorrowers(includeDummy: true);
       _borrowers = newBorrowers;
       
       _globalSummary = await _db.getGlobalSummary();
@@ -129,7 +145,9 @@ class LoanProvider extends ChangeNotifier {
                 (clearedPaidLoanCountsToday[borrower.id] ?? 0)
       };
       _paidTodayIds = await _db.getBorrowersPaidToday();
-      _completedIds = await _db.getCompletedBorrowerIds();
+      // _completedIds is no longer used for tabs, as Closed relies on isClosed.
+      // Keeping it for legacy logic if needed, but it's empty now to prevent conflicts.
+      _completedIds = {};
       _partiallyPaidTodayIds = _borrowers
           .where((b) {
             final id = b.id;
@@ -150,6 +168,7 @@ class LoanProvider extends ChangeNotifier {
       _totalInvested = await _db.getTotalInvested();
       _investments = await _db.getAllInvestments();
       _todayCollection = await _db.getTodayCollection();
+      _todayCompletedLoansCount = await _db.getTodayCompletedLoansCount();
 
       final serviceCostsList = await _db.getAllServiceCosts();
       _serviceCosts = serviceCostsList.map((sc) => ServiceCost.fromMap(sc)).toList();
@@ -209,6 +228,18 @@ class LoanProvider extends ChangeNotifier {
 
   Future<void> deleteBorrower(int id) async {
     await _db.deleteBorrower(id);
+    AutoBackupManager().triggerBackupPending();
+    await loadBorrowers();
+  }
+
+  Future<void> moveToDummy(int id) async {
+    await _db.moveToDummyBorrower(id);
+    AutoBackupManager().triggerBackupPending();
+    await loadBorrowers();
+  }
+
+  Future<void> moveToActive(int id) async {
+    await _db.moveToActiveBorrower(id);
     AutoBackupManager().triggerBackupPending();
     await loadBorrowers();
   }

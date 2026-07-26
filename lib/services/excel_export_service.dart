@@ -442,5 +442,97 @@ class ExcelExportService {
     await file.writeAsBytes(bytes);
     return file.path;
   }
+
+  /// Exports a date range report as Excel.
+  static Future<String> exportDateRangeReport({
+    required DateTime start,
+    required DateTime end,
+    required double totalLent,
+    required double totalCollected,
+    required double totalExpenses,
+    required List<Map<String, dynamic>> transactions,
+    required List<Map<String, dynamic>> newBorrowers,
+    required List<Map<String, dynamic>> closedLoans,
+  }) async {
+    await _requestStoragePermission();
+
+    final excel = Excel.createExcel();
+    final now = DateTime.now();
+    final df = DateFormat('dd/MM/yyyy');
+
+    // ── Sheet 1: Summary ─────────────────────────────────────────
+    final summarySheet = excel['Summary'];
+    excel.setDefaultSheet('Summary');
+    
+    _addHeaderRow(summarySheet, ['Metric', 'Detail']);
+    _addRow(summarySheet, ['Report Period', '${df.format(start)} - ${df.format(end)}']);
+    _addRow(summarySheet, ['Generated At', DateFormat('dd/MM/yyyy HH:mm').format(now)]);
+    _addRow(summarySheet, ['Total Lent (Principal)', totalLent.toStringAsFixed(2)]);
+    _addRow(summarySheet, ['Total Collected', totalCollected.toStringAsFixed(2)]);
+    _addRow(summarySheet, ['Total Expenses', totalExpenses.toStringAsFixed(2)]);
+    final netFlow = totalCollected - totalLent - totalExpenses;
+    _addRow(summarySheet, ['Net Cash Flow', netFlow.toStringAsFixed(2)]);
+    _addRow(summarySheet, ['New Borrowers Count', newBorrowers.length.toString()]);
+    _addRow(summarySheet, ['Closed Loans Count', closedLoans.length.toString()]);
+
+    // ── Sheet 2: Transactions ─────────────────────────────────────
+    final txSheet = excel['Transactions'];
+    _addHeaderRow(txSheet, ['Date', 'Type', 'Borrower Code', 'Borrower Name', 'Amount (₹)']);
+    for (final tx in transactions) {
+      final txDateStr = tx['date'] as String? ?? '';
+      final d = DateParser.safeParse(txDateStr);
+      _addRow(txSheet, [
+        DateFormat('dd/MM/yyyy HH:mm').format(d),
+        tx['type']?.toString() ?? '',
+        tx['borrower_code']?.toString() ?? '',
+        tx['borrower_name']?.toString() ?? '',
+        (tx['amount'] as num?)?.toDouble().toStringAsFixed(2) ?? '0.00',
+      ]);
+    }
+
+    // ── Sheet 3: New Borrowers ────────────────────────────────────
+    final newBorrowerSheet = excel['New Borrowers'];
+    _addHeaderRow(newBorrowerSheet, ['Borrower Code', 'Name', 'Phone', 'Address', 'Date Added']);
+    for (final b in newBorrowers) {
+      final addedEpoch = b['created_at'] as int? ?? 0;
+      final addedDate = DateTime.fromMillisecondsSinceEpoch(addedEpoch);
+      _addRow(newBorrowerSheet, [
+        b['borrower_code']?.toString() ?? '',
+        b['name']?.toString() ?? '',
+        b['phone']?.toString() ?? '',
+        b['address']?.toString() ?? '-',
+        DateFormat('dd/MM/yyyy HH:mm').format(addedDate),
+      ]);
+    }
+
+    // ── Sheet 4: Closed Loans ─────────────────────────────────────
+    final closedLoanSheet = excel['Closed Loans'];
+    _addHeaderRow(closedLoanSheet, ['Borrower Code', 'Borrower Name', 'Principal', 'Interest', 'Date Cleared']);
+    for (final l in closedLoans) {
+      final endStr = l['end_date'] as String? ?? '';
+      final d = DateParser.safeParse(endStr);
+      _addRow(closedLoanSheet, [
+        l['borrower_code']?.toString() ?? '',
+        l['borrower_name']?.toString() ?? '',
+        (l['loan_amount'] as num?)?.toDouble().toStringAsFixed(2) ?? '0.00',
+        (l['interest_amount'] as num?)?.toDouble().toStringAsFixed(2) ?? '0.00',
+        DateFormat('dd/MM/yyyy HH:mm').format(d),
+      ]);
+    }
+
+    excel.delete('Sheet1');
+
+    final bytes = excel.encode();
+    if (bytes == null) throw Exception('Failed to encode Excel file.');
+    
+    final startFileStr = DateFormat('yyyyMMdd').format(start);
+    final endFileStr = DateFormat('yyyyMMdd').format(end);
+    final fileName = 'DateRangeReport_${startFileStr}_to_${endFileStr}_${DateFormat('HHmm').format(now)}.xlsx';
+
+    final dir = await _getSaveDirectory();
+    final file = File('${dir.path}/$fileName');
+    await file.writeAsBytes(bytes);
+    return file.path;
+  }
 }
 

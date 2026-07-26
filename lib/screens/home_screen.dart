@@ -58,19 +58,12 @@ class _HomeScreenState extends State<HomeScreen> {
           final paidIds = provider.paidTodayIds;
           final completedIds = provider.completedIds;
 
-          final collectList = borrowers
-              .where((b) => !paidIds.contains(b.id) && !completedIds.contains(b.id))
-              .toList();
+          final collectList = provider.collectBorrowers;
+          final paidList = provider.paidBorrowers;
+          final completedList = provider.closedBorrowers;
+          final dummyList = provider.dummyBorrowers;
 
-          final paidList = borrowers
-              .where((b) => paidIds.contains(b.id) && !completedIds.contains(b.id))
-              .toList();
-
-          final completedList = borrowers
-              .where((b) => completedIds.contains(b.id))
-              .toList();
-
-          final source = [_collectSafe(collectList), _collectSafe(paidList), _collectSafe(completedList)][_tab];
+          final source = [_collectSafe(collectList), _collectSafe(paidList), _collectSafe(completedList), _collectSafe(dummyList)][_tab];
 
           return Consumer<LoanProvider>(
             key: ValueKey<int>(_tab),
@@ -104,6 +97,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             collectList.length, 
                             paidList.length, 
                             completedList.length,
+                            dummyList.length,
                           ),
                         ),
                       ),
@@ -200,31 +194,25 @@ class _HomeScreenState extends State<HomeScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      "Total Outstanding",
+                      "Today's Collection",
                       style: TextStyle(
                         color: Colors.white.withOpacity( 0.8),
                         fontWeight: FontWeight.w600,
+                        fontSize: 14,
                       ),
                     ),
-                    Icon(LucideIcons.wallet, color: Colors.white.withOpacity( 0.8)),
+                    Icon(LucideIcons.calendarCheck, color: Colors.white.withOpacity( 0.8)),
                   ],
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  fmtINR(due),
+                  fmtINR(today),
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 32,
+                    fontSize: 36,
                     fontWeight: FontWeight.bold,
+                    letterSpacing: -0.5,
                   ),
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Expanded(child: _miniStat("Collected", fmtINR(collected), LucideIcons.arrowUp)),
-                    Expanded(child: _miniStat("Pending", fmtINR(pending), LucideIcons.clock)),
-                    Expanded(child: _miniStat("Today", fmtINR(today), LucideIcons.calendarCheck)),
-                  ],
                 ),
               ],
             ),
@@ -285,7 +273,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildTabs(int collect, int paid, int completed) {
+  Widget _buildTabs(int collect, int paid, int completed, int dummy) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 4),
       padding: const EdgeInsets.all(6),
@@ -302,15 +290,16 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: Row(
         children: [
-          _tabItem(0, "Collect", collect, AppColors.secondary),
-          _tabItem(1, "Paid", paid, AppColors.success),
-          _tabItem(2, "Closed", completed, AppColors.info),
+          _tabItem(0, "Collect", collect.toString(), AppColors.secondary),
+          _tabItem(1, "Paid", paid.toString(), AppColors.success),
+          _tabItem(2, "Closed", completed.toString(), AppColors.info),
+          _tabItem(3, "Inactive", dummy.toString(), Colors.grey),
         ],
       ),
     );
   }
 
-  Widget _tabItem(int index, String label, int count, Color color) {
+  Widget _tabItem(int index, String label, String topText, Color color) {
     final isSelected = _tab == index;
     return Expanded(
       child: GestureDetector(
@@ -332,12 +321,15 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                count.toString(),
-                style: TextStyle(
-                  color: isSelected ? color : Theme.of(context).colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  topText,
+                  style: TextStyle(
+                    color: isSelected ? color : Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
               ),
               const SizedBox(height: 2),
@@ -451,7 +443,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Material(
                         color: Colors.transparent,
                         child: Text(
-                          b.borrowerCode,
+                          b.displayBorrowerCode,
                           style: TextStyle(
                             color: due ? AppColors.error : AppColors.accent,
                             fontWeight: FontWeight.bold,

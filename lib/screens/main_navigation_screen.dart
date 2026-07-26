@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../utils/app_colors.dart';
 import 'home_screen.dart';
@@ -8,6 +10,8 @@ import 'settings_screen.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../services/backup_freshness_service.dart';
 import '../widgets/read_only_banner.dart';
+import '../services/auto_backup_manager.dart';
+import '../widgets/progress_dialog.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -18,6 +22,7 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
+  AppLifecycleListener? _lifecycleListener;
 
   final List<Widget> _pages = [
     const HomeScreen(),
@@ -26,15 +31,99 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      _lifecycleListener = AppLifecycleListener(
+        onExitRequested: () async {
+          final shouldExit = await _showExitDialog(context);
+          return shouldExit ? AppExitResponse.exit : AppExitResponse.cancel;
+        },
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _lifecycleListener?.dispose();
+    super.dispose();
+  }
+
+  Future<bool> _showExitDialog(BuildContext context) async {
+    final shouldBackup = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Backup Before Exit', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: const Text('Do you want to back up your latest data before closing the application?\n\nBacking up now helps keep your Google Drive backup up to date.'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, null), // Cancel
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false), // Exit Without Backup
+            child: const Text('Exit Without Backup', style: TextStyle(color: AppColors.error)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true), // Backup & Exit
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.accent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Backup & Exit', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldBackup == null) {
+      return false; // Cancel, keep app open
+    }
+
+    if (shouldBackup == false) {
+      return true; // Exit immediately
+    }
+
+    // Backup & Exit flow
+    final backupSuccess = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => ProgressDialog(
+        title: 'Backup',
+        successMessage: '✓ Backup Completed',
+        errorMessage: 'Backup Failed',
+        action: (updateProgress) async {
+          await AutoBackupManager().checkAndPerformBackup(
+            forceManual: true,
+            onProgress: (p) => updateProgress(p, ''),
+          );
+        },
+      ),
+    );
+
+    // If backup succeeded, allow exit. Otherwise keep app open (so user sees error).
+    return backupSuccess == true;
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(
       valueListenable: BackupFreshnessService.isReadOnlyMode,
       builder: (context, isReadOnly, _) {
         return PopScope(
-          canPop: _currentIndex == 0,
-          onPopInvokedWithResult: (didPop, _) {
+          canPop: false,
+          onPopInvokedWithResult: (didPop, _) async {
             if (didPop) return;
-            setState(() => _currentIndex = 0);
+            if (_currentIndex != 0) {
+              setState(() => _currentIndex = 0);
+              return;
+            }
+            final shouldExit = await _showExitDialog(context);
+            if (shouldExit) {
+              SystemNavigator.pop();
+            }
           },
           child: Scaffold(
             extendBody: true,

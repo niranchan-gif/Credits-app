@@ -188,6 +188,12 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                 MaterialPageRoute(builder: (_) => AddBorrowerScreen(borrower: b)),
               );
               _loadData();
+            } else if (value == 'dummy') {
+              if (isReadOnly) return;
+              _confirmDummy(context);
+            } else if (value == 'active') {
+              if (isReadOnly) return;
+              _confirmActive(context);
             } else if (value == 'delete') {
               if (isReadOnly) return;
               _confirmDelete(context);
@@ -203,6 +209,16 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                 value: 'edit',
                 child: Row(children: [Icon(LucideIcons.edit, size: 18), SizedBox(width: 12), Text('Edit Borrower')]),
               ),
+              if (b.isDummy)
+                const PopupMenuItem(
+                  value: 'active',
+                  child: Row(children: [Icon(LucideIcons.userCheck, size: 18), SizedBox(width: 12), Text('Move to Active')]),
+                )
+              else
+                const PopupMenuItem(
+                  value: 'dummy',
+                  child: Row(children: [Icon(LucideIcons.ghost, size: 18), SizedBox(width: 12), Text('Move to Inactive')]),
+                ),
               const PopupMenuDivider(),
               const PopupMenuItem(
                 value: 'delete',
@@ -233,7 +249,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                     decoration: BoxDecoration(color: AppColors.accent.withOpacity( 0.1), borderRadius: BorderRadius.circular(8)),
                     child: Material(
                       color: Colors.transparent,
-                      child: Text(b.borrowerCode, style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1.5)),
+                      child: Text(b.displayBorrowerCode, style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1.5)),
                     ),
                   ),
                 ),
@@ -407,7 +423,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                 ),
               ),
             ),
-          ).animate().fadeIn(duration: 400.ms, delay: (i * 50).ms).slideX(begin: 0.1, end: 0),
+          ).animate().fadeIn(duration: 400.ms).slideX(begin: 0.1, end: 0),
         );
       },
     );
@@ -448,6 +464,48 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
     if (confirm == true && context.mounted) {
       await context.read<LoanProvider>().deleteBorrower(widget.borrower.id ?? 0);
       if (context.mounted) Navigator.pop(context);
+    }
+  }
+
+  Future<void> _confirmDummy(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Move this borrower to Inactive?'),
+        content: const Text('This will hide the borrower from the application and make the record reusable later.\n\nAll financial history associated with this borrower will be permanently deleted before reuse.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Move'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true && context.mounted) {
+      await context.read<LoanProvider>().moveToDummy(widget.borrower.id ?? 0);
+      if (context.mounted) Navigator.pop(context); // Go back to Home
+    }
+  }
+
+  Future<void> _confirmActive(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Move this borrower to Active?'),
+        content: const Text('This will restore the borrower to the active Collect list.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Move'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true && context.mounted) {
+      await context.read<LoanProvider>().moveToActive(widget.borrower.id ?? 0);
+      if (context.mounted) Navigator.pop(context); // Go back to Home
     }
   }
 }
