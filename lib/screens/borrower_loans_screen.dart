@@ -1,8 +1,17 @@
+import 'dart:io';
+import 'dart:ui' as ui;
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 
 import '../models/borrower.dart';
 import '../models/loan.dart';
@@ -16,6 +25,7 @@ import 'add_loan_screen.dart';
 import 'loan_detail_screen.dart';
 import '../services/excel_export_service.dart';
 import '../services/backup_freshness_service.dart';
+import '../services/borrower_pdf_service.dart';
 
 class BorrowerLoansScreen extends StatefulWidget {
   final Borrower borrower;
@@ -29,6 +39,10 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
   List<Loan> _loans = [];
   Set<int> _paidTodayLoanIds = {};
   bool _loading = true;
+
+  // Native channel for direct WhatsApp sharing (bypasses the share sheet)
+  static const _whatsappChannel =
+      MethodChannel('com.example.credit/whatsapp_share');
 
   @override
   void initState() {
@@ -89,7 +103,11 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final b = widget.borrower;
+    final provider = context.watch<LoanProvider>();
+    final b = provider.borrowers
+        .firstWhere((x) => x.id == widget.borrower.id, orElse: () => widget.borrower);
+        
+    debugPrint('UI Build: Borrower id=${b.id}, isDummy=${b.isDummy}, code=${b.borrowerCode}');
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -123,7 +141,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                             Expanded(
                               child: Text(
                                 'This borrower has exceeded the maximum due period of 140 days.',
-                                style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w600, fontSize: 13),
+                                style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w600, fontSize: 17),
                               ),
                             ),
                           ],
@@ -138,10 +156,10 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                         const SizedBox(width: 10),
                         Text(
                           'Loan History',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Theme.of(context).colorScheme.onSurface),
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Theme.of(context).colorScheme.onSurface),
                         ),
                         const Spacer(),
-                        Text('${_loans.length} loans', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6), fontSize: 13)),
+                        Text('${_loans.length} loans', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6), fontSize: 17)),
                       ],
                     ),
                   ),
@@ -152,7 +170,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
       floatingActionButton: ValueListenableBuilder<bool>(
         valueListenable: BackupFreshnessService.isReadOnlyMode,
         builder: (context, isReadOnly, child) {
-          if (isReadOnly) return const SizedBox.shrink();
+          if (isReadOnly || b.isDummy) return const SizedBox.shrink();
           return child!;
         },
         child: FloatingActionButton.extended(
@@ -179,24 +197,22 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
         return PopupMenuButton<String>(
           icon: const Icon(LucideIcons.moreVertical),
           onSelected: (value) async {
+            debugPrint('UI: Menu selected = $value, isDummy = ${b.isDummy}');
             if (value == 'download') {
               _exportExcel();
             } else if (value == 'edit') {
               if (isReadOnly) return;
-              await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => AddBorrowerScreen(borrower: b)),
+              await showDialog(
+                context: context,
+                builder: (_) => AddBorrowerScreen(borrower: b),
               );
               _loadData();
-            } else if (value == 'dummy') {
-              if (isReadOnly) return;
-              _confirmDummy(context);
-            } else if (value == 'active') {
-              if (isReadOnly) return;
-              _confirmActive(context);
             } else if (value == 'delete') {
               if (isReadOnly) return;
-              _confirmDelete(context);
+              _confirmMoveToInactive(context);
+            } else if (value == 'restore') {
+              if (isReadOnly) return;
+              _confirmRestore(context);
             }
           },
           itemBuilder: (_) => [
@@ -209,20 +225,19 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                 value: 'edit',
                 child: Row(children: [Icon(LucideIcons.edit, size: 18), SizedBox(width: 12), Text('Edit Borrower')]),
               ),
-              if (b.isDummy)
-                const PopupMenuItem(
-                  value: 'active',
-                  child: Row(children: [Icon(LucideIcons.userCheck, size: 18), SizedBox(width: 12), Text('Move to Active')]),
-                )
-              else
-                const PopupMenuItem(
-                  value: 'dummy',
-                  child: Row(children: [Icon(LucideIcons.ghost, size: 18), SizedBox(width: 12), Text('Move to Inactive')]),
-                ),
               const PopupMenuDivider(),
+            ],
+            if (!isReadOnly && !b.isDummy) ...[
               const PopupMenuItem(
                 value: 'delete',
-                child: Row(children: [Icon(LucideIcons.trash2, size: 18, color: AppColors.error), SizedBox(width: 12), Text('Delete Borrower', style: TextStyle(color: AppColors.error))]),
+                child: Row(children: [Icon(LucideIcons.archive, size: 18, color: AppColors.error), SizedBox(width: 12), Text('Move to Inactive', style: TextStyle(color: AppColors.error))]),
+              ),
+            ],
+            if (!isReadOnly && b.isDummy) ...[
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'restore',
+                child: Row(children: [Icon(LucideIcons.refreshCcw, size: 18, color: AppColors.success), SizedBox(width: 12), Text('Move to Active', style: TextStyle(color: AppColors.success))]),
               ),
             ],
           ],
@@ -249,11 +264,232 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                     decoration: BoxDecoration(color: AppColors.accent.withOpacity( 0.1), borderRadius: BorderRadius.circular(8)),
                     child: Material(
                       color: Colors.transparent,
-                      child: Text(b.displayBorrowerCode, style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1.5)),
+                      child: Text(b.displayBorrowerCode, style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold, fontSize: 17, letterSpacing: 1.5)),
                     ),
                   ),
                 ),
                 const Spacer(),
+                IconButton(
+                  tooltip: 'Send Full Statement',
+                  onPressed: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    if (b.phone.trim().isEmpty) {
+                      messenger.showSnackBar(
+                        const SnackBar(
+                          content: Text('Phone number not available'),
+                          backgroundColor: AppColors.error,
+                        ),
+                      );
+                      return;
+                    }
+
+                    // 1. Gather borrower details & loans
+                    final provider = context.read<LoanProvider>();
+                    final allBorrowerLoans = await provider.getLoans(b.id ?? 0);
+
+                    if (allBorrowerLoans.isEmpty) {
+                      messenger.showSnackBar(const SnackBar(content: Text('No loans available to share.')));
+                      return;
+                    }
+
+                    List<Loan>? targetLoans = allBorrowerLoans;
+
+                    if (allBorrowerLoans.length > 1) {
+                      targetLoans = await showDialog<List<Loan>>(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return AlertDialog(
+                            title: const Text('Select Loan to Share', style: TextStyle(fontWeight: FontWeight.bold)),
+                            backgroundColor: Theme.of(context).colorScheme.surface,
+                            content: SizedBox(
+                              width: double.maxFinite,
+                              child: ListView.builder(
+                                shrinkWrap: true,
+                                itemCount: allBorrowerLoans.length + 1,
+                                itemBuilder: (context, index) {
+                                  if (index == 0) {
+                                    return ListTile(
+                                      leading: const Icon(LucideIcons.copy, color: AppColors.accent),
+                                      title: const Text('All Loans (Combined)', style: TextStyle(fontWeight: FontWeight.bold)),
+                                      onTap: () => Navigator.of(context).pop(allBorrowerLoans),
+                                    );
+                                  }
+                                  final loan = allBorrowerLoans[index - 1];
+                                  final dateStr = DateFormat('dd MMM yyyy').format(loan.loanDate);
+                                  return ListTile(
+                                    leading: const Icon(LucideIcons.fileText, color: AppColors.accentLight),
+                                    title: Text('Loan - $dateStr'),
+                                    subtitle: Text('Amount: ₹${loan.loanAmount.toStringAsFixed(0)}'),
+                                    onTap: () => Navigator.of(context).pop([loan]),
+                                  );
+                                },
+                              ),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(context).pop(null),
+                                child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                      
+                      if (targetLoans == null) return; // User canceled
+                    }
+
+                    double loanAmount = 0.0;
+                    double totalPaid = 0.0;
+                    final List<Map<String, dynamic>> allPayments = [];
+
+                    for (final loan in targetLoans) {
+                      loanAmount += loan.totalDue();
+                      final payments = await provider.getPayments(loan.id ?? 0);
+                      for (final p in payments) {
+                        totalPaid += p.amount;
+                        allPayments.add({
+                          'date': p.paymentDate,
+                          'amount': p.amount,
+                        });
+                      }
+                    }
+
+                    // 2. Sort payments by date ascending
+                    allPayments.sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
+
+                    // 3. Generate payment history string
+                    double balanceToPay = 0.0;
+                    if (targetLoans.length == 1) {
+                      balanceToPay = (loanAmount - totalPaid);
+                    } else {
+                      balanceToPay = (b.totalBalance as num?)?.toDouble() ?? (loanAmount - totalPaid);
+                    }
+                    
+                    if (balanceToPay < 0) balanceToPay = 0.0;
+                      final todayStr = DateFormat('dd-MM-yyyy').format(DateTime.now());
+
+                    try {
+                      // Show loading snackbar
+                      messenger.showSnackBar(
+                        const SnackBar(content: Text('Generating PDF report...')),
+                      );
+                      
+                      final pdfBytes = await BorrowerPdfService.generate(
+                        context: context,
+                        borrower: b,
+                        totalPaid: totalPaid,
+                        balanceToPay: balanceToPay,
+                        
+                        allPayments: allPayments,
+                      );
+
+                      messenger.hideCurrentSnackBar();
+
+                      // Save PDF only to temporary cache (does not store files in permanent Desktop/Downloads storage)
+                      final tempDir = await getTemporaryDirectory();
+                      final filePath = '${tempDir.path}${Platform.pathSeparator}Report.pdf';
+                      final file = File(filePath);
+                      await file.writeAsBytes(pdfBytes);
+
+                      // Format phone number for WhatsApp
+                      String digits = b.phone.replaceAll(RegExp(r'\D'), '');
+                      if (digits.length == 10) {
+                        digits = '91$digits';
+                      }
+
+                      final summaryMsg =
+                          'வணக்கம்,\n'
+                          'பெயர்: ${b.name} (${b.displayBorrowerCode})\n'
+                          'இதுவரை செலுத்திய தொகை: ₹${totalPaid.toStringAsFixed(0)}\n'
+                          'செலுத்த வேண்டிய தொகை: ₹${balanceToPay.toStringAsFixed(0)}\n'
+                          'உங்கள் கட்டண விபரங்கள் அடங்கிய ரசீது இத்துடன் இணைக்கப்பட்டுள்ளது.\n'
+                          'தேதி: $todayStr\n'
+                          'நன்றி';
+
+                      if (Platform.isAndroid) {
+                        // Android: use the native method channel to fire a targeted
+                        // ACTION_SEND intent directly at WhatsApp with the jid extra.
+                        // This opens WhatsApp straight to the borrower's chat with
+                        // the PDF already attached — no share sheet, no contact picker.
+                        bool nativeSuccess = false;
+                        try {
+                          await _whatsappChannel.invokeMethod('shareToWhatsApp', {
+                            'filePath': filePath,
+                            'phone': digits,
+                            'text': '',
+                          });
+                          nativeSuccess = true;
+                        } on PlatformException catch (_) {
+                          // WhatsApp not installed or intent failed — fall back to share sheet
+                          nativeSuccess = false;
+                        }
+
+                        if (!nativeSuccess) {
+                          // Fallback: generic share sheet so the user can still share
+                          await SharePlus.instance.share(
+                            ShareParams(
+                              files: [XFile(filePath, mimeType: 'application/pdf')],
+                              text: '',
+                              subject: 'கடன் அறிக்கை - ${b.name}',
+                            ),
+                          );
+                        }
+                      } else if (Platform.isIOS) {
+                        // iOS: share sheet (iOS has no equivalent jid targeting)
+                        await SharePlus.instance.share(
+                          ShareParams(
+                            files: [XFile(filePath, mimeType: 'application/pdf')],
+                            text: '',
+                            subject: 'கடன் அறிக்கை - ${b.name}',
+                          ),
+                        );
+                      } else {
+                        // Windows / other platforms: open WhatsApp Web + clipboard
+                        final webUrl =
+                            'https://web.whatsapp.com/send?phone=$digits';
+                        final uri = Uri.parse(webUrl);
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri,
+                              mode: LaunchMode.externalApplication);
+                        } else {
+                          final fallbackUri = Uri.parse(
+                              'https://wa.me/$digits');
+                          await launchUrl(fallbackUri,
+                              mode: LaunchMode.externalApplication);
+                        }
+                        if (Platform.isWindows) {
+                          try {
+                            await Process.run('powershell.exe', [
+                              '-NoProfile',
+                              '-Command',
+                              "Set-Clipboard -Path '$filePath'",
+                            ]);
+                          } catch (_) {}
+                          messenger.showSnackBar(
+                            SnackBar(
+                              behavior: SnackBarBehavior.floating,
+                              backgroundColor: AppColors.accent,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                              content: const Text(
+                                'WhatsApp Web opened! Press Ctrl + V in the chat to attach & send the PDF.',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              duration: const Duration(seconds: 5),
+                            ),
+                          );
+                        }
+                      }
+                    } catch (e) {
+                      messenger.hideCurrentSnackBar();
+                      messenger.showSnackBar(
+                        SnackBar(content: Text('Failed to generate PDF: $e'), backgroundColor: AppColors.error),
+                      );
+                    }
+                  },
+                  icon: const Icon(LucideIcons.share2, color: AppColors.accent, size: 20),
+                ),
+                const SizedBox(width: 8),
                 IconButton(
                   onPressed: () => openPhoneDialer(b.phone, messenger: ScaffoldMessenger.of(context)),
                   icon: const Icon(LucideIcons.phone, color: AppColors.accent, size: 20),
@@ -267,7 +503,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                 color: Colors.transparent,
                 child: Text(
                   b.name,
-                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 24),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 28),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -300,22 +536,22 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Loan Age', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6), fontSize: 11)),
+                    Text('Loan Age', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6), fontSize: 15)),
                     const SizedBox(height: 4),
-                    Text('${b.loanAgeDays} Days', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 15)),
+                    Text('${b.loanAgeDays} Days', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 19)),
                   ],
                 ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text('Status', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6), fontSize: 11)),
+                    Text('Status', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6), fontSize: 15)),
                     const SizedBox(height: 4),
                     Text(
                       b.overdueStatus == 'OVERDUE' ? '🔴 OVERDUE (Exceeded 140-Day limit)' : 'ACTIVE',
                       style: TextStyle(
                         color: b.overdueStatus == 'OVERDUE' ? AppColors.error : AppColors.success,
                         fontWeight: FontWeight.bold,
-                        fontSize: 14,
+                        fontSize: 18,
                       ),
                     ),
                   ],
@@ -332,7 +568,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                   children: [
                     const Icon(LucideIcons.stickyNote, size: 14, color: AppColors.accentLight),
                     const SizedBox(width: 8),
-                    Expanded(child: Text(b.notes!, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12, fontStyle: FontStyle.italic))),
+                    Expanded(child: Text(b.notes!, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16, fontStyle: FontStyle.italic))),
                   ],
                 ),
               ),
@@ -384,7 +620,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(DateFormat('dd MMM yyyy').format(loan.loanDate), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: Theme.of(context).colorScheme.onSurface)),
+                        Text(DateFormat('dd MMM yyyy').format(loan.loanDate), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 21, color: Theme.of(context).colorScheme.onSurface)),
                         Row(
                           children: [
                             if (_paidTodayLoanIds.contains(loan.id))
@@ -395,7 +631,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(color: isActive ? AppColors.info.withOpacity( 0.15) : AppColors.success.withOpacity( 0.2), borderRadius: BorderRadius.circular(8)),
-                              child: Text(isActive ? 'ACTIVE' : 'CLEARED', style: TextStyle(color: isActive ? AppColors.info : AppColors.success, fontWeight: FontWeight.bold, fontSize: 10)),
+                              child: Text(isActive ? 'ACTIVE' : 'CLEARED', style: TextStyle(color: isActive ? AppColors.info : AppColors.success, fontWeight: FontWeight.bold, fontSize: 14)),
                             ),
                           ],
                         ),
@@ -407,7 +643,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                         children: [
                           const Icon(LucideIcons.calendar, size: 14, color: AppColors.accentLight),
                           const SizedBox(width: 6),
-                          Text('${loan.installmentDays} days • Ends ${loan.endDate != null ? DateFormat('dd MMM').format(loan.endDate!) : 'N/A'}', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                          Text('${loan.installmentDays} days • Ends ${loan.endDate != null ? DateFormat('dd MMM').format(loan.endDate!) : 'N/A'}', style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -423,7 +659,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                 ),
               ),
             ),
-          ).animate().fadeIn(duration: 400.ms).slideX(begin: 0.1, end: 0),
+          ).animate().fadeIn(duration: 400.ms, delay: (i * 50).ms).slideX(begin: 0.1, end: 0),
         );
       },
     );
@@ -434,79 +670,63 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6), fontSize: 11)),
+          Text(label, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6), fontSize: 15)),
           const SizedBox(height: 4),
           FittedBox(
             fit: BoxFit.scaleDown,
-            child: Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Theme.of(context).colorScheme.onSurface)),
+            child: Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 19, color: Theme.of(context).colorScheme.onSurface)),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _confirmDelete(BuildContext context) async {
+  Future<void> _confirmMoveToInactive(BuildContext context) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Delete Borrower?'),
-        content: Text('This will permanently delete ${widget.borrower.name} and ALL their loan records. This action cannot be undone.'),
+        title: const Text('Move to Inactive?'),
+        content: const Text('This borrower will be hidden from the active list.\nAll loans, payments, and history will remain safely stored.\nYou can restore this borrower later.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Delete Permanently'),
-          ),
-        ],
-      ),
-    );
-    if (confirm == true && context.mounted) {
-      await context.read<LoanProvider>().deleteBorrower(widget.borrower.id ?? 0);
-      if (context.mounted) Navigator.pop(context);
-    }
-  }
-
-  Future<void> _confirmDummy(BuildContext context) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Move this borrower to Inactive?'),
-        content: const Text('This will hide the borrower from the application and make the record reusable later.\n\nAll financial history associated with this borrower will be permanently deleted before reuse.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
             child: const Text('Move'),
           ),
         ],
       ),
     );
     if (confirm == true && context.mounted) {
+      debugPrint('UI: Moving to inactive. ID=${widget.borrower.id}, Code=${widget.borrower.borrowerCode}');
       await context.read<LoanProvider>().moveToDummy(widget.borrower.id ?? 0);
-      if (context.mounted) Navigator.pop(context); // Go back to Home
+      debugPrint('UI: Provider reload complete');
     }
   }
 
-  Future<void> _confirmActive(BuildContext context) async {
+  Future<void> _confirmRestore(BuildContext context) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Move this borrower to Active?'),
-        content: const Text('This will restore the borrower to the active Collect list.'),
+        title: const Text('Move to Active?'),
+        content: const Text('This borrower will be restored to the active borrower list.\nAll existing loans and history will remain unchanged.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Move'),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.success),
+            child: const Text('Restore'),
           ),
         ],
       ),
     );
     if (confirm == true && context.mounted) {
+      debugPrint('UI: Restoring to active. ID=${widget.borrower.id}, Code=${widget.borrower.borrowerCode}');
       await context.read<LoanProvider>().moveToActive(widget.borrower.id ?? 0);
-      if (context.mounted) Navigator.pop(context); // Go back to Home
+      debugPrint('UI: Provider reload complete');
     }
   }
+
+
 }
 

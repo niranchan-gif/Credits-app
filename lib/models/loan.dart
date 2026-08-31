@@ -38,6 +38,8 @@ class Loan {
 
   Map<String, dynamic> toMap() {
     return {
+      'sync_id': syncId,
+      'borrower_sync_id': borrowerSyncId,
       'id': id,
       'sync_id': syncId,
       'borrower_id': borrowerId,

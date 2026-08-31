@@ -9,38 +9,85 @@ import '../models/loan.dart';
 import '../models/payment.dart';
 import '../utils/date_parser.dart';
 import '../services/backup_freshness_service.dart';
+import '../services/json_backup_service.dart';
 
 class DBHelper {
   static final DBHelper _instance = DBHelper._internal();
+
+  static int databaseGeneration = 1;
+
+  static void _notifyMutationChanged() {
+    databaseGeneration++;
+    debugPrint('[BACKUP-DEBUG] DB mutation committed');
+    debugPrint('[BACKUP-DEBUG] _onMutation fired');
+    debugPrint('[BACKUP-DEBUG] Database generation = $databaseGeneration');
+    debugPrint('[BACKUP-DEBUG] Backup requested');
+    JsonBackupService().triggerBackup();
+  }
+
   factory DBHelper() => _instance;
   DBHelper._internal();
 
-  static const _databaseName = "loan_manager.db";
+  static Future<String> getDbName() async {
+    final prefs = await SharedPreferences.getInstance();
+    final email = prefs.getString('google_drive_account_email');
+    if (email != null && email.isNotEmpty) {
+      final safeEmail = email.replaceAll(RegExp(r'[^a-zA-Z0-9@]'), '_');
+      return "loan_manager_$safeEmail.db";
+    }
+    return "loan_manager.db";
+  }
+
   static const _databaseVersion = 15;
   static Database? _database;
   static bool isRestoring = false;
 
-  Future<void> _onMutation() async {
+  Future<void> _checkReadOnly() async {
     if (BackupFreshnessService.isReadOnlyMode.value) {
       throw Exception('Database modification blocked: Application is in Read Only Mode.');
     }
+
     final prefs = await SharedPreferences.getInstance();
     final nowStr = DateTime.now().toUtc().toIso8601String();
     await prefs.setString('local_db_last_modified_timestamp', nowStr);
     debugPrint('local_db_last_modified_timestamp updated to: $nowStr');
   }
 
+  static bool _databaseInitInProgress = false;
+
+  String? get currentDbPath {
+    return _database?.path;
+  }
+
+    
   Future<Database> get database async {
-    while (isRestoring) {
-      debugPrint('DBHelper: Database is currently restoring. Awaiting restoration completion...');
-      await Future.delayed(const Duration(milliseconds: 100));
+    if (isRestoring) {
+      debugPrint('DBHelper [${DateTime.now().toIso8601String()}]: Entering wait loop because isRestoring is TRUE!');
+      while (isRestoring) {
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+      debugPrint('DBHelper [${DateTime.now().toIso8601String()}]: Exited wait loop because isRestoring is now FALSE!');
     }
+    
     if (_database != null && _database!.isOpen) {
       return _database!;
     }
-    debugPrint('DBHelper: Database is either null or closed. Reinitializing database automatically...');
-    _database = await _initDB();
-    return _database!;
+    
+    // Concurrency lock for _initDB!
+    while (_databaseInitInProgress) {
+      debugPrint('DBHelper [${DateTime.now().toIso8601String()}]: Waiting for another task to finish _initDB...');
+      await Future.delayed(const Duration(milliseconds: 100));
+      if (_database != null && _database!.isOpen) return _database!;
+    }
+    
+    _databaseInitInProgress = true;
+    try {
+      debugPrint('DBHelper [${DateTime.now().toIso8601String()}]: Reinitializing database automatically...');
+      _database = await _initDB();
+      return _database!;
+    } finally {
+      _databaseInitInProgress = false;
+    }
   }
 
   Future<void> closeDatabase() async {
@@ -53,14 +100,36 @@ class DBHelper {
       debugPrint('DBHelper: Database connection successfully closed.');
     }
   }
+  Future<void> switchDatabase() async {
+    debugPrint('DBHelper: Switching database...');
+    await closeDatabase();
+  }
 
   Future<Database> _initDB() async {
     final dbPath = await getDatabasesPath();
-    final path = join(dbPath, 'loan_manager.db');
+    final dbName = await getDbName();
+    final path = join(dbPath, dbName);
+
+    // Legacy migration
+    if (dbName != "loan_manager.db") {
+      final legacyPath = join(dbPath, "loan_manager.db");
+      final legacyFile = File(legacyPath);
+      final newFile = File(path);
+
+      if (await legacyFile.exists() && !(await newFile.exists())) {
+        debugPrint('DBHelper: Migrating legacy database to $dbName');
+        try {
+          await legacyFile.rename(path);
+        } catch (e) {
+          debugPrint('DBHelper: Legacy migration rename failed: $e');
+        }
+      }
+    }
+
     debugPrint('Database: Opening at $path');
     return await openDatabase(
       path,
-      version: _databaseVersion,
+      version: 15,
       onCreate: _createTables,
       onUpgrade: _upgradeTables,
       onOpen: (db) async {
@@ -287,6 +356,15 @@ class DBHelper {
 
     await batch.commit(noResult: true);
     debugPrint('DBHelper: Database data normalization complete!');
+  }
+
+  
+  Future<Database> createEmptyDatabase(String path) async {
+    return await openDatabase(
+      path,
+      version: 15,
+      onCreate: _createTables,
+    );
   }
 
   Future<void> _createTables(Database db, int version) async {
@@ -629,7 +707,7 @@ class DBHelper {
   }
 
   Future<int> insertBorrower(Borrower borrower) async {
-    await _onMutation();
+    await _checkReadOnly();
     final db = await database;
     final code = borrower.borrowerCode.isEmpty
         ? await generateBorrowerCode()
@@ -640,7 +718,9 @@ class DBHelper {
     final map = borrower.toMap()
       ..remove('id')
       ..['borrower_code'] = code;
-    return await db.insert('borrowers', map);
+    final res = await db.insert('borrowers', map);
+    _notifyMutationChanged();
+    return res;
   }
 
   Future<List<Borrower>> getAllBorrowers({bool includeDeleted = false, bool includeDummy = false, int? limit, int? offset}) async {
@@ -722,7 +802,7 @@ class DBHelper {
   }
 
   Future<int> updateBorrower(Borrower borrower) async {
-    await _onMutation();
+    await _checkReadOnly();
     final db = await database;
     borrower.updatedAt = DateTime.now().millisecondsSinceEpoch;
     
@@ -734,16 +814,18 @@ class DBHelper {
       }
     }
     
-    return await db.update(
-      'borrowers',
-      borrower.toMap(),
-      where: 'id = ?',
-      whereArgs: [borrower.id],
-    );
-  }
+    final res = await db.update(
+        'borrowers',
+        borrower.toMap(),
+        where: 'id = ?',
+        whereArgs: [borrower.id],
+      );
+      _notifyMutationChanged();
+      return res;
+    }
 
   Future<void> deleteBorrower(int id) async {
-    await _onMutation();
+    await _checkReadOnly();
     final db = await database;
     final now = DateTime.now().millisecondsSinceEpoch;
     
@@ -764,12 +846,13 @@ class DBHelper {
         WHERE id = ?
       ''', [now, now, id]);
     });
+    _notifyMutationChanged();
   }
 
 
 
   Future<void> moveToDummyBorrower(int id) async {
-    await _onMutation();
+    await _checkReadOnly();
     final db = await database;
     final now = DateTime.now().millisecondsSinceEpoch;
     
@@ -779,7 +862,7 @@ class DBHelper {
   }
 
   Future<void> moveToActiveBorrower(int id) async {
-    await _onMutation();
+    await _checkReadOnly();
     final db = await database;
     final now = DateTime.now().millisecondsSinceEpoch;
     
@@ -789,7 +872,7 @@ class DBHelper {
   }
 
   Future<void> clearAllUserData() async {
-    await _onMutation();
+    await _checkReadOnly();
     final db = await database;
     await db.transaction((txn) async {
       await txn.delete('payments');
@@ -798,6 +881,7 @@ class DBHelper {
       await txn.delete('expenses');
       await txn.delete('investments');
     });
+    _notifyMutationChanged();
   }
 
   Future<void> clearCurrentUserLocalData() async {
@@ -828,6 +912,7 @@ class DBHelper {
             conflictAlgorithm: ConflictAlgorithm.replace);
       }
     });
+    _notifyMutationChanged();
   }
 
   Future<Map<String, dynamic>?> getBorrowerGraph(int borrowerId) async {
@@ -882,7 +967,7 @@ class DBHelper {
   // ─────────────────────────────────────────────────────────────
 
   Future<int> insertLoan(Loan loan) async {
-    await _onMutation();
+    await _checkReadOnly();
     final db = await database;
     
     if (loan.borrowerSyncId == null) {
@@ -894,7 +979,9 @@ class DBHelper {
     loan.updatedAt = now;
     loan.createdAt = now;
     final map = loan.toMap()..remove('id');
-    return await db.insert('loans', map);
+    final res = await db.insert('loans', map);
+    _notifyMutationChanged();
+    return res;
   }
 
   Future<List<Loan>> getLoansForBorrower(int borrowerId) async {
@@ -916,19 +1003,21 @@ class DBHelper {
   }
 
   Future<int> updateLoan(Loan loan) async {
-    await _onMutation();
+    await _checkReadOnly();
     final db = await database;
     loan.updatedAt = DateTime.now().millisecondsSinceEpoch;
-    return await db.update(
-      'loans',
-      loan.toMap(),
-      where: 'id = ?',
-      whereArgs: [loan.id],
-    );
-  }
+    final res = await db.update(
+        'loans',
+        loan.toMap(),
+        where: 'id = ?',
+        whereArgs: [loan.id],
+      );
+      _notifyMutationChanged();
+      return res;
+    }
 
   Future<void> deleteLoan(int id) async {
-    await _onMutation();
+    await _checkReadOnly();
     final db = await database;
     final now = DateTime.now().millisecondsSinceEpoch;
     await db.transaction((txn) async {
@@ -939,6 +1028,7 @@ class DBHelper {
         {'is_deleted': 1, 'updated_at': now},
         where: 'loan_id = ?', whereArgs: [id]);
     });
+    _notifyMutationChanged();
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -946,7 +1036,7 @@ class DBHelper {
   // ─────────────────────────────────────────────────────────────
 
   Future<int> insertPayment(Payment payment) async {
-    await _onMutation();
+    await _checkReadOnly();
     final db = await database;
     
     if (payment.loanSyncId == null) {
@@ -958,7 +1048,9 @@ class DBHelper {
     payment.updatedAt = now;
     payment.createdAt = now;
     final map = payment.toMap()..remove('id');
-    return await db.insert('payments', map);
+    final res = await db.insert('payments', map);
+    _notifyMutationChanged();
+    return res;
   }
 
   Future<List<Payment>> getPaymentsForLoan(int loanId) async {
@@ -982,7 +1074,7 @@ class DBHelper {
   }
 
   Future<void> deletePayment(int id) async {
-    await _onMutation();
+    await _checkReadOnly();
     final db = await database;
     final now = DateTime.now().millisecondsSinceEpoch;
     await db.update('payments', 
@@ -993,7 +1085,7 @@ class DBHelper {
   // ── Atomic Payment Transactions ───────────────────────────────
 
   Future<void> executePaymentTransaction(Payment payment) async {
-    await _onMutation();
+    await _checkReadOnly();
     final db = await database;
     await db.transaction((txn) async {
       final now = DateTime.now().millisecondsSinceEpoch;
@@ -1049,10 +1141,11 @@ class DBHelper {
         }
       }
     });
+    _notifyMutationChanged();
   }
 
   Future<void> executeDeletePaymentTransaction(int paymentId, int loanId) async {
-    await _onMutation();
+    await _checkReadOnly();
     final db = await database;
     await db.transaction((txn) async {
       final now = DateTime.now().millisecondsSinceEpoch;
@@ -1112,13 +1205,15 @@ class DBHelper {
         }
       }
     });
+    _notifyMutationChanged();
   }
 
-  Future<void> executeQuickPayFlexibleTransaction(int borrowerId, double totalAmount) async {
-    await _onMutation();
+  Future<void> executeQuickPayFlexibleTransaction(int borrowerId, double totalAmount, {DateTime? paymentDate}) async {
+    await _checkReadOnly();
     final db = await database;
     await db.transaction((txn) async {
       final now = DateTime.now().millisecondsSinceEpoch;
+      final pDate = paymentDate ?? DateTime.now();
       
       // 1. Get active loans
       final loanMaps = await txn.query(
@@ -1148,30 +1243,30 @@ class DBHelper {
         
         final payForThisLoan = remaining > balance ? balance : remaining;
         
-        if (payForThisLoan > 0) {
-          // Insert payment
-          final payment = Payment(
-            loanId: loanId,
-            amount: payForThisLoan,
-            paymentDate: DateTime.now(),
-            notes: 'Quick Pay',
-          );
-          payment.updatedAt = now;
-          payment.createdAt = now;
-          final paymentMap = payment.toMap()..remove('id');
-          await txn.insert('payments', paymentMap);
-          
-          final newPaid = totalPaid + payForThisLoan;
-          
-          // Update loan status
-          if (newPaid >= totalDue) {
-            await txn.update(
-              'loans',
-              {
-                'status': 'cleared',
-                'end_date': DateTime.now().toIso8601String(),
-                'updated_at': now,
-              },
+          if (payForThisLoan > 0) {
+            // Insert payment
+            final payment = Payment(
+              loanId: loanId,
+              amount: payForThisLoan,
+              paymentDate: pDate,
+              notes: 'Quick Pay',
+            );
+            payment.updatedAt = now;
+            payment.createdAt = now;
+            final paymentMap = payment.toMap()..remove('id');
+            await txn.insert('payments', paymentMap);
+            
+            final newPaid = totalPaid + payForThisLoan;
+            
+            // Update loan status
+            if (newPaid >= totalDue) {
+              await txn.update(
+                'loans',
+                {
+                  'status': 'cleared',
+                  'end_date': pDate.toIso8601String(),
+                  'updated_at': now,
+                },
               where: 'id = ?',
               whereArgs: [loanId],
             );
@@ -1181,6 +1276,7 @@ class DBHelper {
         }
       }
     });
+    _notifyMutationChanged();
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -1314,7 +1410,7 @@ class DBHelper {
   // ─────────────────────────────────────────────────────────────
 
   Future<int> insertInvestment(Map<String, dynamic> data) async {
-    await _onMutation();
+    await _checkReadOnly();
     final db = await database;
     final now = DateTime.now().millisecondsSinceEpoch;
     final map = Map<String, dynamic>.from(data);
@@ -1324,7 +1420,9 @@ class DBHelper {
     map['updated_at'] = now;
     map['created_at'] = now;
     map['is_deleted'] = 0;
-    return await db.insert('investments', map);
+    final res = await db.insert('investments', map);
+    _notifyMutationChanged();
+    return res;
   }
 
   Future<List<Map<String, dynamic>>> getAllInvestments() async {
@@ -1337,7 +1435,7 @@ class DBHelper {
   }
 
   Future<void> deleteInvestment(int id) async {
-    await _onMutation();
+    await _checkReadOnly();
     final db = await database;
     final now = DateTime.now().millisecondsSinceEpoch;
     await db.update('investments', 
@@ -1451,6 +1549,24 @@ class DBHelper {
     return result.map((r) => r['id'] as int).toSet();
   }
 
+  Future<bool> hasPaymentOnDate(int borrowerId, DateTime date) async {
+    final db = await database;
+    final startOfDay = DateTime(date.year, date.month, date.day).toIso8601String().replaceAll('T', ' ');
+    final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59).toIso8601String().replaceAll('T', ' ');
+    
+    final result = await db.rawQuery('''
+      SELECT COUNT(*) as count
+      FROM payments p
+      JOIN loans l ON p.loan_id = l.id
+      WHERE l.borrower_id = ?
+        AND REPLACE(p.payment_date, 'T', ' ') BETWEEN ? AND ?
+        AND COALESCE(p.is_deleted, 0) = 0
+        AND COALESCE(l.is_deleted, 0) = 0
+    ''', [borrowerId, startOfDay, endOfDay]);
+    
+    return (Sqflite.firstIntValue(result) ?? 0) > 0;
+  }
+
   Future<Set<int>> getCompletedBorrowerIds() async {
     final db = await database;
     final result = await db.rawQuery('''
@@ -1469,14 +1585,16 @@ class DBHelper {
   // ─────────────────────────────────────────────────────────────
 
   Future<int> insertExpense(Map<String, dynamic> data) async {
-    await _onMutation();
+    await _checkReadOnly();
     final db = await database;
     final now = DateTime.now().millisecondsSinceEpoch;
     final map = Map<String, dynamic>.from(data);
     map['updated_at'] = now;
     map['created_at'] = now;
     map['is_deleted'] = 0;
-    return await db.insert('expenses', map);
+    final res = await db.insert('expenses', map);
+    _notifyMutationChanged();
+    return res;
   }
 
   Future<List<Map<String, dynamic>>> getAllExpenses() async {
@@ -1489,7 +1607,7 @@ class DBHelper {
   }
 
   Future<void> deleteExpense(int id) async {
-    await _onMutation();
+    await _checkReadOnly();
     final db = await database;
     final now = DateTime.now().millisecondsSinceEpoch;
     await db.update('expenses', 
@@ -1522,7 +1640,7 @@ class DBHelper {
   // ─────────────────────────────────────────────────────────────
 
   Future<int> insertServiceCost(Map<String, dynamic> data) async {
-    await _onMutation();
+    await _checkReadOnly();
     final db = await database;
     final now = DateTime.now().millisecondsSinceEpoch;
     final map = Map<String, dynamic>.from(data);
@@ -1531,7 +1649,9 @@ class DBHelper {
     }
     map['timestamp'] = now;
     map['is_deleted'] = 0;
-    return await db.insert('service_costs', map);
+    final res = await db.insert('service_costs', map);
+    _notifyMutationChanged();
+    return res;
   }
 
   Future<List<Map<String, dynamic>>> getAllServiceCosts() async {
@@ -1544,7 +1664,7 @@ class DBHelper {
   }
 
   Future<void> deleteServiceCost(int id) async {
-    await _onMutation();
+    await _checkReadOnly();
     final db = await database;
     final now = DateTime.now().millisecondsSinceEpoch;
     await db.update('service_costs', 
@@ -1566,7 +1686,8 @@ class DBHelper {
   Future<void> repairDatabaseIfNeeded() async {
     try {
       final dbPath = await getDatabasesPath();
-      final path = join(dbPath, 'loan_manager.db');
+      final dbName = await getDbName();
+      final path = join(dbPath, dbName);
       final file = File(path);
       if (await file.exists()) {
         final db = await database;
@@ -1674,7 +1795,7 @@ class DBHelper {
     ''', [startStr, endStr]);
 
     final loansList = await db.rawQuery('''
-      SELECT l.id, l.loan_amount as amount, l.loan_date as date, b.name as borrower_name, b.borrower_code, 'Lent' as type
+      SELECT l.id, l.loan_amount as amount, l.loan_date as date, b.name as borrower_name, b.borrower_code, 'Lent' as type, l.id as loan_id
       FROM loans l
       JOIN borrowers b ON l.borrower_id = b.id
       WHERE SUBSTR(REPLACE(l.loan_date, 'T', ' '), 1, 10) BETWEEN ? AND ?
@@ -1683,7 +1804,7 @@ class DBHelper {
     ''', [startStr, endStr]);
 
     final paymentsList = await db.rawQuery('''
-      SELECT p.id, p.amount as amount, p.payment_date as date, b.name as borrower_name, b.borrower_code, 'Collected' as type
+      SELECT p.id, p.amount as amount, p.payment_date as date, b.name as borrower_name, b.borrower_code, 'Collected' as type, p.loan_id as loan_id
       FROM payments p
       JOIN loans l ON p.loan_id = l.id
       JOIN borrowers b ON l.borrower_id = b.id
@@ -1695,7 +1816,7 @@ class DBHelper {
     ''', [startStr, endStr]);
 
     final expensesList = await db.rawQuery('''
-      SELECT id, amount, expense_date as date, category as borrower_name, '' as borrower_code, 'Expense' as type
+      SELECT id, amount, expense_date as date, category as borrower_name, '' as borrower_code, 'Expense' as type, 0 as loan_id
       FROM expenses
       WHERE SUBSTR(REPLACE(expense_date, 'T', ' '), 1, 10) BETWEEN ? AND ?
         AND COALESCE(is_deleted, 0) = 0
@@ -1723,20 +1844,37 @@ class DBHelper {
         AND COALESCE(b.is_dummy, 0) = 0
     ''', [startStr, endStr]);
 
+    final serviceCostsList = await db.rawQuery('''
+      SELECT id, amount, dateCreated as date, COALESCE(description, 'Service Cost') as borrower_name, '' as borrower_code, 'Service' as type, 0 as loan_id
+      FROM service_costs
+      WHERE SUBSTR(REPLACE(dateCreated, 'T', ' '), 1, 10) BETWEEN ? AND ?
+        AND COALESCE(is_deleted, 0) = 0
+    ''', [startStr, endStr]);
+
+    final serviceCostsRes = await db.rawQuery('''
+      SELECT SUM(amount) as total_service_costs 
+      FROM service_costs 
+      WHERE SUBSTR(REPLACE(dateCreated, 'T', ' '), 1, 10) BETWEEN ? AND ? 
+        AND COALESCE(is_deleted, 0) = 0
+    ''', [startStr, endStr]);
+
     final transactions = <Map<String, dynamic>>[];
     transactions.addAll(loansList);
     transactions.addAll(paymentsList);
     transactions.addAll(expensesList);
+    transactions.addAll(serviceCostsList);
     transactions.sort((a, b) => (b['date'] as String).compareTo(a['date'] as String));
 
     return {
       'totalLent': (loansRes.first['total_lent'] as num?)?.toDouble() ?? 0.0,
       'totalCollected': (paymentsRes.first['total_collected'] as num?)?.toDouble() ?? 0.0,
       'totalExpenses': (expensesRes.first['total_expenses'] as num?)?.toDouble() ?? 0.0,
+      'totalServiceCosts': (serviceCostsRes.first['total_service_costs'] as num?)?.toDouble() ?? 0.0,
       'transactions': transactions,
       'newBorrowers': newBorrowers,
       'closedLoans': closedLoans,
     };
   }
 }
+
 

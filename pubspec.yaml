@@ -38,6 +38,9 @@ dependencies:
   encrypt: ^5.0.3
   sqflite_common_ffi: ^2.3.0
   pdf: ^3.10.8
+  share_plus: ^12.0.2
+  printing: ^5.14.3
+  screenshot: ^3.0.0
 
 dev_dependencies:
   flutter_test:
@@ -51,6 +54,7 @@ flutter:
 
   assets:
     - assets/icon/
+    - assets/fonts/
 
 flutter_launcher_icons:
   android: true

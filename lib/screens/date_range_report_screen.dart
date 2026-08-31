@@ -2,7 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
+import '../providers/loan_provider.dart';
 import '../database/db_helper.dart';
 import '../utils/app_colors.dart';
 import '../utils/fmt.dart';
@@ -25,6 +27,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
   double _totalLent = 0.0;
   double _totalCollected = 0.0;
   double _totalExpenses = 0.0;
+  double _totalServiceCosts = 0.0;
   List<Map<String, dynamic>> _transactions = [];
   List<Map<String, dynamic>> _newBorrowers = [];
   List<Map<String, dynamic>> _closedLoans = [];
@@ -61,6 +64,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
           _totalLent = data['totalLent'] as double;
           _totalCollected = data['totalCollected'] as double;
           _totalExpenses = data['totalExpenses'] as double;
+          _totalServiceCosts = (data['totalServiceCosts'] as num?)?.toDouble() ?? 0.0;
           _transactions = List<Map<String, dynamic>>.from(data['transactions']);
           _newBorrowers = List<Map<String, dynamic>>.from(data['newBorrowers']);
           _closedLoans = List<Map<String, dynamic>>.from(data['closedLoans']);
@@ -138,6 +142,133 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
     }
   }
 
+  Future<void> _deleteTransaction(Map<String, dynamic> tx) async {
+    final type = tx['type'] as String? ?? '';
+    final id = tx['id'] as int?;
+    if (id == null) return;
+
+    // Expense and service entries are protected — cannot be deleted here
+    if (type == 'Expense' || type == 'Service') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Expense/Service entries cannot be deleted from here'), backgroundColor: AppColors.warning),
+      );
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Confirm Deletion'),
+        content: Text('Are you sure you want to delete this $type entry?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    try {
+      final provider = context.read<LoanProvider>();
+      if (type == 'Lent') {
+        await provider.deleteLoan(id);
+      } else if (type == 'Collected') {
+        final loanId = tx['loan_id'] as int? ?? 0;
+        await provider.deletePayment(id, loanId);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Transaction deleted successfully'), backgroundColor: AppColors.success),
+        );
+        _loadReport();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error deleting transaction: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteAllTransactions() async {
+    if (_transactions.isEmpty) return;
+
+    // Only count deletable entries (Lent + Collected)
+    final deletable = _transactions.where((tx) {
+      final type = tx['type'] as String? ?? '';
+      return type == 'Lent' || type == 'Collected';
+    }).toList();
+
+    if (deletable.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No deletable transactions in this period'), backgroundColor: AppColors.warning),
+      );
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Delete All Transactions'),
+        content: Text('This will delete ${deletable.length} transaction(s) (loans & payments). Expenses and service costs are kept.\n\nAre you sure?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete All', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    setState(() => _loading = true);
+
+    try {
+      final provider = context.read<LoanProvider>();
+      for (final tx in deletable) {
+        final type = tx['type'] as String? ?? '';
+        final id = tx['id'] as int?;
+        if (id == null) continue;
+        if (type == 'Lent') {
+          await provider.deleteLoan(id);
+        } else if (type == 'Collected') {
+          final loanId = tx['loan_id'] as int? ?? 0;
+          await provider.deletePayment(id, loanId);
+        }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('All transactions deleted successfully'), backgroundColor: AppColors.success),
+        );
+        _loadReport();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error deleting transactions: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final df = DateFormat('dd MMM yyyy');
@@ -145,13 +276,18 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
         ? '${df.format(_selectedRange!.start)} - ${df.format(_selectedRange!.end)}'
         : 'Select Date Range';
 
-    final netCashFlow = _totalCollected - _totalLent - _totalExpenses;
+    final netCashFlow = _totalCollected + _totalServiceCosts - _totalLent - _totalExpenses;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text("Date Range Report"),
         actions: [
+          IconButton(
+            tooltip: 'Delete All Transactions',
+            onPressed: _loading || _transactions.isEmpty ? null : _deleteAllTransactions,
+            icon: const Icon(LucideIcons.trash2, color: AppColors.error),
+          ),
           IconButton(
             tooltip: 'Download Excel Report',
             onPressed: _loading || _exporting ? null : _downloadReport,
@@ -166,95 +302,82 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
           const SizedBox(width: 8),
         ],
       ),
-      body: Column(
-        children: [
-          // Date selector panel
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: InkWell(
-              onTap: _pickDateRange,
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
+      body: _loading
+          ? Column(
+              children: [
+                _buildDateSelector(dateRangeStr),
+                const Expanded(child: Center(child: CircularProgressIndicator(color: AppColors.accent))),
+              ],
+            )
+          : NestedScrollView(
+              headerSliverBuilder: (context, innerBoxIsScrolled) {
+                return [
+                  SliverToBoxAdapter(
+                    child: Column(
                       children: [
-                        const Icon(LucideIcons.calendar, color: AppColors.accent, size: 20),
-                        const SizedBox(width: 12),
-                        Text(
-                          dateRangeStr,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        _buildDateSelector(dateRangeStr),
+                        // Summary Dashboard Area
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: Column(
+                            children: [
+                              Row(
+                                children: [
+                                  _statCard("Total Lent", fmtINR(_totalLent), LucideIcons.arrowUpRight, AppColors.warning),
+                                  const SizedBox(width: 12),
+                                  _statCard("Collected", fmtINR(_totalCollected), LucideIcons.arrowDownLeft, AppColors.success),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  _statCard("Expenses", fmtINR(_totalExpenses), LucideIcons.receipt, AppColors.error),
+                                  const SizedBox(width: 12),
+                                  _statCard("Service Cost", fmtINR(_totalServiceCosts), LucideIcons.wrench, AppColors.warning),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  _statCard("Net Cash Flow", fmtINR(netCashFlow), LucideIcons.wallet,
+                                      netCashFlow >= 0 ? AppColors.success : AppColors.error),
+                                  const SizedBox(width: 12),
+                                  _statCard("New Borrowers", "${_newBorrowers.length}", LucideIcons.userPlus, AppColors.info),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  _statCard("Closed Loans", "${_closedLoans.length}", LucideIcons.checkSquare, AppColors.success),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
+                        const SizedBox(height: 16),
                       ],
                     ),
-                    const Icon(LucideIcons.chevronDown, color: AppColors.accent, size: 16),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          
-          if (_loading)
-            const Expanded(child: Center(child: CircularProgressIndicator(color: AppColors.accent)))
-          else ...[
-            // Summary Dashboard Area
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      _statCard("Total Lent", fmtINR(_totalLent), LucideIcons.arrowUpRight, AppColors.warning),
-                      const SizedBox(width: 12),
-                      _statCard("Collected", fmtINR(_totalCollected), LucideIcons.arrowDownLeft, AppColors.success),
-                    ],
                   ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      _statCard("Expenses", fmtINR(_totalExpenses), LucideIcons.receipt, AppColors.error),
-                      const SizedBox(width: 12),
-                      _statCard("Net Cash Flow", fmtINR(netCashFlow), LucideIcons.wallet, 
-                          netCashFlow >= 0 ? AppColors.success : AppColors.error),
-                    ],
+                  SliverPersistentHeader(
+                    pinned: true,
+                    delegate: _SliverAppBarDelegate(
+                      TabBar(
+                        controller: _tabController,
+                        labelColor: AppColors.accent,
+                        unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
+                        indicatorColor: AppColors.accent,
+                        indicatorSize: TabBarIndicatorSize.tab,
+                        tabs: const [
+                          Tab(text: "Transactions"),
+                          Tab(text: "New Borrowers"),
+                          Tab(text: "Closed Loans"),
+                        ],
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      _statCard("New Borrowers", "${_newBorrowers.length}", LucideIcons.userPlus, AppColors.info),
-                      const SizedBox(width: 12),
-                      _statCard("Closed Loans", "${_closedLoans.length}", LucideIcons.checkSquare, AppColors.success),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            
-            // Tab Selector
-            TabBar(
-              controller: _tabController,
-              labelColor: AppColors.accent,
-              unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
-              indicatorColor: AppColors.accent,
-              indicatorSize: TabBarIndicatorSize.tab,
-              tabs: const [
-                Tab(text: "Transactions"),
-                Tab(text: "New Borrowers"),
-                Tab(text: "Closed Loans"),
-              ],
-            ),
-            
-            // Tab Content
-            Expanded(
-              child: TabBarView(
+                ];
+              },
+              body: TabBarView(
                 controller: _tabController,
                 children: [
                   _buildTransactionsList(),
@@ -263,8 +386,39 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
                 ],
               ),
             ),
-          ],
-        ],
+    );
+  }
+
+  Widget _buildDateSelector(String dateRangeStr) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: InkWell(
+        onTap: _pickDateRange,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(LucideIcons.calendar, color: AppColors.accent, size: 20),
+                  const SizedBox(width: 12),
+                  Text(
+                    dateRangeStr,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                ],
+              ),
+              const Icon(LucideIcons.chevronDown, color: AppColors.accent, size: 16),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -352,6 +506,10 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
           icon = LucideIcons.arrowDownLeft;
           color = AppColors.success;
           sign = "+";
+        } else if (type == 'Service') {
+          icon = LucideIcons.wrench;
+          color = AppColors.success;
+          sign = "+";
         } else {
           icon = LucideIcons.receipt;
           color = AppColors.error;
@@ -412,6 +570,14 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
                   ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(LucideIcons.trash2, color: AppColors.error, size: 18),
+                  onPressed: () => _deleteTransaction(tx),
+                  splashRadius: 20,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                 ),
               ],
             ),
@@ -593,5 +759,29 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
         );
       },
     );
+  }
+}
+
+class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
+  _SliverAppBarDelegate(this._tabBar);
+
+  final TabBar _tabBar;
+
+  @override
+  double get minExtent => _tabBar.preferredSize.height;
+  @override
+  double get maxExtent => _tabBar.preferredSize.height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: _tabBar,
+    );
+  }
+
+  @override
+  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
+    return false;
   }
 }

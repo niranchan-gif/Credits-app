@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import 'dart:math';
 
 import '../services/auth_service.dart';
+import '../services/google_drive_service.dart';
 import '../services/backup_freshness_service.dart';
 import '../services/auto_backup_manager.dart';
 import '../providers/theme_provider.dart';
@@ -18,6 +19,7 @@ import '../models/payment.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'backup_restore_screen.dart';
+import 'auth/sign_in_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -269,7 +271,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _toggleBiometric(bool val) async {
     await _authService.setBiometricEnabled(val);
     setState(() => _isBiometricEnabled = val);
-    AutoBackupManager().triggerBackupPending();
+    
   }
 
   void _showSetupDialog() {
@@ -314,7 +316,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   if (ctx.mounted) Navigator.pop(ctx);
                   await _authService.enableLock(pin, _hasBiometricHardware);
                   _loadSettings();
-                  AutoBackupManager().triggerBackupPending();
+                  
                 } else {
                   if (ctx.mounted) setDialogState(() { mismatch = true; confirmPin = ''; });
                 }
@@ -433,7 +435,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           await _authService.disableLock();
                           if (mounted) { navigator.pop(); }
                           _loadSettings();
-                          AutoBackupManager().triggerBackupPending();
+                          
                         } else {
                           setDialogState(() => error = true);
                         }
@@ -445,6 +447,62 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+
+  void _confirmSignOut() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sign Out'),
+        content: const Text(
+          'Signing out will disconnect your Google Account. Your data will remain on this device and you can access it by signing back in with the same account.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (ctx) => ProgressDialog(
+                  title: 'Signing Out',
+                  successMessage: '✓ Signed Out',
+                  errorMessage: 'Error Signing Out',
+                  action: (updateProgress) async {
+                    updateProgress(0.5, 'Disconnecting Google Account...');
+                    await GoogleDriveService().disconnectAccount();
+                    
+                    updateProgress(0.8, 'Closing local database...');
+                    await DBHelper().switchDatabase();
+                    
+                    updateProgress(1.0, 'Done.');
+                  },
+                ),
+              ).then((_) {
+                if (mounted) {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    PageRouteBuilder(
+                      pageBuilder: (_, __, ___) => const SignInScreen(),
+                      transitionsBuilder: (_, anim, __, child) =>
+                          FadeTransition(opacity: anim, child: child),
+                      transitionDuration: const Duration(milliseconds: 400),
+                    ),
+                    (route) => false,
+                  );
+                }
+              });
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Sign Out', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }
@@ -501,7 +559,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           if (mounted) { messenger.showSnackBar(
                             const SnackBar(content: Text('PIN changed successfully'), backgroundColor: AppColors.success),
                           ); }
-                          AutoBackupManager().triggerBackupPending();
+                          
                         } else {
                           setDialogState(() => error = true);
                         }
@@ -581,7 +639,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     value: theme.isDarkMode,
                     onChanged: isReadOnly ? null : (val) {
                       theme.toggleTheme(val);
-                      AutoBackupManager().triggerBackupPending();
+                      
                     },
                   ),
                 ),
@@ -606,7 +664,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               const SizedBox(height: 24),
- 
+
+              // ── Sign Out ────────────────────────────────────────────────
+              _sectionLabel('Account'),
+              const SizedBox(height: 12),
+              PremiumCard(
+                padding: EdgeInsets.zero,
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                  leading: const Icon(LucideIcons.logOut, color: AppColors.error),
+                  title: const Text('Sign Out',
+                      style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.error)),
+                  subtitle: const Text('You will need to sign in again to access the app',
+                      style: TextStyle(fontSize: 12)),
+                  onTap: isReadOnly ? null : _confirmSignOut,
+                ),
+              ),
+              const SizedBox(height: 24),
+
               if (_developerModeEnabled) ...[
                 _sectionLabel('Developer Tools'),
                 const SizedBox(height: 12),

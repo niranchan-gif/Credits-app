@@ -17,7 +17,7 @@ class ThemeProvider with ChangeNotifier {
     _themeMode = isOn ? ThemeMode.dark : ThemeMode.light;
     _saveTheme();
     notifyListeners();
-    AutoBackupManager().triggerBackupPending();
+    
   }
 
   Future<void> _loadTheme() async {

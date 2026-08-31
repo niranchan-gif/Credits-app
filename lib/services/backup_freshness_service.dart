@@ -7,7 +7,9 @@ import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import 'google_drive_service.dart';
-import 'excel_backup_service.dart';
+import 'json_restore_service.dart';
+import 'json_backup_service.dart';
+import 'google_drive_json_backup_service.dart';
 import 'auto_backup_manager.dart';
 import '../database/db_helper.dart';
 import '../providers/loan_provider.dart';
@@ -81,9 +83,9 @@ class BackupFreshnessService {
       // Locate backups folder
       final folderId = await driveService.findOrCreateBackupsFolder(driveApi);
       
-      // Locate credits_backup.xlsx
+      // Locate credits_backup.json.enc
       final listResult = await driveApi.files.list(
-        q: "name = 'credits_backup.xlsx' and '$folderId' in parents and trashed = false",
+        q: "name = 'credits_backup.json.enc' and '$folderId' in parents and trashed = false",
         spaces: 'drive',
         $fields: 'files(id, name, modifiedTime, createdTime, size)',
       );
@@ -93,7 +95,7 @@ class BackupFreshnessService {
       await prefs.setString('last_drive_check_timestamp', DateTime.now().toUtc().toIso8601String());
 
       if (files == null || files.isEmpty) {
-        debugPrint('BackupFreshnessService: No credits_backup.xlsx backup file found on Google Drive.');
+        debugPrint('BackupFreshnessService: No credits_backup.json.enc backup file found on Google Drive.');
         isReadOnlyMode.value = false;
         await prefs.setBool('is_backup_blocked', false);
         await prefs.setBool('last_drive_check_success', true);
@@ -138,7 +140,7 @@ class BackupFreshnessService {
 
       debugPrint('BackupFreshnessService: Comparing Drive timestamp (${driveTime.toUtc()}) vs Local timestamp (${localTime.toUtc()})');
 
-      if (driveTime.toUtc().isAfter(localTime.toUtc())) {
+      if (driveTime.toUtc().isAfter(localTime.toUtc().add(const Duration(minutes: 2)))) {
         debugPrint('BackupFreshnessService: Google Drive backup is NEWER!');
         await prefs.setBool('is_backup_blocked', true);
         await prefs.setBool('last_drive_check_success', true);
@@ -230,25 +232,15 @@ class _NewerBackupDialogContentState extends State<_NewerBackupDialogContent> {
           action: (updateProgress) async {
             final driveService = GoogleDriveService();
             
-            // 1. Download credits_backup.xlsx
-            updateProgress(0.1, '');
-            final bytes = await driveService.downloadBackup(
-              widget.driveFile.id!,
-              onProgress: (p) => updateProgress(0.1 + p * 0.4, ''),
-            );
-
-            final tempDir = await getTemporaryDirectory();
-            tempFile = File('${tempDir.path}/credits_backup_restore.xlsx');
-            await tempFile!.writeAsBytes(bytes, flush: true);
-
-            // 2. Restore data
-            await ExcelBackupService.importBackup(
-              tempFile!.path,
-              merge: false,
-              onProgress: (p) => updateProgress(0.5 + p * 0.5, ''),
-            );
-
-            // 3. Update local timestamp
+            // 1. Restore CDB Snapshot
+              updateProgress(0.3, 'Downloading JSON Encrypted Backup...');
+              await JsonRestoreService().restoreFromDrive(
+                onProgress: (progress, message) {
+                  updateProgress(progress, message);
+                },
+              );
+  
+              // 3. Update local timestamp
             final prefs = await SharedPreferences.getInstance();
             final driveTime = widget.driveFile.modifiedTime ?? widget.driveFile.createdTime ?? DateTime.now();
             await prefs.setString('local_db_last_modified_timestamp', driveTime.toUtc().toIso8601String());

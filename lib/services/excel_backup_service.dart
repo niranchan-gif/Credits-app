@@ -361,34 +361,38 @@ class ExcelBackupService {
               final exId = existing.first['id'] as int;
               borrowerIdMap[oldId] = exId;
               
-              final updateData = Map<String, dynamic>.from(sanitized);
-              updateData.remove('id'); // Do not overwrite local ID
-              
-              // Ensure borrower_code is strictly updated from the backup record
-              String? backupCode;
-              for (final entry in map.entries) {
-                final k = entry.key.toLowerCase().replaceAll(RegExp(r'[\s_]'), '');
-                if (k == 'borrowercode') {
-                  backupCode = entry.value?.toString();
-                  break;
+              final localUpdatedAt = existing.first['updated_at'] as int? ?? 0;
+              final backupUpdatedAt = sanitized['updated_at'] as int? ?? 0;
+              if (backupUpdatedAt > localUpdatedAt) {
+                final updateData = Map<String, dynamic>.from(sanitized);
+                updateData.remove('id'); // Do not overwrite local ID
+                
+                // Ensure borrower_code is strictly updated from the backup record
+                String? backupCode;
+                for (final entry in map.entries) {
+                  final k = entry.key.toLowerCase().replaceAll(RegExp(r'[\s_]'), '');
+                  if (k == 'borrowercode') {
+                    backupCode = entry.value?.toString();
+                    break;
+                  }
                 }
-              }
-              
-              if (backupCode != null && backupCode.trim().isNotEmpty) {
-                updateData['borrower_code'] = backupCode;
-              }
-              
-              await txn.update('borrowers', updateData, where: 'id = ?', whereArgs: [exId]);
-              
-              // Validation: Verify the update was persisted to SQLite
-              final check = await txn.query('borrowers', where: 'id = ?', whereArgs: [exId]);
-              if (check.isNotEmpty) {
-                final savedCode = check.first['borrower_code'];
-                final expectedCode = updateData['borrower_code'];
-                if (savedCode != expectedCode) {
-                  debugPrint('[Restore Validation Failed] Borrower $exId code is $savedCode, but expected $expectedCode');
-                } else {
-                  debugPrint('[Restore Validation Success] Borrower $exId code correctly updated to $savedCode');
+                
+                if (backupCode != null && backupCode.trim().isNotEmpty) {
+                  updateData['borrower_code'] = backupCode;
+                }
+                
+                await txn.update('borrowers', updateData, where: 'id = ?', whereArgs: [exId]);
+                
+                // Validation: Verify the update was persisted to SQLite
+                final check = await txn.query('borrowers', where: 'id = ?', whereArgs: [exId]);
+                if (check.isNotEmpty) {
+                  final savedCode = check.first['borrower_code'];
+                  final expectedCode = updateData['borrower_code'];
+                  if (savedCode != expectedCode) {
+                    debugPrint('[Restore Validation Failed] Borrower $exId code is $savedCode, but expected $expectedCode');
+                  } else {
+                    debugPrint('[Restore Validation Success] Borrower $exId code correctly updated to $savedCode');
+                  }
                 }
               }
             } else {
@@ -464,7 +468,11 @@ class ExcelBackupService {
             final exId = existing.first['id'] as int;
             loanIdMap[oldId] = exId;
             if (merge) {
-              await txn.update('loans', sanitized, where: 'id = ?', whereArgs: [exId]);
+              final localUpdatedAt = existing.first['updated_at'] as int? ?? 0;
+              final backupUpdatedAt = sanitized['updated_at'] as int? ?? 0;
+              if (backupUpdatedAt > localUpdatedAt) {
+                await txn.update('loans', sanitized, where: 'id = ?', whereArgs: [exId]);
+              }
             }
           } else {
             final newId = await txn.insert('loans', sanitized);
@@ -526,7 +534,13 @@ class ExcelBackupService {
           }
           
           if (existing.isNotEmpty) {
-            if (merge) await txn.update('payments', sanitized, where: 'id = ?', whereArgs: [existing.first['id']]);
+            if (merge) {
+              final localUpdatedAt = existing.first['updated_at'] as int? ?? 0;
+              final backupUpdatedAt = sanitized['updated_at'] as int? ?? 0;
+              if (backupUpdatedAt > localUpdatedAt) {
+                await txn.update('payments', sanitized, where: 'id = ?', whereArgs: [existing.first['id']]);
+              }
+            }
           } else {
             await txn.insert('payments', sanitized);
           }
@@ -573,8 +587,14 @@ class ExcelBackupService {
                 whereArgs: [sanitized['created_at']]
               );
             }
-            if (existing.isNotEmpty && merge) {
-              await txn.update('expenses', sanitized, where: 'id = ?', whereArgs: [existing.first['id']]);
+            if (existing.isNotEmpty) {
+              if (merge) {
+                final localUpdatedAt = existing.first['updated_at'] as int? ?? 0;
+                final backupUpdatedAt = sanitized['updated_at'] as int? ?? 0;
+                if (backupUpdatedAt > localUpdatedAt) {
+                  await txn.update('expenses', sanitized, where: 'id = ?', whereArgs: [existing.first['id']]);
+                }
+              }
             } else {
               await txn.insert('expenses', sanitized);
             }
@@ -622,8 +642,14 @@ class ExcelBackupService {
                 whereArgs: [sanitized['created_at']]
               );
             }
-            if (existing.isNotEmpty && merge) {
-              await txn.update('investments', sanitized, where: 'id = ?', whereArgs: [existing.first['id']]);
+            if (existing.isNotEmpty) {
+              if (merge) {
+                final localUpdatedAt = existing.first['updated_at'] as int? ?? 0;
+                final backupUpdatedAt = sanitized['updated_at'] as int? ?? 0;
+                if (backupUpdatedAt > localUpdatedAt) {
+                  await txn.update('investments', sanitized, where: 'id = ?', whereArgs: [existing.first['id']]);
+                }
+              }
             } else {
               await txn.insert('investments', sanitized);
             }
@@ -667,8 +693,14 @@ class ExcelBackupService {
                 whereArgs: [sanitized['timestamp']]
               );
             }
-            if (existing.isNotEmpty && merge) {
-              await txn.update('service_costs', sanitized, where: 'id = ?', whereArgs: [existing.first['id']]);
+            if (existing.isNotEmpty) {
+              if (merge) {
+                final localTimestamp = existing.first['timestamp'] as int? ?? 0;
+                final backupTimestamp = sanitized['timestamp'] as int? ?? 0;
+                if (backupTimestamp > localTimestamp) {
+                  await txn.update('service_costs', sanitized, where: 'id = ?', whereArgs: [existing.first['id']]);
+                }
+              }
             } else {
               await txn.insert('service_costs', sanitized);
             }

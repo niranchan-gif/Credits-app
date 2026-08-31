@@ -19,6 +19,7 @@ import 'investment_screen.dart';
 import 'on_hand_cash_screen.dart';
 import 'completed_loans_screen.dart';
 import 'date_range_report_screen.dart';
+import 'service_cost_screen.dart';
 
 class ReportSummary {
   final Map<String, dynamic> globalSummary;
@@ -349,6 +350,22 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   ),
                   const SizedBox(height: 16),
                   
+                  Row(
+                    children: [
+                      _statCard('Expenses', fmtINR(_totalExpenses), LucideIcons.receipt, AppColors.error),
+                      const SizedBox(width: 16),
+                      _statCard('Service Cost', fmtINR(_totalServiceCosts), LucideIcons.wrench, AppColors.warning,
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const ServiceCostScreen()),
+                          );
+                          if (mounted) _loadReports(force: true);
+                        }),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
                   Row(
                     children: [
                       _statCard('Completed', fmtINR(totalCollectedEver), LucideIcons.checkSquare, AppColors.success, 

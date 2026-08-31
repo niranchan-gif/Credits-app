@@ -7,8 +7,10 @@ import '../providers/loan_provider.dart';
 import '../models/payment.dart';
 import '../utils/fmt.dart';
 import '../utils/app_colors.dart';
+import '../utils/app_decorations.dart';
 import '../widgets/premium_card.dart';
 import '../widgets/sync_status_indicator.dart';
+import '../widgets/quick_add_dialog.dart';
 import 'add_borrower_screen.dart';
 import 'borrower_loans_screen.dart';
 import '../services/backup_freshness_service.dart';
@@ -70,9 +72,15 @@ class _HomeScreenState extends State<HomeScreen> {
             builder: (context, provider, _) {
                 final items = source.where((b) {
                   final q = _query.toLowerCase();
+                  if (q.trim().isEmpty) return true;
+                  
+                  final isNumeric = int.tryParse(q.trim()) != null;
+                  if (isNumeric) {
+                    return b.borrowerCode.toLowerCase() == q.trim();
+                  }
+
                   return b.name.toLowerCase().contains(q) ||
                       b.borrowerCode.toLowerCase().contains(q) ||
-                      (b.phone).toLowerCase().contains(q) ||
                       (b.address ?? '').toLowerCase().contains(q);
                 }).toList();
 
@@ -131,18 +139,45 @@ class _HomeScreenState extends State<HomeScreen> {
         },
         child: Padding(
           padding: const EdgeInsets.only(bottom: 80), // Avoid overlap with bottom nav
-          child: FloatingActionButton.extended(
-            backgroundColor: AppColors.accent,
-            foregroundColor: AppColors.background,
-            elevation: 4,
-            icon: const Icon(LucideIcons.user),
-            label: const Text("Add Borrower", style: TextStyle(fontWeight: FontWeight.bold)),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AddBorrowerScreen()),
-              );
-            },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              FloatingActionButton.extended(
+                heroTag: 'quick_add_fab',
+                backgroundColor: AppColors.surfaceDark,
+                foregroundColor: AppColors.accent,
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  side: BorderSide(color: AppColors.accent.withOpacity(0.5), width: 1),
+                ),
+                icon: const Icon(LucideIcons.zap),
+                label: const Text("Quick Add", style: TextStyle(fontWeight: FontWeight.bold)),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => const QuickAddDialog(),
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+              FloatingActionButton.extended(
+                heroTag: 'add_borrower_fab',
+                backgroundColor: AppColors.accent,
+                foregroundColor: AppColors.background,
+                elevation: 6,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                icon: const Icon(LucideIcons.user),
+                label: const Text("Add Borrower", style: TextStyle(fontWeight: FontWeight.bold)),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AddBorrowerScreen()),
+                  );
+                },
+              ),
+            ],
           ),
         ),
       ),
@@ -187,6 +222,13 @@ class _HomeScreenState extends State<HomeScreen> {
           PremiumCard(
             padding: const EdgeInsets.all(24),
             gradient: AppColors.primaryGradient,
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.accent.withOpacity( 0.3),
+                blurRadius: 24,
+                offset: const Offset(0, 10),
+              )
+            ],
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -258,7 +300,7 @@ class _HomeScreenState extends State<HomeScreen> {
       controller: _searchCtrl,
       onChanged: (v) => setState(() => _query = v),
       decoration: InputDecoration(
-        hintText: "Search name, ID, phone, address...",
+        hintText: "Search name, ID, address...",
         prefixIcon: const Icon(LucideIcons.search, size: 20),
         suffixIcon: _query.isNotEmpty
             ? IconButton(
@@ -414,6 +456,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return PremiumCard(
         padding: EdgeInsets.zero,
         color: isPaid ? AppColors.accent.withOpacity( 0.05) : Theme.of(context).colorScheme.surface,
+        boxShadow: AppDecorations.subtleShadowCard(Theme.of(context).brightness == Brightness.dark).boxShadow,
         child: InkWell(
           onTap: () async {
             await Navigator.push(

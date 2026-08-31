@@ -24,6 +24,14 @@ class GoogleDriveService {
 
   /// Check if the user is connected
   Future<bool> isConnected() async {
+    final prefs = await SharedPreferences.getInstance();
+    final email = prefs.getString('google_drive_account_email');
+    if (email != null && email.isNotEmpty) {
+      // Start silent sign in in the background to refresh tokens, but return true instantly
+      _googleSignIn.signInSilently().catchError((_) => null);
+      return true;
+    }
+
     final connected = await _googleSignIn.isSignedIn();
     if (connected && _googleSignIn.currentUser == null) {
       try {
@@ -32,12 +40,8 @@ class GoogleDriveService {
         debugPrint('GoogleDriveService: Silent sign-in failed: $e');
       }
     }
-    if (_googleSignIn.currentUser != null || connected) {
-      return true;
-    }
-    final prefs = await SharedPreferences.getInstance();
-    final email = prefs.getString('google_drive_account_email');
-    return email != null && email.isNotEmpty;
+    
+    return _googleSignIn.currentUser != null || connected;
   }
 
   /// Connect Google Account (triggers login flow)
@@ -154,7 +158,7 @@ class GoogleDriveService {
     final folderId = await findOrCreateBackupsFolder(driveApi);
 
     final listResult = await driveApi.files.list(
-      q: "(name contains 'credits_backup' and name endsWith '.xlsx') and '$folderId' in parents and trashed = false",
+      q: "name contains 'credits_backup' and name contains '.xlsx' and '$folderId' in parents and trashed = false",
       spaces: 'drive',
       $fields: 'files(id, name, size, description, createdTime, modifiedTime)',
     );

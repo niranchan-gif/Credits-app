@@ -7,113 +7,12 @@ import 'package:provider/provider.dart';
 import '../../database/db_helper.dart';
 import '../../services/notification_service.dart';
 import '../../services/auto_backup_manager.dart';
-import '../../providers/theme_provider.dart';
-import '../../utils/app_colors.dart';
+import '../../services/google_drive_service.dart';
 import '../../providers/loan_provider.dart';
 import '../app_lock_wrapper.dart';
+import '../auth/sign_in_screen.dart';
 import '../main_navigation_screen.dart';
-import 'coin_widget.dart';
-import 'audio_manager.dart';
 
-class PremiumBackgroundElements extends StatelessWidget {
-  final Animation<double> animation;
-  final bool isDark;
-
-  const PremiumBackgroundElements({super.key, required this.animation, required this.isDark});
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: animation,
-      builder: (context, child) {
-        return Stack(
-          children: [
-            // Elegant dotted grid background
-            CustomPaint(
-              size: Size.infinite,
-              painter: _GridPainter(
-                baseColor: (isDark ? Colors.white : Colors.black),
-                progress: animation.value,
-              ),
-            ),
-            // Subtle ambient golden dust particles
-            ...List.generate(15, (index) {
-              final random = math.Random(index * 42);
-              final startX = random.nextDouble() * MediaQuery.of(context).size.width;
-              final startY = MediaQuery.of(context).size.height + (random.nextDouble() * 200);
-              final speed = 20 + random.nextDouble() * 40; // Very slow drift
-              final size = 1.5 + random.nextDouble() * 3.0; // Tiny premium dots
-              
-              final currentY = startY - (animation.value * speed);
-              final opacity = (0.5 - (animation.value * 0.4)).clamp(0.0, 1.0); 
-              
-              return Positioned(
-                left: startX,
-                top: currentY,
-                child: Opacity(
-                  opacity: opacity,
-                  child: Container(
-                    width: size,
-                    height: size,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppColors.accent,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.accent.withValues(alpha: 0.8),
-                          blurRadius: size * 2,
-                          spreadRadius: size * 0.5,
-                        )
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _GridPainter extends CustomPainter {
-  final Color baseColor;
-  final double progress;
-
-  _GridPainter({required this.baseColor, required this.progress});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..style = PaintingStyle.fill;
-    const double spacing = 32.0;
-    
-    for (double x = 0; x < size.width; x += spacing) {
-      for (double y = 0; y < size.height; y += spacing) {
-        // Radial fade out from center
-        final dx = x - size.width / 2;
-        final dy = y - size.height / 2;
-        final dist = math.sqrt(dx * dx + dy * dy);
-        final maxDist = size.width / 1.1;
-        
-        double alpha = (1.0 - dist / maxDist).clamp(0.0, 1.0);
-        // Base opacity is 15%, fades out as animation progresses
-        alpha = alpha * 0.15 * (1.0 - progress * 0.8);
-        
-        if (alpha > 0) {
-          paint.color = baseColor.withValues(alpha: alpha);
-          canvas.drawCircle(Offset(x, y), 1.2, paint);
-        }
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _GridPainter oldDelegate) => oldDelegate.progress != progress;
-}
-
-/// Premium Luxury Launch Screen for Credits app.
-/// Simultaneously initializes backend services without blocking the UI 60 FPS animation.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -122,155 +21,105 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  
-  // Animation Tweens
-  late Animation<double> _bgOpacity;
-  late Animation<double> _coinOpacity;
-  late Animation<double> _coinScale;
-  late Animation<double> _coinTranslateY;
-  late Animation<double> _coinRotation;
-  late Animation<double> _shadowOpacity;
-  late Animation<double> _shadowScale;
-  late Animation<double> _glowOpacity;
-  late Animation<double> _textOpacity;
-  late Animation<double> _textTranslateY;
-  late Animation<double> _masterFadeOut;
-
   bool _backendInitialized = false;
   bool _animationMinimumReached = false;
   bool _navigated = false;
+  bool _isSignedIn = false;
 
-  // Sound triggers state tracking
-  bool _whooshPlayed = false;
-  int _spinChimesPlayed = 0;
-  bool _revealChimePlayed = false;
+  // Background color matching the logo's bottom right depth
+  final Color _bgColor = const Color(0xFF021711);
+
+  late AnimationController _animController;
+  late Animation<double> _dropAnim;
+  late Animation<double> _scaleAnim;
+  late Animation<double> _spinAnim;
+  late Animation<double> _textFadeAnim;
+  late Animation<double> _textScaleAnim;
+  late Animation<double> _letterSpacingAnim;
 
   @override
   void initState() {
     super.initState();
-    AudioManager().init();
-
-    // Total animation timeline: 2.4 seconds (2400 ms) to guarantee app opens in under 3 seconds
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2400),
+    
+    _animController = AnimationController(
+      vsync: this, 
+      duration: const Duration(milliseconds: 3500)
     );
 
-    _setupAnimations();
-    _setupAudioTriggers();
+    // Coin Toss: Up then Down
+    _dropAnim = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0, end: -200).chain(CurveTween(curve: Curves.easeOutCubic)),
+        weight: 40,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: -200, end: 0).chain(CurveTween(curve: Curves.bounceOut)),
+        weight: 60,
+      ),
+    ]).animate(
+      // FIXED: Start immediately at 0.0 instead of 0.1 to avoid the initial "lag/stuck" perception
+      CurvedAnimation(parent: _animController, curve: const Interval(0.0, 0.65))
+    );
 
-    // Start UI Animation immediately
-    _controller.forward().then((_) {
+    // Fake depth by scaling up as it tosses
+    _scaleAnim = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.0, end: 1.3).chain(CurveTween(curve: Curves.easeOutCubic)),
+        weight: 40,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.3, end: 1.0).chain(CurveTween(curve: Curves.easeInCubic)),
+        weight: 60,
+      ),
+    ]).animate(
+      CurvedAnimation(parent: _animController, curve: const Interval(0.0, 0.65))
+    );
+
+    // 9 * pi = 4.5 spins.
+    _spinAnim = Tween<double>(begin: 0, end: 9 * math.pi).animate(
+      CurvedAnimation(parent: _animController, curve: const Interval(0.0, 0.65, curve: Curves.easeInOutCubic))
+    );
+
+    _textFadeAnim = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _animController, curve: const Interval(0.68, 0.9, curve: Curves.easeIn))
+    );
+
+    _textScaleAnim = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _animController, curve: const Interval(0.68, 0.9, curve: Curves.easeOutBack))
+    );
+    
+    _letterSpacingAnim = Tween<double>(begin: 20.0, end: 6.0).animate(
+      CurvedAnimation(parent: _animController, curve: const Interval(0.68, 0.9, curve: Curves.easeOutCubic))
+    );
+
+    _animController.forward();
+
+    Future.delayed(const Duration(milliseconds: 3500), () {
       if (mounted) {
         _animationMinimumReached = true;
-        _checkAndNavigate(force: true);
+        _checkAndNavigate();
       }
     });
 
-    // Ensure we ALWAYS transition to home screen within 2.5 seconds maximum
-    Future.delayed(const Duration(milliseconds: 2500), () {
+    Future.delayed(const Duration(milliseconds: 4500), () {
       if (mounted && !_navigated) {
         _checkAndNavigate(force: true);
       }
     });
 
-    // Simultaneously initialize backend services
-    _initBackendConcurrently();
-  }
-
-  void _setupAnimations() {
-    // 0.0s: Background & Coin start immediately visible at 100% for zero-flicker OS transition
-    _bgOpacity = ConstantTween<double>(1.0).animate(_controller);
-    _coinOpacity = ConstantTween<double>(1.0).animate(_controller);
-    _coinScale = ConstantTween<double>(1.0).animate(_controller);
-
-    // 0.0s - 0.2s (0.000 -> 0.083): Coin lifts upward ~12px
-    _coinTranslateY = TweenSequence<double>([
-      TweenSequenceItem(
-        tween: Tween<double>(begin: 0.0, end: -12.0).chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 8.3,
-      ),
-      TweenSequenceItem(tween: ConstantTween<double>(-12.0), weight: 79.2),
-      TweenSequenceItem(
-        tween: Tween<double>(begin: -12.0, end: 0.0).chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 12.5,
-      ),
-    ]).animate(_controller);
-
-    // Soft Shadow underneath coin
-    _shadowOpacity = TweenSequence<double>([
-      TweenSequenceItem(tween: ConstantTween<double>(0.45), weight: 87.5),
-      TweenSequenceItem(tween: Tween<double>(begin: 0.45, end: 0.0).chain(CurveTween(curve: Curves.easeIn)), weight: 12.5),
-    ]).animate(_controller);
-
-    _shadowScale = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween<double>(begin: 1.0, end: 0.85).chain(CurveTween(curve: Curves.easeInOut)), weight: 8.3),
-      TweenSequenceItem(tween: ConstantTween<double>(0.85), weight: 79.2),
-      TweenSequenceItem(tween: Tween<double>(begin: 0.85, end: 1.0).chain(CurveTween(curve: Curves.easeInOut)), weight: 12.5),
-    ]).animate(_controller);
-
-    // 0.2s - 1.8s (0.083 -> 0.750): Natural acceleration & deceleration spin around Y-axis (2.5 turns = 5 * PI)
-    _coinRotation = Tween<double>(begin: 0.0, end: 5 * math.pi).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.083, 0.750, curve: Curves.easeInOutCubic),
-      ),
-    );
-
-    // 1.8s - 2.1s (0.750 -> 0.875): Small elegant glow behind logo when coin stops
-    _glowOpacity = TweenSequence<double>([
-      TweenSequenceItem(tween: ConstantTween<double>(0.0), weight: 75.0),
-      TweenSequenceItem(tween: Tween<double>(begin: 0.0, end: 0.35).chain(CurveTween(curve: Curves.easeOut)), weight: 12.5),
-      TweenSequenceItem(tween: Tween<double>(begin: 0.35, end: 0.0).chain(CurveTween(curve: Curves.easeIn)), weight: 12.5),
-    ]).animate(_controller);
-
-    // 1.8s - 2.4s (0.750 -> 1.000): Typography text fades in and smoothly transitions
-    _textOpacity = TweenSequence<double>([
-      TweenSequenceItem(tween: ConstantTween<double>(0.0), weight: 75.0),
-      TweenSequenceItem(tween: Tween<double>(begin: 0.0, end: 1.0).chain(CurveTween(curve: Curves.easeOut)), weight: 12.5),
-      TweenSequenceItem(tween: ConstantTween<double>(1.0), weight: 12.5),
-    ]).animate(_controller);
-
-    _textTranslateY = TweenSequence<double>([
-      TweenSequenceItem(tween: ConstantTween<double>(12.0), weight: 75.0),
-      TweenSequenceItem(tween: Tween<double>(begin: 12.0, end: 0.0).chain(CurveTween(curve: Curves.easeOutCubic)), weight: 12.5),
-      TweenSequenceItem(tween: ConstantTween<double>(0.0), weight: 12.5),
-    ]).animate(_controller);
-
-    // 2.1s - 2.4s (0.875 -> 1.000): Master fade out to Home Screen
-    _masterFadeOut = TweenSequence<double>([
-      TweenSequenceItem(tween: ConstantTween<double>(1.0), weight: 87.5),
-      TweenSequenceItem(tween: Tween<double>(begin: 1.0, end: 0.0).chain(CurveTween(curve: Curves.easeInOut)), weight: 12.5),
-    ]).animate(_controller);
-  }
-
-  void _setupAudioTriggers() {
-    _controller.addListener(() {
-      final double t = _controller.value;
-
-      // 0.0s: Soft cinematic whoosh
-      if (t >= 0.01 && !_whooshPlayed) {
-        _whooshPlayed = true;
-        AudioManager().playWhoosh();
-      }
-
-      // 0.2s - 1.8s: Subtle metallic spin feedback at each half rotation
-      if (t >= 0.083 && t <= 0.73) {
-        final double currentAngle = _coinRotation.value;
-        final int currentHalfTurns = (currentAngle / math.pi).floor();
-        if (currentHalfTurns > _spinChimesPlayed && currentHalfTurns < 5) {
-          _spinChimesPlayed = currentHalfTurns;
-          AudioManager().playSpin();
-        }
-      }
-
-      // 1.75s - 1.8s: Reveal chime as coin completes final rotation
-      if (t >= 0.73 && !_revealChimePlayed) {
-        _revealChimePlayed = true;
-        AudioManager().playChime();
+    // OPTIMIZATION: Delay backend initialization significantly (2200ms) so it doesn't block the UI thread during the crucial initial coin toss.
+    // By 2200ms, the coin has finished the complex physics and is resting, making any isolate stutters unnoticeable.
+    Future.delayed(const Duration(milliseconds: 2200), () {
+      if (mounted) {
+        _initBackendConcurrently();
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
   }
 
   Future<void> _initBackendConcurrently() async {
@@ -278,29 +127,33 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     debugPrint('SplashScreen: Concurrently initializing backend services...');
 
     try {
-      await DBHelper().repairDatabaseIfNeeded();
+      _isSignedIn = await GoogleDriveService().isConnected();
     } catch (e) {
-      debugPrint('SplashScreen: repairDatabaseIfNeeded error: $e');
+      _isSignedIn = false;
     }
+    await Future.delayed(const Duration(milliseconds: 10)); // Yield to UI thread
+
+    try {
+      await DBHelper().repairDatabaseIfNeeded();
+    } catch (e) {}
+    await Future.delayed(const Duration(milliseconds: 10)); // Yield to UI thread
 
     try {
       await NotificationService().init();
-    } catch (e) {
-      debugPrint('SplashScreen: NotificationService init error: $e');
-    }
+    } catch (e) {}
+    await Future.delayed(const Duration(milliseconds: 10)); // Yield to UI thread
 
     try {
       AutoBackupManager().start();
-    } catch (e) {
-      debugPrint('SplashScreen: AutoBackupManager start error: $e');
-    }
+    } catch (e) {}
 
-    try {
-      if (mounted) {
-        await context.read<LoanProvider>().loadBorrowers();
-      }
-    } catch (e) {
-      debugPrint('SplashScreen: LoanProvider preload error: $e');
+    if (_isSignedIn) {
+      await Future.delayed(const Duration(milliseconds: 10)); // Yield to UI thread
+      try {
+        if (mounted) {
+          await context.read<LoanProvider>().loadBorrowers();
+        }
+      } catch (e) {}
     }
 
     final elapsed = DateTime.now().difference(startTime).inMilliseconds;
@@ -313,167 +166,400 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   void _checkAndNavigate({bool force = false}) {
-    // Guarantee that app opens and transitions within 3 seconds
     if ((force || (_animationMinimumReached && _backendInitialized)) && !_navigated) {
       _navigated = true;
-      debugPrint('SplashScreen: Transitioning smoothly to Home Screen.');
+      Widget nextScreen = _isSignedIn 
+          ? const AppLockWrapper(child: MainNavigationScreen())
+          : const SignInScreen();
+          
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const AppLockWrapper(
-            child: MainNavigationScreen(),
-          ),
+          opaque: false, // Prevents Flutter from blacking/whiting out the splash screen during transition
+          pageBuilder: (context, animation, secondaryAnimation) => nextScreen,
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(opacity: animation, child: child);
+            final fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+            );
+            final scaleAnimation = Tween<double>(begin: 0.95, end: 1.0).animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+            );
+            return FadeTransition(
+              opacity: fadeAnimation,
+              child: ScaleTransition(
+                scale: scaleAnimation,
+                child: child,
+              ),
+            );
           },
-          transitionDuration: const Duration(milliseconds: 350),
+          transitionDuration: const Duration(milliseconds: 1000), // Slower cinematic transition
         ),
       );
     }
   }
 
   @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final bool isDark = themeProvider.isDarkMode;
-
-    // Background colors per rules: Deep Matte Black (#090909) / Soft White (#FAFAFA)
-    final Color bgColor = isDark ? const Color(0xFF090909) : const Color(0xFFFAFAFA);
-    final Color radialCenterColor = isDark ? const Color(0xFF1F1F1F) : const Color(0xFFFFFFFF);
-    final Color textColor = isDark ? const Color(0xFFF0F0F0) : const Color(0xFF1A1A1A);
-    final Color subtextColor = isDark ? const Color(0xFF999999) : const Color(0xFF666666);
-
     return Scaffold(
-      backgroundColor: bgColor,
+      backgroundColor: _bgColor,
       body: AnimatedBuilder(
-        animation: _controller,
+        animation: _animController,
         builder: (context, child) {
-          return Container(
-              width: double.infinity,
-              height: double.infinity,
-              decoration: BoxDecoration(
-                color: bgColor,
-                gradient: RadialGradient(
-                  center: Alignment.center,
-                  radius: 1.2,
-                  colors: [
-                    Color.lerp(bgColor, radialCenterColor, _bgOpacity.value)!,
-                    bgColor,
-                  ],
-                  stops: const [0.0, 1.0],
+          final angle = _spinAnim.value;
+
+          return Stack(
+            children: [
+              // Premium Top Light, Grid, and Data Streams
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _PremiumBackdropPainter(_animController.value),
                 ),
               ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Positioned.fill(
-                    child: PremiumBackgroundElements(animation: _controller, isDark: isDark),
-                  ),
-                  // 1. Soft Elliptical Shadow underneath coin
-                  Positioned(
-                    top: MediaQuery.of(context).size.height * 0.5 + 85,
-                    child: Opacity(
-                      opacity: _shadowOpacity.value,
-                      child: Transform.scale(
-                        scale: _shadowScale.value,
-                        child: Container(
-                          width: 130,
-                          height: 22,
+
+              // Premium Bargraph Shadow anchored to the absolute bottom (Now 4 bars)
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    _buildShadowBar(height: 100 * _getBarProgress(0, _animController.value), opacity: _getBarProgress(0, _animController.value)),
+                    const SizedBox(width: 25),
+                    _buildShadowBar(height: 160 * _getBarProgress(1, _animController.value), opacity: _getBarProgress(1, _animController.value)),
+                    const SizedBox(width: 25),
+                    _buildShadowBar(height: 240 * _getBarProgress(2, _animController.value), opacity: _getBarProgress(2, _animController.value)),
+                    const SizedBox(width: 25),
+                    _buildShadowBar(height: 320 * _getBarProgress(3, _animController.value), opacity: _getBarProgress(3, _animController.value)),
+                  ],
+                ),
+              ),
+              
+              // Main Content
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // OPTIMIZATION: Highly performant RadialGradient for aura (0 blur cost)
+                        Container(
+                          width: 250,
+                          height: 250,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: isDark ? 0.75 : 0.25),
-                                blurRadius: 18,
-                                spreadRadius: 2,
+                            gradient: RadialGradient(
+                              colors: [
+                                const Color(0xFF13A383).withOpacity(0.35 * _textFadeAnim.value),
+                                const Color(0xFF13A383).withOpacity(0.0),
+                              ],
+                              stops: const [0.0, 1.0],
+                            ),
+                          ),
+                        ),
+                        
+                        Transform.translate(
+                          offset: Offset(0, _dropAnim.value),
+                          child: Transform.scale(
+                            scale: _scaleAnim.value,
+                            child: _buildCoin(angle),
+                          ),
+                        ),
+                      ],
+                    ),
+                    
+                    // FIXED: Transform.translate physically pulls the text up by 40 pixels 
+                    // to completely bypass the 250x250 aura container spacing
+                    Transform.translate(
+                      offset: const Offset(0, -40),
+                      child: Transform.scale(
+                        scale: _textScaleAnim.value,
+                        child: Text(
+                          'Credits',
+                          style: GoogleFonts.leagueSpartan(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white.withOpacity(0.9 * _textFadeAnim.value),
+                            letterSpacing: _letterSpacingAnim.value * 0.5,
+                            shadows: [
+                              Shadow(
+                                color: const Color(0xFF13A383).withOpacity(0.5 * _textFadeAnim.value),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
                               ),
                             ],
                           ),
                         ),
                       ),
                     ),
-                  ),
-
-                  // 2. Elegant Golden Glow behind Logo (at 2.2s stop point)
-                  Positioned(
-                    top: MediaQuery.of(context).size.height * 0.5 - 90,
-                    child: Opacity(
-                      opacity: _glowOpacity.value,
-                      child: Container(
-                        width: 170,
-                        height: 170,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFD4AF37).withValues(alpha: 0.55),
-                              blurRadius: 45,
-                              spreadRadius: 10,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // 3. The 3D Spinning Metallic Coin
-                  Positioned(
-                    top: MediaQuery.of(context).size.height * 0.5 - 90 + _coinTranslateY.value,
-                    child: Transform.scale(
-                      scale: _coinScale.value,
-                      child: CoinWidget(
-                        rotationAngle: _coinRotation.value,
-                        size: 170,
-                        isDarkTheme: isDark,
-                        reflectionOffset: _coinRotation.value * 1.4 + _controller.value * 2.5,
-                      ),
-                    ),
-                  ),
-
-                  // 4. Typography (2.3s Text Fades In)
-                  Positioned(
-                    top: MediaQuery.of(context).size.height * 0.5 + 125,
-                    child: Opacity(
-                      opacity: _textOpacity.value,
-                      child: Transform.translate(
-                        offset: Offset(0, _textTranslateY.value),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Credits',
-                              style: GoogleFonts.outfit(
-                                fontSize: 32,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 1.2,
-                                color: textColor,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Smart Loan Management',
-                              style: GoogleFonts.outfit(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                letterSpacing: 2.2,
-                                color: subtextColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+            ],
           );
         },
       ),
     );
   }
+
+  double _getBarProgress(int index, double progress) {
+    // 3.5s total animation timeline.
+    // The 4 bars must all finish before progress reaches ~0.95 so they can be seen
+    // fully formed before the page transition triggers at 1.0 (3500ms).
+    double duration = 0.30; // Each bar takes 30% of the total time to rise
+    double start = index * (0.65 / 3.0); // Stagger starts: 0.0, ~0.21, ~0.43, ~0.65
+    double end = start + duration; // 4th bar ends at 0.65 + 0.30 = 0.95
+    
+    if (progress <= start) return 0.0;
+    if (progress >= end) return 1.0;
+    
+    double t = (progress - start) / (end - start);
+    return Curves.easeOutBack.transform(t); // Gives a nice bouncy rise
+  }
+
+  Widget _buildShadowBar({required double height, required double opacity}) {
+    // Clamp opacity since Curves.easeOutBack can overshoot past 1.0
+    final double safeOpacity = opacity.clamp(0.0, 1.0);
+    
+    return Container(
+      width: 60,
+      height: height,
+      decoration: BoxDecoration(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0xFF063628).withOpacity(safeOpacity), 
+            const Color(0xFF021711).withOpacity(0.2 * safeOpacity),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCoin(double angle) {
+    final isFront = math.cos(angle) > 0;
+
+    return Transform(
+      alignment: Alignment.center,
+      transform: Matrix4.identity()
+        ..setEntry(3, 2, 0.002) // Sleek 3D perspective
+        ..rotateY(angle),
+      child: isFront
+          ? _buildRupeeSide(angle)
+          : Transform(
+              alignment: Alignment.center,
+              transform: Matrix4.rotationY(math.pi),
+              child: _buildLogoSide(angle),
+            ),
+    );
+  }
+
+  Widget _buildGlassyFace({required Widget child, required double angle}) {
+    const double coinSize = 160.0;
+    
+    // Calculate a sweep value from -1.0 to 1.0 based on rotation
+    final double sweep = math.sin(angle * 1.5);
+
+    return Container(
+      width: coinSize,
+      height: coinSize,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        // OPTIMIZATION: LinearGradient is completely hardware accelerated on all mobile GPUs
+        // SweepGradient causes severe software rendering lag on many Android devices
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFFFFDF73), 
+            Color(0xFF8A6327), 
+            Color(0xFFFFDF73), 
+            Color(0xFF8A6327), 
+            Color(0xFFFFDF73),
+          ],
+        ),
+        // OPTIMIZATION: Completely removed BoxShadows under 3D transforms to fix lag!
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(5.0), // Thicker substantial gold rim
+        child: Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            // Glass core gradient (Pure Emerald, no gold bleed)
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xBB13A383), 
+                Color(0x77096853), 
+                Color(0x44042B22), 
+              ],
+            ),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.2), // Faint white glass reflection only
+              width: 1.0,
+            ),
+            // OPTIMIZATION: Completely removed BoxShadows under 3D transforms to fix lag!
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              child, // Logo or Rupee symbol
+
+              // Glassy top highlight arc
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: coinSize * 0.45,
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(coinSize / 2)),
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.white.withOpacity(0.6),
+                        Colors.white.withOpacity(0.0),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // OPTIMIZATION: Highly performant GPU sweep using Transform.translate instead of animated Gradient Alignment
+              ClipOval(
+                child: Transform.translate(
+                  offset: Offset(sweep * coinSize * 1.5, 0),
+                  child: Container(
+                    width: coinSize * 1.5,
+                    height: coinSize,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.white.withOpacity(0.0),
+                          Colors.white.withOpacity(0.5), // Specular shine
+                          Colors.white.withOpacity(0.0),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRupeeSide(double angle) {
+    return _buildGlassyFace(
+      angle: angle,
+      child: const Text(
+        '₹',
+        style: TextStyle(
+          fontSize: 90,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
+          // OPTIMIZATION: Removed expensive text shadows from the 3D rotating object
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLogoSide(double angle) {
+    return _buildGlassyFace(
+      angle: angle,
+      child: Transform.translate(
+        offset: const Offset(0.0, 0.0), 
+        child: ClipOval(
+          child: Image.asset(
+            'assets/icon/app_icon.png',
+            fit: BoxFit.cover,
+            width: 120, 
+            height: 120,
+          ),
+        ),
+      ),
+    );
+  }
 }
+
+class _PremiumBackdropPainter extends CustomPainter {
+  final double animationValue;
+
+  _PremiumBackdropPainter(this.animationValue);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // 1. Top Ambient Spotlight Flare
+    final topLightPaint = Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(0.0, -1.0), // Anchored at top center
+        radius: 1.5,
+        colors: [
+          const Color(0xFF13A383).withOpacity(0.25 + 0.05 * math.sin(animationValue * math.pi * 2)), // Subtle pulse
+          const Color(0xFF096853).withOpacity(0.1),
+          const Color(0xFF021711).withOpacity(0.0),
+        ],
+        stops: const [0.0, 0.4, 1.0],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+    
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), topLightPaint);
+
+    // 2. Premium Tech Grid
+    final gridPaint = Paint()
+      ..color = const Color(0xFF13A383).withOpacity(0.08)
+      ..strokeWidth = 1.0;
+      
+    const double spacing = 35.0;
+    for (double i = 0; i < size.width; i += spacing) {
+      canvas.drawLine(Offset(i, 0), Offset(i, size.height), gridPaint);
+    }
+    for (double i = 0; i < size.height; i += spacing) {
+      canvas.drawLine(Offset(0, i), Offset(size.width, i), gridPaint);
+    }
+
+    // 3. Cinematic Bokeh / Floating Glass Dust (Ultra-premium organic particles)
+    final random = math.Random(42); // Fixed seed
+    for (int i = 0; i < 15; i++) {
+      double startX = random.nextDouble() * size.width;
+      double startY = random.nextDouble() * size.height;
+      
+      // Slow drift
+      double driftY = startY - (animationValue * 40 * (random.nextDouble() + 0.5));
+      if (driftY < -50) driftY += size.height + 100;
+      
+      double driftX = startX + math.sin(animationValue * math.pi * 2 + i) * 30;
+      
+      // Create large, very soft blurred circles that fade in and out (twinkle)
+      double radius = 10.0 + random.nextDouble() * 30.0;
+      double twinkle = (0.5 + 0.5 * math.sin(animationValue * math.pi * 4 + i)).clamp(0.0, 1.0);
+      
+      // Alternate between mint green and subtle gold
+      Color baseColor = i % 4 == 0 ? const Color(0xFFFFDF73) : const Color(0xFF13A383);
+      
+      final bokehPaint = Paint()
+        ..shader = RadialGradient(
+          colors: [
+            baseColor.withOpacity(0.15 * twinkle),
+            baseColor.withOpacity(0.05 * twinkle),
+            baseColor.withOpacity(0.0),
+          ],
+          stops: const [0.0, 0.5, 1.0],
+        ).createShader(Rect.fromCircle(center: Offset(driftX, driftY), radius: radius));
+        
+      canvas.drawCircle(Offset(driftX, driftY), radius, bokehPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _PremiumBackdropPainter oldDelegate) {
+    return oldDelegate.animationValue != animationValue;
+  }
+}
+

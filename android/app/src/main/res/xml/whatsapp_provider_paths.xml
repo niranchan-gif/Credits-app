@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Covers getCacheDir() — where path_provider's getTemporaryDirectory() maps on Android -->
+    <cache-path name="cache" path="." />
+    <!-- Also expose external cache in case the OS routes temp files there -->
+    <external-cache-path name="external_cache" path="." />
+    <!-- Internal files dir for anything saved via getApplicationDocumentsDirectory() -->
+    <files-path name="files" path="." />
+</paths>

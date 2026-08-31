@@ -216,31 +216,31 @@ class LoanProvider extends ChangeNotifier {
       initialLoan.borrowerId = borrowerId;
       await _db.insertLoan(initialLoan);
     }
-    AutoBackupManager().triggerBackupPending();
+    
     await loadBorrowers();
   }
 
   Future<void> updateBorrower(Borrower borrower) async {
     await _db.updateBorrower(borrower);
-    AutoBackupManager().triggerBackupPending();
+    
     await loadBorrowers();
   }
 
   Future<void> deleteBorrower(int id) async {
     await _db.deleteBorrower(id);
-    AutoBackupManager().triggerBackupPending();
+    
     await loadBorrowers();
   }
 
   Future<void> moveToDummy(int id) async {
     await _db.moveToDummyBorrower(id);
-    AutoBackupManager().triggerBackupPending();
+    
     await loadBorrowers();
   }
 
   Future<void> moveToActive(int id) async {
     await _db.moveToActiveBorrower(id);
-    AutoBackupManager().triggerBackupPending();
+    
     await loadBorrowers();
   }
 
@@ -252,19 +252,19 @@ class LoanProvider extends ChangeNotifier {
 
   Future<void> addLoan(Loan loan) async {
     await _db.insertLoan(loan);
-    AutoBackupManager().triggerBackupPending();
+    
     await loadBorrowers();
   }
 
   Future<void> updateLoan(Loan loan) async {
     await _db.updateLoan(loan);
-    AutoBackupManager().triggerBackupPending();
+    
     await loadBorrowers();
   }
 
   Future<void> deleteLoan(int id) async {
     await _db.deleteLoan(id);
-    AutoBackupManager().triggerBackupPending();
+    
     await loadBorrowers();
   }
 
@@ -282,15 +282,19 @@ class LoanProvider extends ChangeNotifier {
     return await _db.getLoanIdsPaidTodayForBorrower(borrowerId);
   }
 
+  Future<bool> hasPaymentOnDate(int borrowerId, DateTime date) async {
+    return await _db.hasPaymentOnDate(borrowerId, date);
+  }
+
   Future<void> addPayment(Payment payment) async {
     await _db.executePaymentTransaction(payment);
-    AutoBackupManager().triggerBackupPending();
+    
     await loadBorrowers();
   }
 
   Future<void> deletePayment(int paymentId, int loanId) async {
     await _db.executeDeletePaymentTransaction(paymentId, loanId);
-    AutoBackupManager().triggerBackupPending();
+    
     await loadBorrowers();
   }
 
@@ -301,21 +305,21 @@ class LoanProvider extends ChangeNotifier {
   /// Add a new expense and refresh summary
   Future<void> addExpense(Expense expense) async {
     await _db.insertExpense(expense.toMap());
-    AutoBackupManager().triggerBackupPending();
+    
     await loadBorrowers();
   }
 
   /// Delete an expense and refresh summary
   Future<void> deleteExpense(int expenseId) async {
     await _db.deleteExpense(expenseId);
-    AutoBackupManager().triggerBackupPending();
+    
     await loadBorrowers();
   }
 
   /// Swipe to Pay: Distributes a manual amount among all active loans.
-  Future<void> quickPayFlexible(int borrowerId, double totalAmount) async {
-    await _db.executeQuickPayFlexibleTransaction(borrowerId, totalAmount);
-    AutoBackupManager().triggerBackupPending();
+  Future<void> quickPayFlexible(int borrowerId, double totalAmount, {DateTime? paymentDate}) async {
+    await _db.executeQuickPayFlexibleTransaction(borrowerId, totalAmount, paymentDate: paymentDate);
+    
     await loadBorrowers();
   }
 
@@ -328,14 +332,14 @@ class LoanProvider extends ChangeNotifier {
       'inv_date': date.toIso8601String(),
       'notes': notes,
     });
-    AutoBackupManager().triggerBackupPending();
+    
     await loadBorrowers();
   }
 
   /// Delete an investment and refresh summary
   Future<void> deleteInvestment(int id) async {
     await _db.deleteInvestment(id);
-    AutoBackupManager().triggerBackupPending();
+    
     await loadBorrowers();
   }
 
@@ -351,14 +355,14 @@ class LoanProvider extends ChangeNotifier {
       timestamp: DateTime.now().millisecondsSinceEpoch,
     );
     await _db.insertServiceCost(serviceCost.toMap());
-    AutoBackupManager().triggerBackupPending();
+    
     await loadBorrowers();
   }
 
   /// Delete a service cost and refresh summary
   Future<void> deleteServiceCost(int id) async {
     await _db.deleteServiceCost(id);
-    AutoBackupManager().triggerBackupPending();
+    
     await loadBorrowers();
   }
 }

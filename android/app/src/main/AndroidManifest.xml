@@ -38,6 +38,16 @@
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+        <!-- FileProvider for creating content:// URIs for PDF sharing to WhatsApp -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.example.credit.whatsapp_provider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/whatsapp_provider_paths" />
+        </provider>
     </application>
     <queries>
         <intent>
@@ -48,5 +58,12 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- Required for canLaunchUrl with whatsapp:// scheme on Android 11+ -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="whatsapp"/>
+        </intent>
+        <package android:name="com.whatsapp"/>
+        <package android:name="com.whatsapp.w4b"/>
     </queries>
 </manifest>
