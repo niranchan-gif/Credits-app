@@ -197,59 +197,125 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Welcome back,",
-                    style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).brightness == Brightness.dark 
+                      ? Colors.white.withOpacity(0.05) 
+                      : Theme.of(context).colorScheme.primary.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Theme.of(context).brightness == Brightness.dark 
+                        ? Colors.white.withOpacity(0.1) 
+                        : Theme.of(context).colorScheme.primary.withOpacity(0.2),
                   ),
-                  Text(
-                    "Credits Dashboard",
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+                ),
+                child: RichText(
+                  text: TextSpan(
+                    children: [
+                      TextSpan(
+                        text: 'C',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      TextSpan(
+                        text: 'redits',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
               const SyncStatusIndicator(compact: true),
             ],
           ),
           const SizedBox(height: 24),
-          PremiumCard(
-            padding: const EdgeInsets.all(24),
-            gradient: AppColors.primaryGradient,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      "Today's Collection",
-                      style: TextStyle(
-                        color: Colors.white.withOpacity( 0.8),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                    Icon(LucideIcons.calendarCheck, color: Colors.white.withOpacity( 0.8)),
-                  ],
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // 1. Financial Element: Trending Up (Top Right)
+              Positioned(
+                top: -15,
+                right: -10,
+                child: Icon(
+                  LucideIcons.trendingUp,
+                  size: 80,
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.12),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  fmtINR(today),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: -0.5,
+              ),
+              // 2. Financial Element: Pie Chart (Bottom Left)
+              Positioned(
+                bottom: -20,
+                left: -15,
+                child: Transform.rotate(
+                  angle: -0.2,
+                  child: Icon(
+                    LucideIcons.pieChart,
+                    size: 90,
+                    color: Theme.of(context).colorScheme.secondary.withOpacity(0.15),
                   ),
                 ),
-              ],
-            ),
+              ),
+              PremiumCard(
+                padding: EdgeInsets.zero,
+                gradient: AppColors.primaryGradient,
+                child: Stack(
+                  children: [
+                    // Inner professional watermark icon
+                    Positioned(
+                      right: -20,
+                      bottom: -20,
+                      child: Icon(
+                        LucideIcons.banknote,
+                        size: 120,
+                        color: Colors.white.withOpacity(0.1),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                "Today's Collection",
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.8),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              Icon(LucideIcons.calendarCheck, color: Colors.white.withOpacity(0.8)),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            fmtINR(today),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 36,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),

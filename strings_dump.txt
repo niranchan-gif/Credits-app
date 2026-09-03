@@ -1,0 +1,389 @@
+
+--- add_borrower_screen.dart ---
+A borrower with this phone already exists!
+A borrower with this code already exists!
+Ends on: ${DateFormat(
+
+--- add_expense_dialog.dart ---
+Enter a valid amount
+Expense ₹${amount.toStringAsFixed(0)} added
+Error: $e
+Add Expense
+${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}
+Cancel
+Add Expense
+
+--- add_loan_screen.dart ---
+Add New Loan
+Ends on: ${DateFormat(
+Create Loan
+
+--- app_lock_screen.dart ---
+App Locked
+
+--- backup_restore_screen.dart ---
+Disconnect Google Drive?
+You will no longer perform automatic cloud backups to Google Drive. Local data is unaffected.
+Cancel
+Disconnect
+Cloud Restore Preview
+Restore
+Last Backup: ${DateFormat(
+Backup Size: $sizeStr
+Choose restore mode:
+Merge: Adds new records and updates existing safely without wiping.\nReplace: Wipes existing local data and restores a fresh state.
+Cancel
+Merge Restore
+Replace Local DB
+Wipe & Replace Database?
+This will permanently delete ALL local borrowers, loans, payments, expenses, and investments, replacing them with the cloud backup.\n\nThis action CANNOT be undone. Are you sure?
+Cancel
+Replace Data
+Restore Successful!
+Awesome!
+Excel Import Preview
+Choose import mode:
+Merge: Adds new records, updates existing (safe).\nReplace: Wipes your local data and imports fresh.
+Cancel
+Merge
+Replace
+Replace Local Data?
+This will permanently delete your current local data and replace it with the Excel backup. 
+Cancel
+Replace
+Backup Saved!
+Your portable Excel report has been exported.
+Location: Downloads/LoanReports/
+Great!
+Backup & Restore
+Cloud Backup
+Backup
+Connected
+Not Connected
+Last Backup
+Backup Size
+Backup Now
+Restore
+Disconnect
+Backup data to cloud storage. Backups are encrypted for privacy.
+Connect
+Local Backup
+Export
+Export data to device storage.
+Import
+Import data from device storage.
+Last Backup: ${_formatDate(_lastExcelBackupDate)}
+All backups are encrypted and stored securely.
+
+--- borrower_loans_screen.dart ---
+Export failed: $e
+Borrower Profile
+This borrower has exceeded the maximum due period of 140 days.
+Loan History
+${_loans.length} loans
+Start New Loan
+Download Report
+Edit Borrower
+Move to Inactive
+Move to Active
+Phone number not available
+No loans available to share.
+Select Loan to Share
+All Loans (Combined)
+Loan - $dateStr
+Amount: ₹${loan.loanAmount.toStringAsFixed(0)}
+Cancel
+Generating PDF report...
+WhatsApp Web opened! Press Ctrl + V in the chat to attach & send the PDF.
+Failed to generate PDF: $e
+Loan Age
+${b.loanAgeDays} Days
+Status
+No loans found.\nTap + to start a new loan.
+${loan.installmentDays} days • Ends ${loan.endDate != null ? DateFormat(
+Move to Inactive?
+This borrower will be hidden from the active list.\nAll loans, payments, and history will remain safely stored.\nYou can restore this borrower later.
+Cancel
+Move
+Move to Active?
+This borrower will be restored to the active borrower list.\nAll existing loans and history will remain unchanged.
+Cancel
+Restore
+
+--- completed_loans_screen.dart ---
+Completed Loans
+Principal: ${fmtINR(loanAmount)}
+Interest: ${fmtINR(interestAmount)}
+Lent: ${df.format(loanDate)}
+Cleared: ${df.format(endDate)}
+
+--- date_range_report_screen.dart ---
+Download failed: $e
+Expense/Service entries cannot be deleted from here
+Confirm Deletion
+Are you sure you want to delete this $type entry?
+Cancel
+Delete
+Transaction deleted successfully
+Error deleting transaction: $e
+No deletable transactions in this period
+Delete All Transactions
+This will delete ${deletable.length} transaction(s) (loans & payments). Expenses and service costs are kept.\n\nAre you sure?
+Cancel
+Delete All
+All transactions deleted successfully
+Error deleting transactions: $e
+Date Range Report
+No transactions recorded in this period
+[$borrowerCode] 
+$sign${fmtINR(amount)}
+No new borrowers added in this period
+No loans completed/closed in this period
+Principal: ${fmtINR(principal)}
+Interest: ${fmtINR(interest)}
+Total: ${fmtINR(principal + interest)}
+
+--- expense_history_screen.dart ---
+Expense History
+No expenses recorded
+Total Expenses
+₹${expense.amount.toStringAsFixed(0)}
+Delete Expense?
+This action cannot be undone.
+Cancel
+Expense deleted
+Delete
+
+--- force_update_screen.dart ---
+Update Available
+Get the latest features and a better experience.
+Update later
+Installing...
+Downloading ${(_downloadProgress * 100).toStringAsFixed(0)}%
+Retry Update
+Update Now
+
+--- home_screen.dart ---
+Quick Add
+Add Borrower
+Welcome back,
+Credits Dashboard
+Today
+Cannot record payment in Read Only Mode
+🔴 ${b.loanAgeDays} Days Due
+$paidCount/$totalCount
+Quick Pay: ${b.name}
+Select Loan:
+Loan: ${fmtINR(l.loanAmount)}
+Date: ${DateFormat(
+Amount Received:
+Cancel
+Confirm
+₹$amount recorded for ${b.name}
+Error performing Quick Pay: $e
+No borrowers found
+
+--- investment_screen.dart ---
+Add Investment
+Add Investment
+Delete Investment?
+Remove this investment record?
+Cancel
+Delete
+Investments
+Total Invested
+${investments.length} transaction${investments.length == 1 ? 
+No investments yet.\nTap + to add one.
+Add Investment
+
+--- loan_detail_screen.dart ---
+Export failed: $e
+Add Payment
+Confirm Payment
+Loan Details
+Payment History
+${_payments.length} entries
+Add Payment
+Download Report
+Delete Loan
+Active for $days days
+${(progress * 100).toStringAsFixed(0)}% Complete
+No payments recorded yet
+Delete Payment?
+Remove ${fmtINR(p.amount)} payment from ${DateFormat(
+Cancel
+Delete
+Delete Loan?
+Permanently delete this loan and all associated payments?
+Cancel
+Delete
+
+--- main_navigation_screen.dart ---
+Backup Before Exit
+Do you want to back up your latest data before closing the application?\n\nBacking up now helps keep your Google Drive backup up to date.
+Cancel
+Exit Without Backup
+Backup & Exit
+
+--- on_hand_cash_screen.dart ---
+On Hand Cash
+Add Expense
+Record a new expense entry for tracking.
+Add Expense Entry
+Recent Expenses
+${provider.expenses.length} total
+No expenses recorded yet
+Delete Expense?
+This action cannot be undone.
+Cancel
+Expense deleted
+Delete
+Expense History
+${expenses.length} entries
+No expenses found
+Please enter a valid amount greater than 0.
+Service cost recorded successfully!
+Add Service Cost
+Service Cost Date
+Add Entry
+Delete Service Cost?
+Are you sure you want to delete this service cost entry of ${fmtINR(amount)}? This will restore the hand cash balance.
+Cancel
+Service cost record deleted
+Delete
+Service Cost History
+${costs.length} entries
+No service costs found
+By ${sc.createdBy ?? 
+
+--- reports_screen.dart ---
+Export failed: $e
+Financial Reports
+Financial Reports
+Retry
+Financial Reports
+Investments
+Over-deployed! You have lent ${fmtINR(totalLoanedEver)} but only ${fmtINR(_totalInvested)} is invested.
+Progress
+${(progress * 100).toStringAsFixed(0)}%
+
+--- service_cost_screen.dart ---
+Please enter a valid amount greater than 0.
+Service cost recorded successfully!
+Delete Service Cost?
+Are you sure you want to delete this service cost entry of ${fmtINR(amount)}? This will restore the hand cash balance.
+Cancel
+Service cost record deleted
+Delete
+Service Costs
+Add Service Cost
+Service Cost Date
+Add Entry
+Service Cost History
+${costs.length} entries
+No service costs found
+By ${sc.createdBy ?? 
+
+--- settings_screen.dart ---
+Developer Mode Enabled
+Generated 500 Test Borrowers
+Error generating data: $e
+Clear Local Database
+This will permanently delete all local borrowers, loans, payments, expenses, and investments from this device. 
+Cancel
+Clear Local Data
+Factory Reset App
+This will delete your database and all local settings/preferences from this device. This action cannot be undone.
+Type RESET to confirm:
+Cancel
+Factory Reset
+Cancel
+Disable App Lock
+Enter current PIN to disable app lock.
+Cancel
+Disable
+Sign Out
+Signing out will disconnect your Google Account. Your data will remain on this device and you can access it by signing back in with the same account.
+Cancel
+Sign Out
+Change PIN
+Cancel
+PIN changed successfully
+Change
+Settings
+Backup & Restore
+Backup and restore options
+Sign Out
+You will need to sign in again to access the app
+Generate 500 Test Borrowers
+Clear Local Database
+Deletes all local records permanently
+Factory Reset App
+Wipes local DB and settings
+Credits v1.0.0
+
+--- sign_in_screen.dart ---
+Sign In
+Sign in with your Google Account to automatically restore your backups.
+Your data is securely backed up to your Google Drive
+Credits
+Smart Loan Management
+
+--- splash_screen.dart ---
+Credits
+₹
+
+--- backup_freshness_service.dart ---
+New Data Found
+A newer backup is available.
+Error: $_errorMessage
+Restore
+
+--- borrower_pdf_service.dart ---
+STATEMENT
+தேதி: $todayStr
+கட்டண விவரம்
+Page ${pageIndex + 1} of $totalPages
+${borrower.name} (${borrower.displayBorrowerCode})
+தொலைபேசி: ${borrower.phone}
+செலுத்தியது
+₹ ${totalPaid.toStringAsFixed(0)}
+நிலுவை
+₹ ${balanceToPay.toStringAsFixed(0)}
+கட்டண விவரங்கள் எதுவும் இல்லை.
+
+--- actions.dart ---
+Could not open file: ${result.message}
+Tap OPEN to view the file
+Could not open phone dialer.
+
+--- progress_dialog.dart ---
+✓ Completed
+Please try again.
+Close
+${(_progress * 100).round()}%
+Please wait...
+
+--- quick_add_dialog.dart ---
+Invalid Borrower Code
+Payment blocked: Borrower has no active loans.
+Duplicate Payment
+This borrower already has a payment recorded for the selected date.\n\nDo you want to add another payment?
+Cancel
+Proceed Anyway
+Enter a valid positive amount
+Paid ₹$amount to ${_matchedBorrower!.name}
+Error: $e
+Quick Add
+Last Entered
+Save & Next
+
+--- read_only_banner.dart ---
+Internet Required
+Retry
+
+--- sync_status_indicator.dart ---
+Reconnect Google Drive
+Your Google Drive session has expired or permissions were revoked. 
+Later
+Reconnect Now
