@@ -190,11 +190,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         nextScreen = ForceUpdateScreen(
           updateInfo: _updateResult!.updateInfo!,
           currentVersion: _updateResult!.currentVersion,
-          onSkip: () {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (_) => appScreen),
-            );
-          },
+          nextScreen: appScreen,
         );
       } else {
         nextScreen = appScreen;
