@@ -4,7 +4,7 @@
   "minimum_version": "1.1.0",
   "minimum_build": 2,
   "force_update": true,
-  "download_url": "",
+  "download_url": "https://github.com/niranchan-gif/Credits-app/releases/tag/Creditsv1",
   "release_notes": [
     "Initial setup for self-hosted updates",
     "Bug fixes and performance improvements"
