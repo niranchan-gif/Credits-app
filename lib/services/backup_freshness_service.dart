@@ -4,7 +4,7 @@ import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 import 'google_drive_service.dart';
 import 'json_restore_service.dart';
@@ -297,7 +297,7 @@ class _NewerBackupDialogContentState extends State<_NewerBackupDialogContent> {
       backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surface,
       title: Row(
         children: [
-          const HugeIcon(icon: HugeIcons.strokeRoundedAlert01, color: AppColors.error, size: 24),
+          const Icon(LucideIcons.alertTriangle, color: AppColors.error, size: 24),
           const SizedBox(width: 12),
           Text(
             'New Data Found',

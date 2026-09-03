@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../providers/loan_provider.dart';
@@ -150,9 +150,9 @@ class _ServiceCostScreenState extends State<ServiceCostScreen> {
                 sliver: SliverToBoxAdapter(
                   child: Row(
                     children: [
-                      _summaryCard('Total Service Cost', fmtINR(provider.totalServiceCosts), HugeIcons.strokeRoundedWallet01, AppColors.error),
+                      _summaryCard('Total Service Cost', fmtINR(provider.totalServiceCosts), LucideIcons.wallet, AppColors.error),
                       const SizedBox(width: 16),
-                      _summaryCard('This Month', fmtINR(provider.monthServiceCosts), HugeIcons.strokeRoundedCalendar01, AppColors.warning),
+                      _summaryCard('This Month', fmtINR(provider.monthServiceCosts), LucideIcons.calendarRange, AppColors.warning),
                     ],
                   ),
                 ),
@@ -190,7 +190,7 @@ class _ServiceCostScreenState extends State<ServiceCostScreen> {
                             },
                             decoration: const InputDecoration(
                               labelText: 'Service Cost Amount (₹) *',
-                              prefixIcon: HugeIcon(icon: HugeIcons.strokeRoundedCoins01),
+                              prefixIcon: Icon(LucideIcons.coins),
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -198,7 +198,7 @@ class _ServiceCostScreenState extends State<ServiceCostScreen> {
                             controller: _descriptionCtrl,
                             decoration: const InputDecoration(
                               labelText: 'Service Description (Optional)',
-                              prefixIcon: HugeIcon(icon: HugeIcons.strokeRoundedText),
+                              prefixIcon: Icon(LucideIcons.text),
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -216,7 +216,7 @@ class _ServiceCostScreenState extends State<ServiceCostScreen> {
                               ),
                               child: Row(
                                 children: [
-                                  const HugeIcon(icon: HugeIcons.strokeRoundedCalendar01, color: AppColors.accent, size: 20),
+                                  const Icon(LucideIcons.calendar, color: AppColors.accent, size: 20),
                                   const SizedBox(width: 16),
                                   Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -239,7 +239,7 @@ class _ServiceCostScreenState extends State<ServiceCostScreen> {
                                     ],
                                   ),
                                   const Spacer(),
-                                  HugeIcon(icon: HugeIcons.strokeRoundedArrowRight01, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6)),
+                                  Icon(LucideIcons.chevronRight, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6)),
                                 ],
                               ),
                             ),
@@ -247,7 +247,7 @@ class _ServiceCostScreenState extends State<ServiceCostScreen> {
                           const SizedBox(height: 24),
                           ElevatedButton.icon(
                             onPressed: _submitServiceCost,
-                            icon: const HugeIcon(icon: HugeIcons.strokeRoundedAdd01, size: 18),
+                            icon: const Icon(LucideIcons.plus, size: 18),
                             label: const Text('Add Entry', style: TextStyle(fontWeight: FontWeight.bold)),
                           ),
                         ],
@@ -266,10 +266,10 @@ class _ServiceCostScreenState extends State<ServiceCostScreen> {
                     onChanged: (v) => setState(() => _query = v),
                     decoration: InputDecoration(
                       hintText: "Search descriptions or creators...",
-                      prefixIcon: const HugeIcon(icon: HugeIcons.strokeRoundedSearch01, size: 20),
+                      prefixIcon: const Icon(LucideIcons.search, size: 20),
                       suffixIcon: _query.isNotEmpty
                           ? IconButton(
-                              icon: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, size: 16),
+                              icon: const Icon(LucideIcons.x, size: 16),
                               onPressed: () {
                                 _searchCtrl.clear();
                                 setState(() => _query = '');
@@ -318,7 +318,7 @@ class _ServiceCostScreenState extends State<ServiceCostScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          HugeIcon(icon: HugeIcons.strokeRoundedRocket01, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.2)),
+                          Icon(LucideIcons.receipt, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.2)),
                           const SizedBox(height: 16),
                           Text(
                             'No service costs found',
@@ -348,7 +348,7 @@ class _ServiceCostScreenState extends State<ServiceCostScreen> {
                                     color: AppColors.error.withOpacity( 0.1),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  child: const HugeIcon(icon: HugeIcons.strokeRoundedArrowUpRight01, color: AppColors.error, size: 20),
+                                  child: const Icon(LucideIcons.arrowUpRight, color: AppColors.error, size: 20),
                                 ),
                                 const SizedBox(width: 16),
                                 Expanded(
@@ -393,7 +393,8 @@ class _ServiceCostScreenState extends State<ServiceCostScreen> {
                                           _confirmDelete(sc.id!, sc.amount);
                                         }
                                       },
-                                      child: HugeIcon(icon: HugeIcons.strokeRoundedDelete01,
+                                      child: Icon(
+                                        LucideIcons.trash2,
                                         size: 16,
                                         color: AppColors.error.withOpacity( 0.6),
                                       ),
@@ -416,7 +417,7 @@ class _ServiceCostScreenState extends State<ServiceCostScreen> {
     );
   }
 
-  Widget _summaryCard(String label, String value, dynamic icon, Color color) {
+  Widget _summaryCard(String label, String value, IconData icon, Color color) {
     return Expanded(
       child: PremiumCard(
         padding: const EdgeInsets.all(16),

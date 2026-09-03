@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -286,7 +286,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
           IconButton(
             tooltip: 'Delete All Transactions',
             onPressed: _loading || _transactions.isEmpty ? null : _deleteAllTransactions,
-            icon: const HugeIcon(icon: HugeIcons.strokeRoundedDelete01, color: AppColors.error),
+            icon: const Icon(LucideIcons.trash2, color: AppColors.error),
           ),
           IconButton(
             tooltip: 'Download Excel Report',
@@ -297,7 +297,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent),
                   )
-                : const HugeIcon(icon: HugeIcons.strokeRoundedDownload01),
+                : const Icon(LucideIcons.download),
           ),
           const SizedBox(width: 8),
         ],
@@ -323,32 +323,32 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
                             children: [
                               Row(
                                 children: [
-                                  _statCard("Total Lent", fmtINR(_totalLent), HugeIcons.strokeRoundedArrowUpRight01, AppColors.warning),
+                                  _statCard("Total Lent", fmtINR(_totalLent), LucideIcons.arrowUpRight, AppColors.warning),
                                   const SizedBox(width: 12),
-                                  _statCard("Collected", fmtINR(_totalCollected), HugeIcons.strokeRoundedArrowDownLeft01, AppColors.success),
+                                  _statCard("Collected", fmtINR(_totalCollected), LucideIcons.arrowDownLeft, AppColors.success),
                                 ],
                               ),
                               const SizedBox(height: 12),
                               Row(
                                 children: [
-                                  _statCard("Expenses", fmtINR(_totalExpenses), HugeIcons.strokeRoundedRocket01, AppColors.error),
+                                  _statCard("Expenses", fmtINR(_totalExpenses), LucideIcons.receipt, AppColors.error),
                                   const SizedBox(width: 12),
-                                  _statCard("Service Cost", fmtINR(_totalServiceCosts), HugeIcons.strokeRoundedWrench01, AppColors.warning),
+                                  _statCard("Service Cost", fmtINR(_totalServiceCosts), LucideIcons.wrench, AppColors.warning),
                                 ],
                               ),
                               const SizedBox(height: 12),
                               Row(
                                 children: [
-                                  _statCard("Net Cash Flow", fmtINR(netCashFlow), HugeIcons.strokeRoundedWallet01,
+                                  _statCard("Net Cash Flow", fmtINR(netCashFlow), LucideIcons.wallet,
                                       netCashFlow >= 0 ? AppColors.success : AppColors.error),
                                   const SizedBox(width: 12),
-                                  _statCard("New Borrowers", "${_newBorrowers.length}", HugeIcons.strokeRoundedUserAdd01, AppColors.info),
+                                  _statCard("New Borrowers", "${_newBorrowers.length}", LucideIcons.userPlus, AppColors.info),
                                 ],
                               ),
                               const SizedBox(height: 12),
                               Row(
                                 children: [
-                                  _statCard("Closed Loans", "${_closedLoans.length}", HugeIcons.strokeRoundedCheckmarkSquare01, AppColors.success),
+                                  _statCard("Closed Loans", "${_closedLoans.length}", LucideIcons.checkSquare, AppColors.success),
                                 ],
                               ),
                             ],
@@ -407,7 +407,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
             children: [
               Row(
                 children: [
-                  const HugeIcon(icon: HugeIcons.strokeRoundedCalendar01, color: AppColors.accent, size: 20),
+                  const Icon(LucideIcons.calendar, color: AppColors.accent, size: 20),
                   const SizedBox(width: 12),
                   Text(
                     dateRangeStr,
@@ -415,7 +415,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
                   ),
                 ],
               ),
-              const HugeIcon(icon: HugeIcons.strokeRoundedArrowDown01, color: AppColors.accent, size: 16),
+              const Icon(LucideIcons.chevronDown, color: AppColors.accent, size: 16),
             ],
           ),
         ),
@@ -423,7 +423,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
     );
   }
 
-  Widget _statCard(String label, String value, dynamic icon, Color color) {
+  Widget _statCard(String label, String value, IconData icon, Color color) {
     return Expanded(
       child: PremiumCard(
         padding: const EdgeInsets.all(12),
@@ -495,23 +495,23 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
           date = DateTime.parse(dateStr);
         } catch (_) {}
 
-        dynamic icon;
+        IconData icon;
         Color color;
         String sign;
         if (type == 'Lent') {
-          icon = HugeIcons.strokeRoundedArrowUpRight01;
+          icon = LucideIcons.arrowUpRight;
           color = AppColors.warning;
           sign = "-";
         } else if (type == 'Collected') {
-          icon = HugeIcons.strokeRoundedArrowDownLeft01;
+          icon = LucideIcons.arrowDownLeft;
           color = AppColors.success;
           sign = "+";
         } else if (type == 'Service') {
-          icon = HugeIcons.strokeRoundedWrench01;
+          icon = LucideIcons.wrench;
           color = AppColors.success;
           sign = "+";
         } else {
-          icon = HugeIcons.strokeRoundedRocket01;
+          icon = LucideIcons.receipt;
           color = AppColors.error;
           sign = "-";
         }
@@ -573,7 +573,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
                 ),
                 const SizedBox(width: 8),
                 IconButton(
-                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedDelete01, color: AppColors.error, size: 18),
+                  icon: const Icon(LucideIcons.trash2, color: AppColors.error, size: 18),
                   onPressed: () => _deleteTransaction(tx),
                   splashRadius: 20,
                   padding: EdgeInsets.zero,
@@ -649,11 +649,11 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    const HugeIcon(icon: HugeIcons.strokeRoundedCall, size: 12, color: Colors.grey),
+                    const Icon(LucideIcons.phone, size: 12, color: Colors.grey),
                     const SizedBox(width: 4),
                     Text(phone.isNotEmpty ? phone : '-', style: const TextStyle(fontSize: 11, color: Colors.grey)),
                     const SizedBox(width: 16),
-                    const HugeIcon(icon: HugeIcons.strokeRoundedLocation01, size: 12, color: Colors.grey),
+                    const Icon(LucideIcons.mapPin, size: 12, color: Colors.grey),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(

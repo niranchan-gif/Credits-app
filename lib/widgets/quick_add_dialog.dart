@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 import '../providers/loan_provider.dart';
 import '../models/borrower.dart';
@@ -170,7 +170,7 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(
             children: [
-              HugeIcon(icon: HugeIcons.strokeRoundedAlert01, color: AppColors.warning),
+              Icon(LucideIcons.alertTriangle, color: AppColors.warning),
               const SizedBox(width: 8),
               const Text('Duplicate Payment'),
             ],
@@ -291,7 +291,7 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
                             color: AppColors.accent.withOpacity(0.1),
                             shape: BoxShape.circle,
                           ),
-                          child: HugeIcon(icon: HugeIcons.strokeRoundedFlash, color: AppColors.accent, size: 24),
+                          child: Icon(LucideIcons.zap, color: AppColors.accent, size: 24),
                         ),
                         const SizedBox(width: 12),
                         const Text(
@@ -304,7 +304,7 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
                       ],
                     ),
                     IconButton(
-                      icon: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01),
+                      icon: const Icon(LucideIcons.x),
                       onPressed: () => Navigator.of(context).pop(),
                       splashRadius: 24,
                     ),
@@ -327,7 +327,7 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
                     ),
                     child: Row(
                       children: [
-                        HugeIcon(icon: HugeIcons.strokeRoundedCalendar01, size: 20, color: AppColors.accent),
+                        Icon(LucideIcons.calendar, size: 20, color: AppColors.accent),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
@@ -338,7 +338,7 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
                             ),
                           ),
                         ),
-                        HugeIcon(icon: HugeIcons.strokeRoundedArrowDown01, size: 16, color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                        Icon(LucideIcons.chevronDown, size: 16, color: isDark ? Colors.grey[400] : Colors.grey[600]),
                       ],
                     ),
                   ),
@@ -370,12 +370,12 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
                   ),
                   child: Row(
                     children: [
-                      HugeIcon(
-                        icon: _codeController.text.isEmpty 
-                            ? HugeIcons.strokeRoundedSearch01 
+                      Icon(
+                        _codeController.text.isEmpty 
+                            ? LucideIcons.search 
                             : _matchedBorrower != null 
-                                ? (_isInactive ? HugeIcons.strokeRoundedUserRemove01 : (_hasPaidToday ? HugeIcons.strokeRoundedAlert01 : HugeIcons.strokeRoundedUserCheck01)) 
-                                : HugeIcons.strokeRoundedUserRemove01,
+                                ? (_isInactive ? LucideIcons.userX : (_hasPaidToday ? LucideIcons.alertTriangle : LucideIcons.userCheck)) 
+                                : LucideIcons.userX,
                         color: _codeController.text.isEmpty
                             ? (isDark ? Colors.grey[400] : Colors.grey[600])
                             : _matchedBorrower != null 
@@ -442,7 +442,7 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
                         decoration: InputDecoration(
                           labelText: 'Borrower Code',
                           hintText: 'Enter code...',
-                          prefixIcon: const HugeIcon(icon: HugeIcons.strokeRoundedHashtag),
+                          prefixIcon: const Icon(LucideIcons.hash),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -521,7 +521,7 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
                   decoration: InputDecoration(
                     labelText: 'Amount',
                     hintText: 'Enter amount...',
-                    prefixIcon: const HugeIcon(icon: HugeIcons.strokeRoundedCurrency),
+                    prefixIcon: const Icon(LucideIcons.indianRupee),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -562,7 +562,7 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        HugeIcon(icon: HugeIcons.strokeRoundedCheckmarkCircle01, size: 20),
+                        Icon(LucideIcons.checkCircle, size: 20),
                         SizedBox(width: 8),
                         Text(
                           'Save & Next',

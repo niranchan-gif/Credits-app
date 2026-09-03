@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -407,7 +407,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
-            HugeIcon(icon: HugeIcons.strokeRoundedDocumentAttachment, color: AppColors.accent),
+            Icon(LucideIcons.fileSpreadsheet, color: AppColors.accent),
             SizedBox(width: 12),
             Text('Cloud Restore Preview'),
           ],
@@ -432,15 +432,15 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
               ),
               child: Column(
                 children: [
-                  _previewRow(HugeIcons.strokeRoundedUserGroup, 'Borrowers', fmt.format(preview['borrowers'] ?? 0), AppColors.accent),
+                  _previewRow(LucideIcons.users, 'Borrowers', fmt.format(preview['borrowers'] ?? 0), AppColors.accent),
                   const SizedBox(height: 8),
-                  _previewRow(HugeIcons.strokeRoundedCreditCard, 'Loans', fmt.format(preview['loans'] ?? 0), AppColors.info),
+                  _previewRow(LucideIcons.creditCard, 'Loans', fmt.format(preview['loans'] ?? 0), AppColors.info),
                   const SizedBox(height: 8),
-                  _previewRow(HugeIcons.strokeRoundedWallet01, 'Payments', fmt.format(preview['payments'] ?? 0), AppColors.success),
+                  _previewRow(LucideIcons.wallet, 'Payments', fmt.format(preview['payments'] ?? 0), AppColors.success),
                   const SizedBox(height: 8),
-                  _previewRow(HugeIcons.strokeRoundedRocket01, 'Expenses', fmt.format(preview['expenses'] ?? 0), AppColors.warning),
+                  _previewRow(LucideIcons.receipt, 'Expenses', fmt.format(preview['expenses'] ?? 0), AppColors.warning),
                   const SizedBox(height: 8),
-                  _previewRow(HugeIcons.strokeRoundedTrendingUpDown, 'Investments', fmt.format(preview['investments'] ?? 0), AppColors.secondary),
+                  _previewRow(LucideIcons.trendingUp, 'Investments', fmt.format(preview['investments'] ?? 0), AppColors.secondary),
                 ],
               ),
             ),
@@ -488,7 +488,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       builder: (ctx) => AlertDialog(
         title: const Row(
           children: [
-            HugeIcon(icon: HugeIcons.strokeRoundedAlert01, color: AppColors.error),
+            Icon(LucideIcons.alertTriangle, color: AppColors.error),
             SizedBox(width: 12),
             Text('Wipe & Replace Database?'),
           ],
@@ -566,7 +566,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
-            HugeIcon(icon: HugeIcons.strokeRoundedCheckmarkCircle01, color: AppColors.success),
+            Icon(LucideIcons.checkCircle, color: AppColors.success),
             SizedBox(width: 12),
             Text('Restore Successful!'),
           ],
@@ -588,15 +588,15 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
               ),
               child: Column(
                 children: [
-                  _previewRow(HugeIcons.strokeRoundedUserGroup, 'Borrowers', (preview['borrowers'] ?? 0).toString(), AppColors.accent),
+                  _previewRow(LucideIcons.users, 'Borrowers', (preview['borrowers'] ?? 0).toString(), AppColors.accent),
                   const SizedBox(height: 8),
-                  _previewRow(HugeIcons.strokeRoundedCreditCard, 'Loans', (preview['loans'] ?? 0).toString(), AppColors.info),
+                  _previewRow(LucideIcons.creditCard, 'Loans', (preview['loans'] ?? 0).toString(), AppColors.info),
                   const SizedBox(height: 8),
-                  _previewRow(HugeIcons.strokeRoundedWallet01, 'Payments', (preview['payments'] ?? 0).toString(), AppColors.success),
+                  _previewRow(LucideIcons.wallet, 'Payments', (preview['payments'] ?? 0).toString(), AppColors.success),
                   const SizedBox(height: 8),
-                  _previewRow(HugeIcons.strokeRoundedRocket01, 'Expenses', (preview['expenses'] ?? 0).toString(), AppColors.warning),
+                  _previewRow(LucideIcons.receipt, 'Expenses', (preview['expenses'] ?? 0).toString(), AppColors.warning),
                   const SizedBox(height: 8),
-                  _previewRow(HugeIcons.strokeRoundedTrendingUpDown, 'Investments', (preview['investments'] ?? 0).toString(), AppColors.secondary),
+                  _previewRow(LucideIcons.trendingUp, 'Investments', (preview['investments'] ?? 0).toString(), AppColors.secondary),
                 ],
               ),
             ),
@@ -682,7 +682,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       builder: (ctx) => AlertDialog(
         title: const Row(
           children: [
-            HugeIcon(icon: HugeIcons.strokeRoundedDocumentAttachment, color: AppColors.accent),
+            Icon(LucideIcons.fileSpreadsheet, color: AppColors.accent),
             SizedBox(width: 12),
             Text('Excel Import Preview'),
           ],
@@ -699,15 +699,15 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
               ),
               child: Column(
                 children: [
-                  _previewRow(HugeIcons.strokeRoundedUserGroup, 'Borrowers', fmt.format(preview['borrowers'] ?? 0), AppColors.accent),
+                  _previewRow(LucideIcons.users, 'Borrowers', fmt.format(preview['borrowers'] ?? 0), AppColors.accent),
                   const SizedBox(height: 8),
-                  _previewRow(HugeIcons.strokeRoundedCreditCard, 'Loans', fmt.format(preview['loans'] ?? 0), AppColors.info),
+                  _previewRow(LucideIcons.creditCard, 'Loans', fmt.format(preview['loans'] ?? 0), AppColors.info),
                   const SizedBox(height: 8),
-                  _previewRow(HugeIcons.strokeRoundedWallet01, 'Payments', fmt.format(preview['payments'] ?? 0), AppColors.success),
+                  _previewRow(LucideIcons.wallet, 'Payments', fmt.format(preview['payments'] ?? 0), AppColors.success),
                   const SizedBox(height: 8),
-                  _previewRow(HugeIcons.strokeRoundedRocket01, 'Expenses', fmt.format(preview['expenses'] ?? 0), AppColors.warning),
+                  _previewRow(LucideIcons.receipt, 'Expenses', fmt.format(preview['expenses'] ?? 0), AppColors.warning),
                   const SizedBox(height: 8),
-                  _previewRow(HugeIcons.strokeRoundedTrendingUpDown, 'Investments', fmt.format(preview['investments'] ?? 0), AppColors.secondary),
+                  _previewRow(LucideIcons.trendingUp, 'Investments', fmt.format(preview['investments'] ?? 0), AppColors.secondary),
                 ],
               ),
             ),
@@ -749,7 +749,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         builder: (ctx) => AlertDialog(
           title: const Row(
             children: [
-              HugeIcon(icon: HugeIcons.strokeRoundedAlert01, color: AppColors.error),
+              Icon(LucideIcons.alertTriangle, color: AppColors.error),
               SizedBox(width: 12),
               Text('Replace Local Data?'),
             ],
@@ -805,7 +805,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       builder: (ctx) => AlertDialog(
         title: const Row(
           children: [
-            HugeIcon(icon: HugeIcons.strokeRoundedCheckmarkCircle01, color: AppColors.success),
+            Icon(LucideIcons.checkCircle, color: AppColors.success),
             SizedBox(width: 12),
             Text('Backup Saved!'),
           ],
@@ -824,7 +824,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
               ),
               child: Row(
                 children: [
-                  const HugeIcon(icon: HugeIcons.strokeRoundedDocumentAttachment, color: AppColors.success, size: 18),
+                  const Icon(LucideIcons.fileSpreadsheet, color: AppColors.success, size: 18),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -854,7 +854,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
   // SHARED UI ELEMENTS
   // ==========================================
 
-  Widget _previewRow(dynamic icon, String label, String value, Color color) {
+  Widget _previewRow(IconData icon, String label, String value, Color color) {
     return Row(
       children: [
         Icon(icon, size: 16, color: color),
@@ -894,7 +894,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           appBar: AppBar(
             title: const Text('Backup & Restore'),
             leading: IconButton(
-              icon: const HugeIcon(icon: HugeIcons.strokeRoundedArrowLeft01),
+              icon: const Icon(LucideIcons.arrowLeft),
               onPressed: () => Navigator.pop(context),
             ),
           ),
@@ -914,8 +914,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                         padding: const EdgeInsets.all(16),
                         child: Row(
                           children: [
-                            HugeIcon(
-                              icon: isReadOnly ? HugeIcons.strokeRoundedWifiDisconnected01 : HugeIcons.strokeRoundedCloudOff,
+                            Icon(
+                              isReadOnly ? LucideIcons.wifiOff : LucideIcons.cloudOff,
                               color: isReadOnly ? AppColors.warning : AppColors.error,
                               size: 24,
                             ),
@@ -975,7 +975,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                             gradient: const LinearGradient(colors: [Color(0xFF4285F4), Color(0xFF34A853)]),
                             borderRadius: BorderRadius.circular(14),
                           ),
-                          child: const HugeIcon(icon: HugeIcons.strokeRoundedCloud, color: Colors.white, size: 24),
+                          child: const Icon(LucideIcons.cloud, color: Colors.white, size: 24),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
@@ -1057,7 +1057,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          const HugeIcon(icon: HugeIcons.strokeRoundedShield02, size: 14, color: AppColors.success),
+                          const Icon(LucideIcons.shieldCheck, size: 14, color: AppColors.success),
                            const SizedBox(width: 6),
                           Expanded(
                             child: Text(
@@ -1076,7 +1076,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                           Expanded(
                             child: ElevatedButton.icon(
                               onPressed: (isGlobalLoading || isReadOnly || _areBackupsBlocked) ? null : _triggerManualGDriveBackup,
-                              icon: const HugeIcon(icon: HugeIcons.strokeRoundedRefresh, size: 16),
+                              icon: const Icon(LucideIcons.refreshCw, size: 16),
                               label: const Text('Backup Now'),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Theme.of(context).colorScheme.primary,
@@ -1090,7 +1090,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                           Expanded(
                             child: OutlinedButton.icon(
                               onPressed: isGlobalLoading ? null : _initiateGDriveExcelRestore,
-                              icon: const HugeIcon(icon: HugeIcons.strokeRoundedCloudDownload, size: 16),
+                              icon: const Icon(LucideIcons.downloadCloud, size: 16),
                               label: const Text('Restore'),
                               style: OutlinedButton.styleFrom(
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1104,7 +1104,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                       Center(
                         child: TextButton.icon(
                           onPressed: isGlobalLoading ? null : _disconnectGoogleDrive,
-                          icon: const HugeIcon(icon: HugeIcons.strokeRoundedLogout01, size: 14),
+                          icon: const Icon(LucideIcons.logOut, size: 14),
                           label: const Text('Disconnect', style: TextStyle(fontSize: 12)),
                           style: TextButton.styleFrom(foregroundColor: AppColors.error),
                         ),
@@ -1120,7 +1120,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                         width: double.infinity,
                         child: ElevatedButton.icon(
                           onPressed: isGlobalLoading ? null : _connectGoogleDrive,
-                          icon: const HugeIcon(icon: HugeIcons.strokeRoundedLogin01, size: 18),
+                          icon: const Icon(LucideIcons.logIn, size: 18),
                           label: const Text('Connect', style: TextStyle(fontWeight: FontWeight.bold)),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Theme.of(context).colorScheme.primary,
@@ -1152,7 +1152,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                       leading: _isExporting
                           ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent))
-                          : const HugeIcon(icon: HugeIcons.strokeRoundedDocumentAttachment, color: AppColors.accent),
+                          : const Icon(LucideIcons.fileSpreadsheet, color: AppColors.accent),
                       title: Text('Export', style: TextStyle(fontWeight: FontWeight.bold, color: onSurface)),
                       subtitle: Text(
                         'Export data to device storage.',
@@ -1160,7 +1160,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                       ),
                       trailing: _isExporting
                           ? null
-                          : HugeIcon(icon: HugeIcons.strokeRoundedArrowRight01, size: 18, color: onSurfaceVariant.withOpacity( 0.5)),
+                          : Icon(LucideIcons.chevronRight, size: 18, color: onSurfaceVariant.withOpacity( 0.5)),
                       onTap: (isGlobalLoading || isReadOnly || _areBackupsBlocked) ? null : _exportExcelBackup,
                     ),
                     Divider(height: 1, color: Theme.of(context).dividerColor.withOpacity( 0.1)),
@@ -1168,7 +1168,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                       leading: _isImporting
                           ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.info))
-                          : const HugeIcon(icon: HugeIcons.strokeRoundedCloudUpload, color: AppColors.info),
+                          : const Icon(LucideIcons.uploadCloud, color: AppColors.info),
                       title: Text('Import', style: TextStyle(fontWeight: FontWeight.bold, color: onSurface)),
                       subtitle: Text(
                         'Import data from device storage.',
@@ -1176,7 +1176,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                       ),
                       trailing: _isImporting
                           ? null
-                          : HugeIcon(icon: HugeIcons.strokeRoundedArrowRight01, size: 18, color: onSurfaceVariant.withOpacity( 0.5)),
+                          : Icon(LucideIcons.chevronRight, size: 18, color: onSurfaceVariant.withOpacity( 0.5)),
                       onTap: isGlobalLoading ? null : _pickAndImportExcel,
                     ),
                   ],

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:math';
 
@@ -599,7 +599,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Column(
                   children: [
                     _buildSwitchTile(
-                      icon: HugeIcons.strokeRoundedLocker01,
+                      icon: LucideIcons.lock,
                       title: 'App Lock',
                       subtitle: 'Secure app with PIN',
                       value: _isLockEnabled,
@@ -609,7 +609,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       Divider(height: 1, color: Theme.of(context).dividerColor.withOpacity( 0.1)),
                       if (_hasBiometricHardware)
                         _buildSwitchTile(
-                          icon: HugeIcons.strokeRoundedFingerPrint,
+                          icon: LucideIcons.fingerprint,
                           title: 'Biometrics',
                           subtitle: 'Unlock with fingerprint',
                           value: _isBiometricEnabled,
@@ -617,7 +617,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       Divider(height: 1, color: Theme.of(context).dividerColor.withOpacity( 0.1)),
                       _buildListTile(
-                        icon: HugeIcons.strokeRoundedKey01,
+                        icon: LucideIcons.key,
                         title: 'Change PIN',
                         onTap: isReadOnly ? null : _showChangePinDialog,
                       ),
@@ -633,7 +633,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 padding: EdgeInsets.zero,
                 child: Consumer<ThemeProvider>(
                   builder: (context, theme, _) => _buildSwitchTile(
-                    icon: HugeIcons.strokeRoundedMoon01,
+                    icon: LucideIcons.moon,
                     title: 'Dark Mode',
                     subtitle: 'Enable dark theme',
                     value: theme.isDarkMode,
@@ -654,10 +654,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     ListTile(
                       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                      leading: const HugeIcon(icon: HugeIcons.strokeRoundedArchive, color: AppColors.accent),
+                      leading: const Icon(LucideIcons.archive, color: AppColors.accent),
                       title: Text('Backup & Restore', style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface)),
                       subtitle: Text('Backup and restore options', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.7), fontSize: 12)),
-                      trailing: HugeIcon(icon: HugeIcons.strokeRoundedArrowRight01, size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.5)),
+                      trailing: Icon(LucideIcons.chevronRight, size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.5)),
                       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BackupRestoreScreen())),
                     ),
                   ],
@@ -672,7 +672,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 padding: EdgeInsets.zero,
                 child: ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-                  leading: const HugeIcon(icon: HugeIcons.strokeRoundedLogout01, color: AppColors.error),
+                  leading: const Icon(LucideIcons.logOut, color: AppColors.error),
                   title: const Text('Sign Out',
                       style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.error)),
                   subtitle: const Text('You will need to sign in again to access the app',
@@ -693,14 +693,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                         leading: _isGenerating 
                             ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent))
-                            : const HugeIcon(icon: HugeIcons.strokeRoundedFlash, color: AppColors.accent),
+                            : const Icon(LucideIcons.flaskConical, color: AppColors.accent),
                         title: const Text('Generate 500 Test Borrowers', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.accent)),
                         onTap: (isReadOnly || _isGenerating) ? null : _generateTestBorrowers,
                       ),
                       Divider(height: 1, color: Theme.of(context).dividerColor.withOpacity( 0.1)),
                       ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                        leading: const HugeIcon(icon: HugeIcons.strokeRoundedDelete01, color: AppColors.error),
+                        leading: const Icon(LucideIcons.trash2, color: AppColors.error),
                         title: const Text('Clear Local Database', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.error)),
                         subtitle: const Text('Deletes all local records permanently', style: TextStyle(fontSize: 12)),
                         onTap: (isReadOnly || _isGenerating) ? null : () => _confirmClearLocalDatabase(context),
@@ -708,7 +708,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       Divider(height: 1, color: Theme.of(context).dividerColor.withOpacity( 0.1)),
                       ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                        leading: const HugeIcon(icon: HugeIcons.strokeRoundedAlert01, color: AppColors.error),
+                        leading: const Icon(LucideIcons.alertTriangle, color: AppColors.error),
                         title: const Text('Factory Reset App', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.error)),
                         subtitle: const Text('Wipes local DB and settings', style: TextStyle(fontSize: 12)),
                         onTap: (isReadOnly || _isGenerating) ? null : () => _confirmFactoryReset(context),
@@ -739,7 +739,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildSwitchTile({required dynamic icon, required String title, required String subtitle, required bool value, required Function(bool)? onChanged}) {
+  Widget _buildSwitchTile({required IconData icon, required String title, required String subtitle, required bool value, required Function(bool)? onChanged}) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       leading: Icon(icon, color: onChanged == null ? AppColors.accent.withOpacity(0.5) : AppColors.accent),
@@ -753,13 +753,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildListTile({required dynamic icon, required String title, required VoidCallback? onTap, Color? color}) {
+  Widget _buildListTile({required IconData icon, required String title, required VoidCallback? onTap, Color? color}) {
     final disabled = onTap == null;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       leading: Icon(icon, color: disabled ? (color ?? AppColors.accent).withOpacity(0.5) : (color ?? AppColors.accent)),
       title: Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: disabled ? Theme.of(context).colorScheme.onSurface.withOpacity(0.5) : color)),
-      trailing: HugeIcon(icon: HugeIcons.strokeRoundedArrowRight01, size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(disabled ? 0.3 : 0.6)),
+      trailing: Icon(LucideIcons.chevronRight, size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(disabled ? 0.3 : 0.6)),
       onTap: onTap,
     );
   }

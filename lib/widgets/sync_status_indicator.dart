@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../services/auto_backup_manager.dart';
 import '../services/google_drive_service.dart';
 import '../utils/app_colors.dart';
@@ -23,33 +23,33 @@ class SyncStatusIndicator extends StatelessWidget {
   }
 
   Widget _buildCompact(BuildContext context, SyncStatus status) {
-    final dynamic icon;
+    final IconData icon;
     final Color color;
     final String tooltip;
 
     switch (status) {
       case SyncStatus.synced:
-        icon = HugeIcons.strokeRoundedCloudLoading;
+        icon = LucideIcons.cloudLightning;
         color = AppColors.success;
         tooltip = 'Google Drive Synced';
         break;
       case SyncStatus.syncing:
-        icon = HugeIcons.strokeRoundedRefresh;
+        icon = LucideIcons.refreshCw;
         color = AppColors.accent;
         tooltip = 'Syncing...';
         break;
       case SyncStatus.waitingForInternet:
-        icon = HugeIcons.strokeRoundedWifiDisconnected01;
+        icon = LucideIcons.wifiOff;
         color = AppColors.warning;
         tooltip = 'Offline - Sync Pending';
         break;
       case SyncStatus.failed:
-        icon = HugeIcons.strokeRoundedAlert01;
+        icon = LucideIcons.alertTriangle;
         color = AppColors.error;
         tooltip = 'Sync Failed - Tap to retry';
         break;
       case SyncStatus.reconnect:
-        icon = HugeIcons.strokeRoundedKey01;
+        icon = LucideIcons.key;
         color = AppColors.error;
         tooltip = 'Authentication Required';
         break;
@@ -75,33 +75,33 @@ class SyncStatusIndicator extends StatelessWidget {
   }
 
   Widget _buildFull(BuildContext context, SyncStatus status) {
-    final dynamic icon;
+    final IconData icon;
     final Color color;
     final String label;
 
     switch (status) {
       case SyncStatus.synced:
-        icon = HugeIcons.strokeRoundedCheckmarkCircle01;
+        icon = LucideIcons.checkCircle;
         color = AppColors.success;
         label = 'Synced';
         break;
       case SyncStatus.syncing:
-        icon = HugeIcons.strokeRoundedRefresh;
+        icon = LucideIcons.refreshCw;
         color = AppColors.accent;
         label = 'Syncing...';
         break;
       case SyncStatus.waitingForInternet:
-        icon = HugeIcons.strokeRoundedWifiDisconnected01;
+        icon = LucideIcons.wifiOff;
         color = AppColors.warning;
         label = 'Waiting for Internet';
         break;
       case SyncStatus.failed:
-        icon = HugeIcons.strokeRoundedAlert01;
+        icon = LucideIcons.alertTriangle;
         color = AppColors.error;
         label = 'Sync Failed';
         break;
       case SyncStatus.reconnect:
-        icon = HugeIcons.strokeRoundedKey01;
+        icon = LucideIcons.key;
         color = AppColors.error;
         label = 'Reconnect Google Drive';
         break;
@@ -204,7 +204,7 @@ class SyncStatusIndicator extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
-            HugeIcon(icon: HugeIcons.strokeRoundedKey01, color: AppColors.error),
+            Icon(LucideIcons.key, color: AppColors.error),
             SizedBox(width: 12),
             Text('Reconnect Google Drive'),
           ],
@@ -246,7 +246,7 @@ class SyncStatusIndicator extends StatelessWidget {
 }
 
 class _RotatingIcon extends StatefulWidget {
-  final dynamic icon;
+  final IconData icon;
   final Color color;
   final double size;
 

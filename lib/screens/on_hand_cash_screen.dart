@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../providers/loan_provider.dart';
@@ -97,14 +97,14 @@ class _ExpenseTab extends StatelessWidget {
                     _SummaryCard(
                       label: 'Total Expenses',
                       value: fmtINR(totalExpenses),
-                      icon: HugeIcons.strokeRoundedWallet01,
+                      icon: LucideIcons.wallet,
                       color: AppColors.error,
                     ),
                     const SizedBox(width: 16),
                     _SummaryCard(
                       label: 'This Month',
                       value: fmtINR(monthExpenses),
-                      icon: HugeIcons.strokeRoundedCalendar01,
+                      icon: LucideIcons.calendarRange,
                       color: AppColors.warning,
                     ),
                   ],
@@ -155,7 +155,7 @@ class _ExpenseTab extends StatelessWidget {
                                         builder: (_) => const AddExpenseDialog(),
                                       );
                                     },
-                              icon: const HugeIcon(icon: HugeIcons.strokeRoundedAdd01, size: 18),
+                              icon: const Icon(LucideIcons.plus, size: 18),
                               label: const Text(
                                 'Add Expense Entry',
                                 style: TextStyle(fontWeight: FontWeight.bold),
@@ -209,7 +209,7 @@ class _ExpenseTab extends StatelessWidget {
                     child: Center(
                       child: Column(
                         children: [
-                          HugeIcon(icon: HugeIcons.strokeRoundedRocket01,
+                          Icon(LucideIcons.receipt,
                               size: 40,
                               color: Theme.of(context)
                                   .colorScheme
@@ -249,7 +249,7 @@ class _ExpenseTab extends StatelessWidget {
                                   color: AppColors.error.withOpacity( 0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: const HugeIcon(icon: HugeIcons.strokeRoundedArrowUpRight01,
+                                child: const Icon(LucideIcons.arrowUpRight,
                                     color: AppColors.error, size: 20),
                               ),
                               const SizedBox(width: 16),
@@ -395,14 +395,14 @@ class _ExpenseHistoryTabState extends State<_ExpenseHistoryTab> {
                     _SummaryCard(
                       label: 'Total Expenses',
                       value: fmtINR(provider.totalExpenses),
-                      icon: HugeIcons.strokeRoundedWallet01,
+                      icon: LucideIcons.wallet,
                       color: AppColors.error,
                     ),
                     const SizedBox(width: 16),
                     _SummaryCard(
                       label: 'This Month',
                       value: fmtINR(provider.monthExpenses),
-                      icon: HugeIcons.strokeRoundedCalendar01,
+                      icon: LucideIcons.calendarRange,
                       color: AppColors.warning,
                     ),
                   ],
@@ -419,10 +419,10 @@ class _ExpenseHistoryTabState extends State<_ExpenseHistoryTab> {
                   onChanged: (v) => setState(() => _query = v),
                   decoration: InputDecoration(
                     hintText: 'Search expenses...',
-                    prefixIcon: const HugeIcon(icon: HugeIcons.strokeRoundedSearch01, size: 20),
+                    prefixIcon: const Icon(LucideIcons.search, size: 20),
                     suffixIcon: _query.isNotEmpty
                         ? IconButton(
-                            icon: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, size: 16),
+                            icon: const Icon(LucideIcons.x, size: 16),
                             onPressed: () {
                               _searchCtrl.clear();
                               setState(() => _query = '');
@@ -472,7 +472,7 @@ class _ExpenseHistoryTabState extends State<_ExpenseHistoryTab> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      HugeIcon(icon: HugeIcons.strokeRoundedRocket01,
+                      Icon(LucideIcons.receipt,
                           size: 48,
                           color: Theme.of(context)
                               .colorScheme
@@ -510,7 +510,7 @@ class _ExpenseHistoryTabState extends State<_ExpenseHistoryTab> {
                                   color: AppColors.error.withOpacity( 0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: const HugeIcon(icon: HugeIcons.strokeRoundedArrowUpRight01,
+                                child: const Icon(LucideIcons.arrowUpRight,
                                     color: AppColors.error, size: 20),
                               ),
                               const SizedBox(width: 16),
@@ -580,7 +580,8 @@ class _ExpenseHistoryTabState extends State<_ExpenseHistoryTab> {
                                             _deleteExpense(context, e.id!);
                                           }
                                         },
-                                        child: HugeIcon(icon: HugeIcons.strokeRoundedDelete01,
+                                        child: Icon(
+                                          LucideIcons.trash2,
                                           size: 16,
                                           color:
                                               AppColors.error.withOpacity( 0.6),
@@ -702,14 +703,14 @@ class _ServiceCostTabState extends State<_ServiceCostTab> {
                     _SummaryCard(
                       label: 'Total Service Cost',
                       value: fmtINR(provider.totalServiceCosts),
-                      icon: HugeIcons.strokeRoundedWallet01,
+                      icon: LucideIcons.wallet,
                       color: AppColors.error,
                     ),
                     const SizedBox(width: 16),
                     _SummaryCard(
                       label: 'This Month',
                       value: fmtINR(provider.monthServiceCosts),
-                      icon: HugeIcons.strokeRoundedCalendar01,
+                      icon: LucideIcons.calendarRange,
                       color: AppColors.warning,
                     ),
                   ],
@@ -754,7 +755,7 @@ class _ServiceCostTabState extends State<_ServiceCostTab> {
                           },
                           decoration: const InputDecoration(
                             labelText: 'Service Cost Amount (₹) *',
-                            prefixIcon: HugeIcon(icon: HugeIcons.strokeRoundedCoins01),
+                            prefixIcon: Icon(LucideIcons.coins),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -762,7 +763,7 @@ class _ServiceCostTabState extends State<_ServiceCostTab> {
                           controller: _descriptionCtrl,
                           decoration: const InputDecoration(
                             labelText: 'Service Description (Optional)',
-                            prefixIcon: HugeIcon(icon: HugeIcons.strokeRoundedText),
+                            prefixIcon: Icon(LucideIcons.text),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -786,7 +787,7 @@ class _ServiceCostTabState extends State<_ServiceCostTab> {
                             ),
                             child: Row(
                               children: [
-                                const HugeIcon(icon: HugeIcons.strokeRoundedCalendar01,
+                                const Icon(LucideIcons.calendar,
                                     color: AppColors.accent, size: 20),
                                 const SizedBox(width: 16),
                                 Column(
@@ -816,7 +817,7 @@ class _ServiceCostTabState extends State<_ServiceCostTab> {
                                   ],
                                 ),
                                 const Spacer(),
-                                HugeIcon(icon: HugeIcons.strokeRoundedArrowRight01,
+                                Icon(LucideIcons.chevronRight,
                                     size: 16,
                                     color: Theme.of(context)
                                         .colorScheme
@@ -834,7 +835,7 @@ class _ServiceCostTabState extends State<_ServiceCostTab> {
                             builder: (context, isReadOnly, _) {
                               return ElevatedButton.icon(
                                 onPressed: isReadOnly ? null : _submitServiceCost,
-                                icon: const HugeIcon(icon: HugeIcons.strokeRoundedAdd01, size: 18),
+                                icon: const Icon(LucideIcons.plus, size: 18),
                                 label: const Text('Add Entry',
                                     style:
                                         TextStyle(fontWeight: FontWeight.bold)),
@@ -931,14 +932,14 @@ class _ServiceCostHistoryTabState extends State<_ServiceCostHistoryTab> {
                     _SummaryCard(
                       label: 'Total Service Cost',
                       value: fmtINR(provider.totalServiceCosts),
-                      icon: HugeIcons.strokeRoundedWallet01,
+                      icon: LucideIcons.wallet,
                       color: AppColors.error,
                     ),
                     const SizedBox(width: 16),
                     _SummaryCard(
                       label: 'This Month',
                       value: fmtINR(provider.monthServiceCosts),
-                      icon: HugeIcons.strokeRoundedCalendar01,
+                      icon: LucideIcons.calendarRange,
                       color: AppColors.warning,
                     ),
                   ],
@@ -955,10 +956,10 @@ class _ServiceCostHistoryTabState extends State<_ServiceCostHistoryTab> {
                   onChanged: (v) => setState(() => _query = v),
                   decoration: InputDecoration(
                     hintText: 'Search descriptions or creators...',
-                    prefixIcon: const HugeIcon(icon: HugeIcons.strokeRoundedSearch01, size: 20),
+                    prefixIcon: const Icon(LucideIcons.search, size: 20),
                     suffixIcon: _query.isNotEmpty
                         ? IconButton(
-                            icon: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, size: 16),
+                            icon: const Icon(LucideIcons.x, size: 16),
                             onPressed: () {
                               _searchCtrl.clear();
                               setState(() => _query = '');
@@ -1008,7 +1009,7 @@ class _ServiceCostHistoryTabState extends State<_ServiceCostHistoryTab> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      HugeIcon(icon: HugeIcons.strokeRoundedRocket01,
+                      Icon(LucideIcons.receipt,
                           size: 48,
                           color: Theme.of(context)
                               .colorScheme
@@ -1047,7 +1048,7 @@ class _ServiceCostHistoryTabState extends State<_ServiceCostHistoryTab> {
                                       AppColors.error.withOpacity( 0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: const HugeIcon(icon: HugeIcons.strokeRoundedArrowUpRight01,
+                                child: const Icon(LucideIcons.arrowUpRight,
                                     color: AppColors.error, size: 20),
                               ),
                               const SizedBox(width: 16),
@@ -1103,7 +1104,8 @@ class _ServiceCostHistoryTabState extends State<_ServiceCostHistoryTab> {
                                                 context, sc.id!, sc.amount);
                                           }
                                         },
-                                        child: HugeIcon(icon: HugeIcons.strokeRoundedDelete01,
+                                        child: Icon(
+                                          LucideIcons.trash2,
                                           size: 16,
                                           color: AppColors.error
                                               .withOpacity( 0.6),
@@ -1146,7 +1148,7 @@ class _SummaryCard extends StatelessWidget {
 
   final String label;
   final String value;
-  final dynamic icon;
+  final IconData icon;
   final Color color;
 
   @override

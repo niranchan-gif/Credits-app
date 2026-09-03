@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 import '../providers/loan_provider.dart';
 import '../models/payment.dart';
@@ -151,7 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(30),
                 ),
-                icon: const HugeIcon(icon: HugeIcons.strokeRoundedFlash),
+                icon: const Icon(LucideIcons.zap),
                 label: const Text("Quick Add", style: TextStyle(fontWeight: FontWeight.bold)),
                 onPressed: () {
                   showDialog(
@@ -167,7 +167,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 foregroundColor: AppColors.background,
                 elevation: 6,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                icon: const HugeIcon(icon: HugeIcons.strokeRoundedUser),
+                icon: const Icon(LucideIcons.user),
                 label: const Text("Add Borrower", style: TextStyle(fontWeight: FontWeight.bold)),
                 onPressed: () {
                   Navigator.push(
@@ -242,7 +242,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         fontSize: 14,
                       ),
                     ),
-                    HugeIcon(icon: HugeIcons.strokeRoundedCalendarCheckIn01, color: Colors.white.withOpacity( 0.8)),
+                    Icon(LucideIcons.calendarCheck, color: Colors.white.withOpacity( 0.8)),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -263,7 +263,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _miniStat(String label, String value, dynamic icon) {
+  Widget _miniStat(String label, String value, IconData icon) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -300,10 +300,10 @@ class _HomeScreenState extends State<HomeScreen> {
       onChanged: (v) => setState(() => _query = v),
       decoration: InputDecoration(
         hintText: "Search name, ID, address...",
-        prefixIcon: const HugeIcon(icon: HugeIcons.strokeRoundedSearch01, size: 20),
+        prefixIcon: const Icon(LucideIcons.search, size: 20),
         suffixIcon: _query.isNotEmpty
             ? IconButton(
-                icon: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, size: 16),
+                icon: const Icon(LucideIcons.x, size: 16),
                 onPressed: () {
                   _searchCtrl.clear();
                   setState(() => _query = '');
@@ -420,8 +420,8 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.only(left: 24),
           child: Row(
             children: [
-              HugeIcon(
-                icon: isPaid ? HugeIcons.strokeRoundedCheckmarkBadge01 : HugeIcons.strokeRoundedCheckmarkCircle01, 
+              Icon(
+                isPaid ? LucideIcons.check : LucideIcons.checkCircle, 
                 color: AppColors.accent, 
                 size: 24
               ),
@@ -664,7 +664,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 Text('Loan: ${fmtINR(l.loanAmount)}', style: const TextStyle(fontSize: 14)),
                                 if (isLoanPaidToday) ...[
                                   const SizedBox(width: 8),
-                                  const HugeIcon(icon: HugeIcons.strokeRoundedCheckmarkCircle01, color: AppColors.success, size: 14),
+                                  const Icon(LucideIcons.checkCircle, color: AppColors.success, size: 14),
                                 ],
                               ],
                             ),
@@ -683,7 +683,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     autofocus: activeLoans.length == 1,
                     decoration: const InputDecoration(
                       labelText: 'Amount (₹)',
-                      prefixIcon: HugeIcon(icon: HugeIcons.strokeRoundedCurrency),
+                      prefixIcon: Icon(LucideIcons.indianRupee),
                     ),
                   ),
                 ],
@@ -746,7 +746,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          HugeIcon(icon: HugeIcons.strokeRoundedUserGroup, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.2)),
+          Icon(LucideIcons.users, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.2)),
           const SizedBox(height: 16),
           Text(
             "No borrowers found",

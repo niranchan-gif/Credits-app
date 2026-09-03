@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../utils/app_colors.dart';
 import 'home_screen.dart';
 import 'reports_screen.dart';
@@ -177,9 +177,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _navItem(HugeIcons.strokeRoundedHome01, "Home", 0),
-              _navItem(HugeIcons.strokeRoundedBarChart, "Reports", 1),
-              _navItem(HugeIcons.strokeRoundedSettings01, "Settings", 2),
+              _navItem(LucideIcons.home, "Home", 0),
+              _navItem(LucideIcons.barChart3, "Reports", 1),
+              _navItem(LucideIcons.settings, "Settings", 2),
             ],
           ),
         ),
@@ -187,7 +187,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     ).animate().slideY(begin: 0.5, end: 0, duration: 800.ms, curve: Curves.easeOutBack);
   }
 
-  Widget _navItem(dynamic icon, String label, int index) {
+  Widget _navItem(IconData icon, String label, int index) {
     final isSelected = _currentIndex == index;
     return GestureDetector(
       onTap: () => setState(() => _currentIndex = index),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../models/borrower.dart';
@@ -103,11 +103,11 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
                   controller: amountCtrl,
                   keyboardType: TextInputType.number,
                   autofocus: true,
-                  decoration: const InputDecoration(labelText: 'Amount Paid (₹)', prefixIcon: HugeIcon(icon: HugeIcons.strokeRoundedCoins01)),
+                  decoration: const InputDecoration(labelText: 'Amount Paid (₹)', prefixIcon: Icon(LucideIcons.coins)),
                 ),
                 const SizedBox(height: 16),
                 _buildListTile(
-                  icon: HugeIcons.strokeRoundedCalendar01,
+                  icon: LucideIcons.calendar,
                   title: 'Payment Date',
                   subtitle: DateFormat('dd MMMM yyyy').format(selectedDate),
                   onTap: () async {
@@ -124,7 +124,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
                 const SizedBox(height: 16),
                 TextField(
                   controller: notesCtrl,
-                  decoration: const InputDecoration(labelText: 'Notes (Optional)', prefixIcon: HugeIcon(icon: HugeIcons.strokeRoundedNote01)),
+                  decoration: const InputDecoration(labelText: 'Notes (Optional)', prefixIcon: Icon(LucideIcons.stickyNote)),
                 ),
                 const SizedBox(height: 32),
                 ElevatedButton(
@@ -153,7 +153,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
     );
   }
 
-  Widget _buildListTile({required dynamic icon, required String title, required String subtitle, required VoidCallback onTap}) {
+  Widget _buildListTile({required IconData icon, required String title, required String subtitle, required VoidCallback onTap}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -169,7 +169,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
               Text(subtitle, style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 14)),
             ]),
             const Spacer(),
-            HugeIcon(icon: HugeIcons.strokeRoundedArrowRight01, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6)),
+            Icon(LucideIcons.chevronRight, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6)),
           ],
         ),
       ),
@@ -206,7 +206,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
                     padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
                     child: Row(
                       children: [
-                        const HugeIcon(icon: HugeIcons.strokeRoundedClock02, size: 18, color: AppColors.accent),
+                        const Icon(LucideIcons.history, size: 18, color: AppColors.accent),
                         const SizedBox(width: 10),
                         Text('Payment History', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Theme.of(context).colorScheme.onSurface)),
                         const Spacer(),
@@ -227,7 +227,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
         child: FloatingActionButton.extended(
           backgroundColor: AppColors.accent,
           foregroundColor: Theme.of(context).colorScheme.surface,
-          icon: const HugeIcon(icon: HugeIcons.strokeRoundedAdd01),
+          icon: const Icon(LucideIcons.plus),
           label: const Text('Add Payment', style: TextStyle(fontWeight: FontWeight.bold)),
           onPressed: _showAddPaymentDialog,
         ),
@@ -240,7 +240,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
       valueListenable: BackupFreshnessService.isReadOnlyMode,
       builder: (context, isReadOnly, _) {
         return PopupMenuButton<String>(
-          icon: const HugeIcon(icon: HugeIcons.strokeRoundedMoreVertical),
+          icon: const Icon(LucideIcons.moreVertical),
           onSelected: (value) {
             if (value == 'download') { _exportExcel(); }
             else if (value == 'delete') {
@@ -249,10 +249,10 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
             }
           },
           itemBuilder: (_) => [
-            const PopupMenuItem(value: 'download', child: Row(children: [HugeIcon(icon: HugeIcons.strokeRoundedDownload01, size: 18), SizedBox(width: 12), Text('Download Report')])),
+            const PopupMenuItem(value: 'download', child: Row(children: [Icon(LucideIcons.download, size: 18), SizedBox(width: 12), Text('Download Report')])),
             if (!isReadOnly) ...[
               const PopupMenuDivider(),
-              const PopupMenuItem(value: 'delete', child: Row(children: [HugeIcon(icon: HugeIcons.strokeRoundedDelete01, size: 18, color: AppColors.error), SizedBox(width: 12), Text('Delete Loan', style: TextStyle(color: AppColors.error))])),
+              const PopupMenuItem(value: 'delete', child: Row(children: [Icon(LucideIcons.trash2, size: 18, color: AppColors.error), SizedBox(width: 12), Text('Delete Loan', style: TextStyle(color: AppColors.error))])),
             ],
           ],
         );
@@ -334,7 +334,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            HugeIcon(icon: HugeIcons.strokeRoundedCheckmarkCircle01, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.2)),
+            Icon(LucideIcons.checkCircle, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.2)),
             const SizedBox(height: 16),
             Text('No payments recorded yet', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6))),
           ],
@@ -355,7 +355,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(color: AppColors.success.withOpacity( 0.1), borderRadius: BorderRadius.circular(12)),
-                  child: const HugeIcon(icon: HugeIcons.strokeRoundedArrowDown01, color: AppColors.success, size: 20),
+                  child: const Icon(LucideIcons.arrowDown, color: AppColors.success, size: 20),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -378,7 +378,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
                         if (isReadOnly) return const SizedBox.shrink();
                         return GestureDetector(
                           onTap: () => _deletePayment(p),
-                          child: HugeIcon(icon: HugeIcons.strokeRoundedDelete01, size: 16, color: AppColors.error.withOpacity(0.6)),
+                          child: Icon(LucideIcons.trash2, size: 16, color: AppColors.error.withOpacity(0.6)),
                         );
                       },
                     ),

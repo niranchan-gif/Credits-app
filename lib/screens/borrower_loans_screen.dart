@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
@@ -136,7 +136,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                         padding: const EdgeInsets.all(16),
                         child: const Row(
                           children: [
-                            HugeIcon(icon: HugeIcons.strokeRoundedAlert01, color: AppColors.error, size: 24),
+                            Icon(LucideIcons.alertTriangle, color: AppColors.error, size: 24),
                             SizedBox(width: 16),
                             Expanded(
                               child: Text(
@@ -152,7 +152,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                     padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
                     child: Row(
                       children: [
-                        const HugeIcon(icon: HugeIcons.strokeRoundedClock02, size: 18, color: AppColors.accent),
+                        const Icon(LucideIcons.history, size: 18, color: AppColors.accent),
                         const SizedBox(width: 10),
                         Text(
                           'Loan History',
@@ -176,7 +176,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
         child: FloatingActionButton.extended(
           backgroundColor: AppColors.accent,
           foregroundColor: AppColors.background,
-          icon: const HugeIcon(icon: HugeIcons.strokeRoundedAdd01),
+          icon: const Icon(LucideIcons.plus),
           label: const Text('Start New Loan', style: TextStyle(fontWeight: FontWeight.bold)),
           onPressed: () async {
             await Navigator.push(
@@ -195,7 +195,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
       valueListenable: BackupFreshnessService.isReadOnlyMode,
       builder: (context, isReadOnly, _) {
         return PopupMenuButton<String>(
-          icon: const HugeIcon(icon: HugeIcons.strokeRoundedMoreVertical),
+          icon: const Icon(LucideIcons.moreVertical),
           onSelected: (value) async {
             debugPrint('UI: Menu selected = $value, isDummy = ${b.isDummy}');
             if (value == 'download') {
@@ -218,26 +218,26 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
           itemBuilder: (_) => [
             const PopupMenuItem(
               value: 'download',
-              child: Row(children: [HugeIcon(icon: HugeIcons.strokeRoundedDownload01, size: 18), SizedBox(width: 12), Text('Download Report')]),
+              child: Row(children: [Icon(LucideIcons.download, size: 18), SizedBox(width: 12), Text('Download Report')]),
             ),
             if (!isReadOnly) ...[
               const PopupMenuItem(
                 value: 'edit',
-                child: Row(children: [HugeIcon(icon: HugeIcons.strokeRoundedEdit01, size: 18), SizedBox(width: 12), Text('Edit Borrower')]),
+                child: Row(children: [Icon(LucideIcons.edit, size: 18), SizedBox(width: 12), Text('Edit Borrower')]),
               ),
               const PopupMenuDivider(),
             ],
             if (!isReadOnly && !b.isDummy) ...[
               const PopupMenuItem(
                 value: 'delete',
-                child: Row(children: [HugeIcon(icon: HugeIcons.strokeRoundedArchive, size: 18, color: AppColors.error), SizedBox(width: 12), Text('Move to Inactive', style: TextStyle(color: AppColors.error))]),
+                child: Row(children: [Icon(LucideIcons.archive, size: 18, color: AppColors.error), SizedBox(width: 12), Text('Move to Inactive', style: TextStyle(color: AppColors.error))]),
               ),
             ],
             if (!isReadOnly && b.isDummy) ...[
               const PopupMenuDivider(),
               const PopupMenuItem(
                 value: 'restore',
-                child: Row(children: [HugeIcon(icon: HugeIcons.strokeRoundedRefresh, size: 18, color: AppColors.success), SizedBox(width: 12), Text('Move to Active', style: TextStyle(color: AppColors.success))]),
+                child: Row(children: [Icon(LucideIcons.refreshCcw, size: 18, color: AppColors.success), SizedBox(width: 12), Text('Move to Active', style: TextStyle(color: AppColors.success))]),
               ),
             ],
           ],
@@ -309,7 +309,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                                 itemBuilder: (context, index) {
                                   if (index == 0) {
                                     return ListTile(
-                                      leading: const HugeIcon(icon: HugeIcons.strokeRoundedCopy01, color: AppColors.accent),
+                                      leading: const Icon(LucideIcons.copy, color: AppColors.accent),
                                       title: const Text('All Loans (Combined)', style: TextStyle(fontWeight: FontWeight.bold)),
                                       onTap: () => Navigator.of(context).pop(allBorrowerLoans),
                                     );
@@ -317,7 +317,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                                   final loan = allBorrowerLoans[index - 1];
                                   final dateStr = DateFormat('dd MMM yyyy').format(loan.loanDate);
                                   return ListTile(
-                                    leading: const HugeIcon(icon: HugeIcons.strokeRoundedDocumentCode, color: AppColors.accentLight),
+                                    leading: const Icon(LucideIcons.fileText, color: AppColors.accentLight),
                                     title: Text('Loan - $dateStr'),
                                     subtitle: Text('Amount: ₹${loan.loanAmount.toStringAsFixed(0)}'),
                                     onTap: () => Navigator.of(context).pop([loan]),
@@ -487,12 +487,12 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                       );
                     }
                   },
-                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedShare01, color: AppColors.accent, size: 20),
+                  icon: const Icon(LucideIcons.share2, color: AppColors.accent, size: 20),
                 ),
                 const SizedBox(width: 8),
                 IconButton(
                   onPressed: () => openPhoneDialer(b.phone, messenger: ScaffoldMessenger.of(context)),
-                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedCall, color: AppColors.accent, size: 20),
+                  icon: const Icon(LucideIcons.phone, color: AppColors.accent, size: 20),
                 ),
               ],
             ),
@@ -512,7 +512,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
             const SizedBox(height: 8),
             Row(
               children: [
-                HugeIcon(icon: HugeIcons.strokeRoundedCall, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 14),
+                Icon(LucideIcons.phone, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 14),
                 const SizedBox(width: 6),
                 Text(b.phone, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
               ],
@@ -521,7 +521,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
               const SizedBox(height: 4),
               Row(
                 children: [
-                  HugeIcon(icon: HugeIcons.strokeRoundedLocation01, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 14),
+                  Icon(LucideIcons.mapPin, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 14),
                   const SizedBox(width: 6),
                   Expanded(child: Text(b.address!, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant))),
                 ],
@@ -566,7 +566,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const HugeIcon(icon: HugeIcons.strokeRoundedNote01, size: 14, color: AppColors.accentLight),
+                    const Icon(LucideIcons.stickyNote, size: 14, color: AppColors.accentLight),
                     const SizedBox(width: 8),
                     Expanded(child: Text(b.notes!, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16, fontStyle: FontStyle.italic))),
                   ],
@@ -585,7 +585,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            HugeIcon(icon: HugeIcons.strokeRoundedCoins01, size: 48, color: AppColors.textTertiary.withOpacity( 0.2)),
+            Icon(LucideIcons.coins, size: 48, color: AppColors.textTertiary.withOpacity( 0.2)),
             const SizedBox(height: 16),
             const Text('No loans found.\nTap + to start a new loan.', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textTertiary)),
           ],
@@ -626,7 +626,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                             if (_paidTodayLoanIds.contains(loan.id))
                               const Padding(
                                 padding: EdgeInsets.only(right: 8),
-                                child: HugeIcon(icon: HugeIcons.strokeRoundedCheckmarkCircle01, color: AppColors.success, size: 16),
+                                child: Icon(LucideIcons.checkCircle, color: AppColors.success, size: 16),
                               ),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -641,7 +641,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                     if (loan.installmentDays != null && loan.installmentDays! > 0) ...[
                       Row(
                         children: [
-                          const HugeIcon(icon: HugeIcons.strokeRoundedCalendar01, size: 14, color: AppColors.accentLight),
+                          const Icon(LucideIcons.calendar, size: 14, color: AppColors.accentLight),
                           const SizedBox(width: 6),
                           Text('${loan.installmentDays} days • Ends ${loan.endDate != null ? DateFormat('dd MMM').format(loan.endDate!) : 'N/A'}', style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                         ],

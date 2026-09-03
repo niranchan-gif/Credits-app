@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../database/db_helper.dart';
@@ -253,7 +253,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const HugeIcon(icon: HugeIcons.strokeRoundedAlert01, color: AppColors.error, size: 48),
+                const Icon(LucideIcons.alertTriangle, color: AppColors.error, size: 48),
                 const SizedBox(height: 16),
                 Text(
                   _errorMessage,
@@ -263,7 +263,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 const SizedBox(height: 24),
                 ElevatedButton.icon(
                   onPressed: () => _loadReports(force: true),
-                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedRefresh, size: 16),
+                  icon: const Icon(LucideIcons.refreshCw, size: 16),
                   label: const Text('Retry'),
                 ),
               ],
@@ -302,7 +302,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent),
                   )
-                : const HugeIcon(icon: HugeIcons.strokeRoundedDownload01),
+                : const Icon(LucideIcons.download),
           ),
           const SizedBox(width: 8),
         ],
@@ -320,7 +320,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   const SizedBox(height: 24),
                   
                   _buildStatRow(
-                    _statCard('On Hand Cash', fmtINR(onHand), HugeIcons.strokeRoundedHome01, 
+                    _statCard('On Hand Cash', fmtINR(onHand), LucideIcons.home, 
                       onHand >= 0 ? AppColors.success : AppColors.error, 
                       onTap: () async {
                         await Navigator.push(
@@ -334,27 +334,27 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   
                   Row(
                     children: [
-                      _statCard('Borrowers', '$totalBorrowers', HugeIcons.strokeRoundedUserGroup, AppColors.info),
+                      _statCard('Borrowers', '$totalBorrowers', LucideIcons.users, AppColors.info),
                       const SizedBox(width: 16),
-                      _statCard('To Recover', fmtINR(totalToRecover), HugeIcons.strokeRoundedCoins01, AppColors.warning),
+                      _statCard('To Recover', fmtINR(totalToRecover), LucideIcons.coins, AppColors.warning),
                     ],
                   ),
                   const SizedBox(height: 16),
                   
                   Row(
                     children: [
-                      _statCard('Collected', fmtINR(activeCollected), HugeIcons.strokeRoundedCheckmarkCircle01, AppColors.success),
+                      _statCard('Collected', fmtINR(activeCollected), LucideIcons.checkCircle, AppColors.success),
                       const SizedBox(width: 16),
-                      _statCard('Pending', fmtINR(totalPending), HugeIcons.strokeRoundedClock01, AppColors.error),
+                      _statCard('Pending', fmtINR(totalPending), LucideIcons.clock, AppColors.error),
                     ],
                   ),
                   const SizedBox(height: 16),
                   
                   Row(
                     children: [
-                      _statCard('Expenses', fmtINR(_totalExpenses), HugeIcons.strokeRoundedRocket01, AppColors.error),
+                      _statCard('Expenses', fmtINR(_totalExpenses), LucideIcons.receipt, AppColors.error),
                       const SizedBox(width: 16),
-                      _statCard('Service Cost', fmtINR(_totalServiceCosts), HugeIcons.strokeRoundedWrench01, AppColors.warning,
+                      _statCard('Service Cost', fmtINR(_totalServiceCosts), LucideIcons.wrench, AppColors.warning,
                         onTap: () async {
                           await Navigator.push(
                             context,
@@ -368,7 +368,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
                   Row(
                     children: [
-                      _statCard('Completed', fmtINR(totalCollectedEver), HugeIcons.strokeRoundedCheckmarkSquare01, AppColors.success, 
+                      _statCard('Completed', fmtINR(totalCollectedEver), LucideIcons.checkSquare, AppColors.success, 
                         onTap: () async {
                           await Navigator.push(
                             context,
@@ -377,7 +377,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           if (mounted) _loadReports(force: true);
                         }),
                       const SizedBox(width: 16),
-                      _statCard('Date Range', 'Select Period', HugeIcons.strokeRoundedCalendar01, AppColors.secondary, 
+                      _statCard('Date Range', 'Select Period', LucideIcons.calendarRange, AppColors.secondary, 
                         onTap: () async {
                           await Navigator.push(
                             context,
@@ -418,7 +418,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             await Navigator.push(context, MaterialPageRoute(builder: (_) => const InvestmentScreen()));
             if (mounted) await _loadReports(force: true);
           },
-          icon: const HugeIcon(icon: HugeIcons.strokeRoundedCoins01, size: 16),
+          icon: const Icon(LucideIcons.coins, size: 16),
           label: const Text('Investments'),
         ),
       ],
@@ -434,7 +434,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       border: Border.all(color: AppColors.error.withOpacity( 0.3)),
       child: Row(
         children: [
-          const HugeIcon(icon: HugeIcons.strokeRoundedAlert01, color: AppColors.error, size: 24),
+          const Icon(LucideIcons.alertTriangle, color: AppColors.error, size: 24),
           const SizedBox(width: 16),
           Expanded(
             child: Text(
@@ -452,7 +452,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return Text(label, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Theme.of(context).colorScheme.onSurface));
   }
 
-  Widget _statCard(String label, String value, dynamic icon, Color color, {VoidCallback? onTap}) {
+  Widget _statCard(String label, String value, IconData icon, Color color, {VoidCallback? onTap}) {
     return Expanded(
       child: PremiumCard(
         padding: EdgeInsets.zero,
