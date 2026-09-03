@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:hugeicons/hugeicons.dart';
 import '../services/backup_freshness_service.dart';
 
 class ReadOnlyBanner extends StatefulWidget {
@@ -45,8 +45,7 @@ class _ReadOnlyBannerState extends State<ReadOnlyBanner> {
         bottom: false,
         child: Row(
           children: [
-            Icon(
-              LucideIcons.wifiOff,
+            HugeIcon(icon: HugeIcons.strokeRoundedWifiDisconnected01,
               color: accentColor,
               size: 18,
             ),

@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:hugeicons/hugeicons.dart';
 import '../utils/app_colors.dart';
 
 class ProgressDialog extends StatefulWidget {
@@ -78,7 +78,7 @@ class _ProgressDialogState extends State<ProgressDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const Icon(LucideIcons.checkCircle2, color: AppColors.success, size: 48),
+            const HugeIcon(icon: HugeIcons.strokeRoundedCheckmarkCircle02, color: AppColors.success, size: 48),
             const SizedBox(height: 16),
             Text(
               '✓ Completed',
@@ -99,7 +99,7 @@ class _ProgressDialogState extends State<ProgressDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const Icon(LucideIcons.xCircle, color: AppColors.error, size: 48),
+            const HugeIcon(icon: HugeIcons.strokeRoundedCancelCircle, color: AppColors.error, size: 48),
             const SizedBox(height: 16),
             Text(
               widget.errorMessage,

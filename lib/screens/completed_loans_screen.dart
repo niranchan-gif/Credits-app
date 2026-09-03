@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:intl/intl.dart';
 
 import '../database/db_helper.dart';
@@ -80,10 +80,10 @@ class _CompletedLoansScreenState extends State<CompletedLoansScreen> {
                     onChanged: _filter,
                     decoration: InputDecoration(
                       hintText: "Search name or code...",
-                      prefixIcon: const Icon(LucideIcons.search, size: 20),
+                      prefixIcon: const HugeIcon(icon: HugeIcons.strokeRoundedSearch01, size: 20),
                       suffixIcon: _query.isNotEmpty
                           ? IconButton(
-                              icon: const Icon(LucideIcons.x, size: 16),
+                              icon: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, size: 16),
                               onPressed: () {
                                 _searchCtrl.clear();
                                 _filter('');
@@ -99,7 +99,7 @@ class _CompletedLoansScreenState extends State<CompletedLoansScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(LucideIcons.checkSquare, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.2)),
+                              HugeIcon(icon: HugeIcons.strokeRoundedCheckmarkSquare01, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.2)),
                               const SizedBox(height: 16),
                               Text(
                                 _query.isEmpty ? "No completed loans found" : "No matching completed loans",

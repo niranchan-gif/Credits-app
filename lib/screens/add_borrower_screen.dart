@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import 'package:intl/intl.dart';
@@ -193,7 +193,7 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
               _buildField(
                 controller: _codeCtrl,
                 label: 'Borrower Code',
-                icon: LucideIcons.check,
+                icon: HugeIcons.strokeRoundedCheckmarkBadge01,
                 readOnly: _isEditMode && widget.borrower?.isDummy != true,
                 validator: (v) => v == null || v.trim().isEmpty ? 'ID required' : null,
               ).animate().fadeIn(delay: 200.ms).slideX(begin: -0.1),
@@ -207,14 +207,14 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
                     _buildField(
                       controller: _nameCtrl,
                       label: 'Full Name',
-                      icon: LucideIcons.user,
+                      icon: HugeIcons.strokeRoundedUser,
                       validator: (v) => v == null || v.trim().isEmpty ? 'Name required' : null,
                     ),
                     const SizedBox(height: 16),
                     _buildField(
                       controller: _phoneCtrl,
                       label: 'Phone Number',
-                      icon: LucideIcons.phone,
+                      icon: HugeIcons.strokeRoundedCall,
                       keyboardType: TextInputType.phone,
                       validator: (v) => v != null && v.isNotEmpty && v.trim().length < 10 ? 'Enter valid phone' : null,
                     ),
@@ -222,7 +222,7 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
                     _buildField(
                       controller: _addressCtrl,
                       label: 'Address (Optional)',
-                      icon: LucideIcons.mapPin,
+                      icon: HugeIcons.strokeRoundedLocation01,
                       maxLines: 2,
                     ),
                   ],
@@ -239,7 +239,7 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
                       _buildField(
                         controller: _loanAmountCtrl,
                         label: 'Loan Amount (₹)',
-                        icon: LucideIcons.coins,
+                        icon: HugeIcons.strokeRoundedCoins01,
                         keyboardType: TextInputType.number,
                         validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
                       ),
@@ -250,7 +250,7 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
                           child: _buildField(
                             controller: TextEditingController(text: DateFormat('dd MMMM yyyy').format(_loanDate)),
                             label: 'Loan Date',
-                            icon: LucideIcons.calendar,
+                            icon: HugeIcons.strokeRoundedCalendar01,
                             readOnly: true,
                           ),
                         ),
@@ -259,7 +259,7 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
                       _buildField(
                         controller: _installmentDaysCtrl,
                         label: 'Duration (Days)',
-                        icon: LucideIcons.timer,
+                        icon: HugeIcons.strokeRoundedTimer01,
                         keyboardType: TextInputType.number,
                         onChanged: (v) => setState(() {}),
                       ),
@@ -280,7 +280,7 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
                       _buildField(
                         controller: _interestAmountCtrl,
                         label: 'Interest Amount (₹)',
-                        icon: LucideIcons.trendingUp,
+                        icon: HugeIcons.strokeRoundedTrendingUpDown,
                         keyboardType: TextInputType.number,
                         validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
                       ),
@@ -294,7 +294,7 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
               _buildField(
                 controller: _notesCtrl,
                 label: 'Internal Notes',
-                icon: LucideIcons.stickyNote,
+                icon: HugeIcons.strokeRoundedNote01,
                 maxLines: 3,
               ).animate().fadeIn(delay: 800.ms).slideY(begin: 0.1),
               const SizedBox(height: 40),
@@ -325,7 +325,7 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
   Widget _buildField({
     required TextEditingController controller,
     required String label,
-    required IconData icon,
+    required dynamic icon,
     TextInputType keyboardType = TextInputType.text,
     String? Function(String?)? validator,
     void Function(String)? onChanged,

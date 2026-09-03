@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:hugeicons/hugeicons.dart';
 import '../models/app_update_info.dart';
 import '../services/update_service.dart';
 
@@ -29,7 +28,7 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
 
   Future<void> _startUpdate() async {
     if (widget.updateInfo.downloadUrl.isEmpty) {
-      setState(() => _errorMessage = 'Update URL is missing. Please configure GitHub Releases.');
+      setState(() => _errorMessage = 'Update URL is missing.');
       return;
     }
 
@@ -63,126 +62,94 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
 
   void _skipUpdate() {
     Navigator.of(context).pushReplacement(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => widget.nextScreen,
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-        transitionDuration: const Duration(milliseconds: 400),
-      ),
+      MaterialPageRoute(builder: (_) => widget.nextScreen),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return PopScope(
       canPop: false,
       child: Scaffold(
-        body: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                theme.colorScheme.surface,
-                isDark ? const Color(0xFF021711) : theme.colorScheme.primary.withOpacity(0.05),
-              ],
-            ),
-          ),
-          child: SafeArea(
-            child: CustomScrollView(
-              slivers: [
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 48.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const Spacer(),
-                        // Simple Premium Icon
-                        Center(
-                          child: Icon(
-                            LucideIcons.rocket,
-                            size: 84,
-                            color: theme.colorScheme.primary,
-                          ),
-                        ),
-                        const SizedBox(height: 32),
-                        
-                        // Minimal Title
-                        Text(
-                          'Update Available',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.leagueSpartan(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: theme.colorScheme.onSurface,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Get the latest features and a better experience.',
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                            fontSize: 16,
-                          ),
-                        ),
-                        
-                        const Spacer(),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        appBar: AppBar(
+          title: const Text('Update Required'),
+          centerTitle: true,
+          elevation: 0,
+        ),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 32),
+                Center(
+                  child: HugeIcon(
+                    icon: HugeIcons.strokeRoundedCloudUpload,
+                    color: theme.colorScheme.primary,
+                    size: 80,
+                  ),
+                ),
+                const SizedBox(height: 48),
+                Text(
+                  'A new version is available',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Please update Credits to the latest version to continue. This update includes important improvements and bug fixes.',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    height: 1.5,
+                  ),
+                ),
+                
+                const SizedBox(height: 24),
 
-                        // Error Message
-                        if (_errorMessage.isNotEmpty) ...[
-                          Text(
-                            _errorMessage,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: theme.colorScheme.error,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                        ],
-
-                        // Action Buttons
-                        ElevatedButton(
-                          onPressed: _isDownloading || _downloadComplete ? null : _startUpdate,
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 20),
-                            elevation: 4,
-                            backgroundColor: theme.colorScheme.primary,
-                            foregroundColor: theme.colorScheme.onPrimary,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                          ),
-                          child: _buildButtonChild(),
-                        ),
-                        const SizedBox(height: 16),
-                        TextButton(
-                          onPressed: (_isDownloading && !_downloadComplete) ? null : _skipUpdate,
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                          ),
-                          child: Text(
-                            'Update later',
-                            style: TextStyle(
-                              color: theme.colorScheme.onSurfaceVariant,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                      ],
+                if (_errorMessage.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 24.0),
+                    child: Text(
+                      _errorMessage,
+                      style: TextStyle(
+                        color: theme.colorScheme.error,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
+                  ),
+
+                const Spacer(),
+
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: _isDownloading || _downloadComplete ? null : _startUpdate,
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: _buildButtonChild(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: (_isDownloading && !_downloadComplete) ? null : _skipUpdate,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text('Later'),
                   ),
                 ),
               ],
@@ -195,7 +162,7 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
 
   Widget _buildButtonChild() {
     if (_downloadComplete) {
-      return const Text('Installing...', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold));
+      return const Text('Installing...', style: TextStyle(fontSize: 16));
     } else if (_isDownloading) {
       return Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -203,19 +170,16 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
           const SizedBox(
             width: 20,
             height: 20,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: Colors.white,
-            ),
+            child: CircularProgressIndicator(strokeWidth: 2),
           ),
           const SizedBox(width: 12),
-          Text('Downloading ${(_downloadProgress * 100).toStringAsFixed(0)}%', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text('Downloading ${(_downloadProgress * 100).toStringAsFixed(0)}%', style: const TextStyle(fontSize: 16)),
         ],
       );
     } else if (_errorMessage.isNotEmpty) {
-      return const Text('Retry Update', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold));
+      return const Text('Retry', style: TextStyle(fontSize: 16));
     } else {
-      return const Text('Update Now', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold));
+      return const Text('Update Now', style: TextStyle(fontSize: 16));
     }
   }
 }

@@ -214,7 +214,7 @@ class _ExpenseHistoryScreenState extends State<ExpenseHistoryScreen> {
     );
   }
 
-  IconData _getCategoryIcon(String category) {
+  dynamic _getCategoryIcon(String category) {
     switch (category) {
       case 'Transport':
         return Icons.directions_car;

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:intl/intl.dart';
 
 import '../models/borrower.dart';
@@ -107,7 +107,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                   _buildField(
                     controller: _loanAmountCtrl,
                     label: 'Loan Amount (₹)',
-                    icon: LucideIcons.coins,
+                    icon: HugeIcons.strokeRoundedCoins01,
                     keyboardType: TextInputType.number,
                     validator: (v) => v == null || v.trim().isEmpty ? 'Amount required' : null,
                   ),
@@ -118,7 +118,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                       child: _buildField(
                         controller: TextEditingController(text: DateFormat('dd MMMM yyyy').format(_loanDate)),
                         label: 'Loan Date',
-                        icon: LucideIcons.calendar,
+                        icon: HugeIcons.strokeRoundedCalendar01,
                         readOnly: true,
                       ),
                     ),
@@ -127,7 +127,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                   _buildField(
                     controller: _installmentDaysCtrl,
                     label: 'Duration (Days)',
-                    icon: LucideIcons.timer,
+                    icon: HugeIcons.strokeRoundedTimer01,
                     keyboardType: TextInputType.number,
                     onChanged: (v) => setState(() {}),
                   ),
@@ -148,7 +148,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                   _buildField(
                     controller: _interestAmountCtrl,
                     label: 'Interest Amount (₹)',
-                    icon: LucideIcons.trendingUp,
+                    icon: HugeIcons.strokeRoundedTrendingUpDown,
                     keyboardType: TextInputType.number,
                     validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
                   ),
@@ -160,7 +160,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
             _buildField(
               controller: _notesCtrl,
               label: 'Internal Notes',
-              icon: LucideIcons.stickyNote,
+              icon: HugeIcons.strokeRoundedNote01,
               maxLines: 3,
             ),
             const SizedBox(height: 40),
@@ -189,7 +189,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
   Widget _buildField({
     required TextEditingController controller,
     required String label,
-    required IconData icon,
+    required dynamic icon,
     TextInputType keyboardType = TextInputType.text,
     String? Function(String?)? validator,
     void Function(String)? onChanged,

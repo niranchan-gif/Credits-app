@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -415,7 +415,7 @@ class _SignInScreenState extends State<SignInScreen>
                                         strokeWidth: 2,
                                       ),
                                     )
-                                  : const Icon(LucideIcons.chrome, color: Colors.white, size: 20),
+                                  : const HugeIcon(icon: HugeIcons.strokeRoundedChrome, color: Colors.white, size: 20),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.accent,
                                   foregroundColor: Colors.white,
