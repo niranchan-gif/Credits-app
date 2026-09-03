@@ -145,12 +145,11 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               FloatingActionButton.extended(
                 heroTag: 'quick_add_fab',
-                backgroundColor: AppColors.surfaceDark,
-                foregroundColor: AppColors.accent,
+                backgroundColor: AppColors.accent,
+                foregroundColor: AppColors.background,
                 elevation: 4,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(30),
-                  side: BorderSide(color: AppColors.accent.withOpacity(0.5), width: 1),
                 ),
                 icon: const Icon(LucideIcons.zap),
                 label: const Text("Quick Add", style: TextStyle(fontWeight: FontWeight.bold)),

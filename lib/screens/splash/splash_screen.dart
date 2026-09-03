@@ -12,6 +12,8 @@ import '../../providers/loan_provider.dart';
 import '../app_lock_wrapper.dart';
 import '../auth/sign_in_screen.dart';
 import '../main_navigation_screen.dart';
+import '../../services/update_service.dart';
+import '../force_update_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -25,6 +27,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   bool _animationMinimumReached = false;
   bool _navigated = false;
   bool _isSignedIn = false;
+  UpdateCheckResult? _updateResult;
 
   // Background color matching the logo's bottom right depth
   final Color _bgColor = const Color(0xFF021711);
@@ -126,6 +129,14 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     final startTime = DateTime.now();
     debugPrint('SplashScreen: Concurrently initializing backend services...');
 
+    final updateFuture = () async {
+      try {
+        _updateResult = await UpdateService().checkForUpdates();
+      } catch (e) {
+        debugPrint('Update check error: $e');
+      }
+    }();
+
     try {
       _isSignedIn = await GoogleDriveService().isConnected();
     } catch (e) {
@@ -156,6 +167,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       } catch (e) {}
     }
 
+    await updateFuture;
+
     final elapsed = DateTime.now().difference(startTime).inMilliseconds;
     debugPrint('SplashScreen: Backend services initialized in $elapsed ms.');
 
@@ -168,9 +181,18 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   void _checkAndNavigate({bool force = false}) {
     if ((force || (_animationMinimumReached && _backendInitialized)) && !_navigated) {
       _navigated = true;
-      Widget nextScreen = _isSignedIn 
-          ? const AppLockWrapper(child: MainNavigationScreen())
-          : const SignInScreen();
+      Widget nextScreen;
+      
+      if (_updateResult != null && _updateResult!.status == UpdateStatus.mandatoryUpdate && _updateResult!.updateInfo != null) {
+        nextScreen = ForceUpdateScreen(
+          updateInfo: _updateResult!.updateInfo!,
+          currentVersion: _updateResult!.currentVersion,
+        );
+      } else {
+        nextScreen = _isSignedIn 
+            ? const AppLockWrapper(child: MainNavigationScreen())
+            : const SignInScreen();
+      }
           
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
