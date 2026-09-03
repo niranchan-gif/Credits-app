@@ -182,16 +182,22 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     if ((force || (_animationMinimumReached && _backendInitialized)) && !_navigated) {
       _navigated = true;
       Widget nextScreen;
-      
+      Widget appScreen = _isSignedIn 
+          ? const AppLockWrapper(child: MainNavigationScreen())
+          : const SignInScreen();
+          
       if (_updateResult != null && _updateResult!.status == UpdateStatus.mandatoryUpdate && _updateResult!.updateInfo != null) {
         nextScreen = ForceUpdateScreen(
           updateInfo: _updateResult!.updateInfo!,
           currentVersion: _updateResult!.currentVersion,
+          onSkip: () {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (_) => appScreen),
+            );
+          },
         );
       } else {
-        nextScreen = _isSignedIn 
-            ? const AppLockWrapper(child: MainNavigationScreen())
-            : const SignInScreen();
+        nextScreen = appScreen;
       }
           
       Navigator.of(context).pushReplacement(
