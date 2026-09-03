@@ -1,9 +1,9 @@
 {
-  "latest_version": "1.0.0",
-  "latest_build": 1,
-  "minimum_version": "1.0.0",
-  "minimum_build": 1,
-  "force_update": false,
+  "latest_version": "1.1.0",
+  "latest_build": 2,
+  "minimum_version": "1.1.0",
+  "minimum_build": 2,
+  "force_update": true,
   "download_url": "",
   "release_notes": [
     "Initial setup for self-hosted updates",
