@@ -81,12 +81,16 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
             ),
           ),
           child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(32.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
+            child: CustomScrollView(
+              slivers: [
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Padding(
+                    padding: const EdgeInsets.all(32.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
                   const Spacer(),
                   // Premium Icon Presentation
                   Center(
@@ -245,6 +249,9 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
               ),
             ),
           ),
+        ],
+      ),
+    ),
         ),
       ),
     );
