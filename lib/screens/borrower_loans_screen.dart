@@ -119,10 +119,10 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+          ? const Center(child: CircularProgressIndicator(color: Colors.white))
           : RefreshIndicator(
               onRefresh: _onRefresh,
-              color: AppColors.accent,
+              color: Colors.white,
               backgroundColor: AppColors.surface,
               child: Column(
                 children: [
@@ -152,7 +152,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                     padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
                     child: Row(
                       children: [
-                        const Icon(LucideIcons.history, size: 18, color: AppColors.accent),
+                        const Icon(LucideIcons.history, size: 18, color: Colors.white),
                         const SizedBox(width: 10),
                         Text(
                           'Loan History',
@@ -237,7 +237,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
               const PopupMenuDivider(),
               const PopupMenuItem(
                 value: 'restore',
-                child: Row(children: [Icon(LucideIcons.refreshCcw, size: 18, color: AppColors.success), SizedBox(width: 12), Text('Move to Active', style: TextStyle(color: AppColors.success))]),
+                child: Row(children: [Icon(LucideIcons.refreshCcw, size: 18, color: Colors.white), SizedBox(width: 12), Text('Move to Active', style: TextStyle(color: Colors.white))]),
               ),
             ],
           ],
@@ -261,10 +261,10 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                   tag: 'borrower_code_${b.id}',
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(color: AppColors.accent.withOpacity( 0.1), borderRadius: BorderRadius.circular(8)),
+                    decoration: BoxDecoration(color: Colors.white.withOpacity( 0.1), borderRadius: BorderRadius.circular(8)),
                     child: Material(
                       color: Colors.transparent,
-                      child: Text(b.displayBorrowerCode, style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold, fontSize: 17, letterSpacing: 1.5)),
+                      child: Text(b.displayBorrowerCode, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17, letterSpacing: 1.5)),
                     ),
                   ),
                 ),
@@ -309,7 +309,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                                 itemBuilder: (context, index) {
                                   if (index == 0) {
                                     return ListTile(
-                                      leading: const Icon(LucideIcons.copy, color: AppColors.accent),
+                                      leading: const Icon(LucideIcons.copy, color: Colors.white),
                                       title: const Text('All Loans (Combined)', style: TextStyle(fontWeight: FontWeight.bold)),
                                       onTap: () => Navigator.of(context).pop(allBorrowerLoans),
                                     );
@@ -317,7 +317,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                                   final loan = allBorrowerLoans[index - 1];
                                   final dateStr = DateFormat('dd MMM yyyy').format(loan.loanDate);
                                   return ListTile(
-                                    leading: const Icon(LucideIcons.fileText, color: AppColors.accentLight),
+                                    leading: const Icon(LucideIcons.fileText, color: Colors.white70),
                                     title: Text('Loan - $dateStr'),
                                     subtitle: Text('Amount: ₹${loan.loanAmount.toStringAsFixed(0)}'),
                                     onTap: () => Navigator.of(context).pop([loan]),
@@ -487,12 +487,12 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                       );
                     }
                   },
-                  icon: const Icon(LucideIcons.share2, color: AppColors.accent, size: 20),
+                  icon: const Icon(LucideIcons.share2, color: Colors.white, size: 20),
                 ),
                 const SizedBox(width: 8),
                 IconButton(
                   onPressed: () => openPhoneDialer(b.phone, messenger: ScaffoldMessenger.of(context)),
-                  icon: const Icon(LucideIcons.phone, color: AppColors.accent, size: 20),
+                  icon: const Icon(LucideIcons.phone, color: Colors.white, size: 20),
                 ),
               ],
             ),
@@ -566,7 +566,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(LucideIcons.stickyNote, size: 14, color: AppColors.accentLight),
+                    const Icon(LucideIcons.stickyNote, size: 14, color: Colors.white70),
                     const SizedBox(width: 8),
                     Expanded(child: Text(b.notes!, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16, fontStyle: FontStyle.italic))),
                   ],
@@ -626,7 +626,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                             if (_paidTodayLoanIds.contains(loan.id))
                               const Padding(
                                 padding: EdgeInsets.only(right: 8),
-                                child: Icon(LucideIcons.checkCircle, color: AppColors.success, size: 16),
+                                child: Icon(LucideIcons.checkCircle, color: Colors.white, size: 16),
                               ),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -641,7 +641,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                     if (loan.installmentDays != null && loan.installmentDays! > 0) ...[
                       Row(
                         children: [
-                          const Icon(LucideIcons.calendar, size: 14, color: AppColors.accentLight),
+                          const Icon(LucideIcons.calendar, size: 14, color: Colors.white70),
                           const SizedBox(width: 6),
                           Text('${loan.installmentDays} days • Ends ${loan.endDate != null ? DateFormat('dd MMM').format(loan.endDate!) : 'N/A'}', style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                         ],

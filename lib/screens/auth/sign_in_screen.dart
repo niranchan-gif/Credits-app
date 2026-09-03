@@ -323,7 +323,7 @@ class _SignInScreenState extends State<SignInScreen>
                           color: cardColor,
                           borderRadius: BorderRadius.circular(28),
                           border: Border.all(
-                            color: AppColors.accent.withOpacity(isDark ? 0.18 : 0.12),
+                            color: Colors.white.withOpacity(isDark ? 0.18 : 0.12),
                             width: 1.0,
                           ),
                           boxShadow: [
@@ -333,7 +333,7 @@ class _SignInScreenState extends State<SignInScreen>
                               offset: const Offset(0, 12),
                             ),
                             BoxShadow(
-                              color: AppColors.accent.withOpacity(isDark ? 0.08 : 0.04),
+                              color: Colors.white.withOpacity(isDark ? 0.08 : 0.04),
                               blurRadius: 60,
                               offset: const Offset(0, 6),
                             ),
@@ -483,7 +483,7 @@ class _SignInScreenState extends State<SignInScreen>
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.accent.withOpacity(0.35),
+                  color: Colors.white.withOpacity(0.35),
                   blurRadius: 24,
                   spreadRadius: 2,
                   offset: const Offset(0, 6),
@@ -510,7 +510,7 @@ class _SignInScreenState extends State<SignInScreen>
                       return Opacity(
                         opacity: opacity,
                         child: Container(
-                          color: AppColors.accent,
+                          color: Colors.white,
                         ),
                       );
                     },

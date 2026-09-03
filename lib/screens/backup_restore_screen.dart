@@ -407,7 +407,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
-            Icon(LucideIcons.fileSpreadsheet, color: AppColors.accent),
+            Icon(LucideIcons.fileSpreadsheet, color: Colors.white),
             SizedBox(width: 12),
             Text('Cloud Restore Preview'),
           ],
@@ -418,7 +418,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           children: [
             const Text(
               'Restore',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.accent),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white),
             ),
             const SizedBox(height: 8),
             Text('Last Backup: ${DateFormat('dd MMM yyyy, hh:mm a').format(timestamp)}', style: const TextStyle(fontSize: 12)),
@@ -427,7 +427,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.accent.withOpacity( 0.08),
+                color: Colors.white.withOpacity( 0.08),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
@@ -566,7 +566,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
-            Icon(LucideIcons.checkCircle, color: AppColors.success),
+            Icon(LucideIcons.checkCircle, color: Colors.white),
             SizedBox(width: 12),
             Text('Restore Successful!'),
           ],
@@ -583,7 +583,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.success.withOpacity( 0.08),
+                color: Colors.white.withOpacity( 0.08),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
@@ -682,7 +682,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       builder: (ctx) => AlertDialog(
         title: const Row(
           children: [
-            Icon(LucideIcons.fileSpreadsheet, color: AppColors.accent),
+            Icon(LucideIcons.fileSpreadsheet, color: Colors.white),
             SizedBox(width: 12),
             Text('Excel Import Preview'),
           ],
@@ -694,7 +694,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.accent.withOpacity( 0.08),
+                color: Colors.white.withOpacity( 0.08),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
@@ -805,7 +805,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       builder: (ctx) => AlertDialog(
         title: const Row(
           children: [
-            Icon(LucideIcons.checkCircle, color: AppColors.success),
+            Icon(LucideIcons.checkCircle, color: Colors.white),
             SizedBox(width: 12),
             Text('Backup Saved!'),
           ],
@@ -819,12 +819,12 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.success.withOpacity( 0.08),
+                color: Colors.white.withOpacity( 0.08),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 children: [
-                  const Icon(LucideIcons.fileSpreadsheet, color: AppColors.success, size: 18),
+                  const Icon(LucideIcons.fileSpreadsheet, color: Colors.white, size: 18),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -998,7 +998,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                             ? Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                 decoration: BoxDecoration(
-                                  color: AppColors.success.withOpacity( 0.15),
+                                  color: Colors.white.withOpacity( 0.15),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: const Text(
@@ -1006,7 +1006,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.bold,
-                                    color: AppColors.success,
+                                    color: Colors.white,
                                   ),
                                 ),
                               )
@@ -1057,7 +1057,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          const Icon(LucideIcons.shieldCheck, size: 14, color: AppColors.success),
+                          const Icon(LucideIcons.shieldCheck, size: 14, color: Colors.white),
                            const SizedBox(width: 6),
                           Expanded(
                             child: Text(
@@ -1151,8 +1151,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     ListTile(
                       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                       leading: _isExporting
-                          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent))
-                          : const Icon(LucideIcons.fileSpreadsheet, color: AppColors.accent),
+                          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Icon(LucideIcons.fileSpreadsheet, color: Colors.white),
                       title: Text('Export', style: TextStyle(fontWeight: FontWeight.bold, color: onSurface)),
                       subtitle: Text(
                         'Export data to device storage.',
@@ -1220,7 +1220,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const CircularProgressIndicator(color: AppColors.accent),
+                      const CircularProgressIndicator(color: Colors.white),
                       const SizedBox(height: 16),
                       Text(
                         _isExporting

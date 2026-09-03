@@ -92,7 +92,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(color: AppColors.accent, width: 2),
+          borderSide: const BorderSide(color: Colors.white, width: 2),
         ),
         prefixIconColor: AppColors.textSecondary,
       ),
@@ -206,7 +206,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(color: AppColors.accent, width: 2),
+          borderSide: const BorderSide(color: Colors.white, width: 2),
         ),
         prefixIconColor: AppColors.textSecondaryDark,
       ),

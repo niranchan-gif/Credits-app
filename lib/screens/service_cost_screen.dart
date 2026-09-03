@@ -216,7 +216,7 @@ class _ServiceCostScreenState extends State<ServiceCostScreen> {
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(LucideIcons.calendar, color: AppColors.accent, size: 20),
+                                  const Icon(LucideIcons.calendar, color: Colors.white, size: 20),
                                   const SizedBox(width: 16),
                                   Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,

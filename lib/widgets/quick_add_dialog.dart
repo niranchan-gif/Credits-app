@@ -288,10 +288,10 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: AppColors.accent.withOpacity(0.1),
+                            color: Colors.white.withOpacity(0.1),
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(LucideIcons.zap, color: AppColors.accent, size: 24),
+                          child: Icon(LucideIcons.zap, color: Colors.white, size: 24),
                         ),
                         const SizedBox(width: 12),
                         const Text(
@@ -327,7 +327,7 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
                     ),
                     child: Row(
                       children: [
-                        Icon(LucideIcons.calendar, size: 20, color: AppColors.accent),
+                        Icon(LucideIcons.calendar, size: 20, color: Colors.white),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
@@ -448,7 +448,7 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: AppColors.accent, width: 2),
+                            borderSide: BorderSide(color: Colors.white, width: 2),
                           ),
                         ),
                         validator: (value) {
@@ -527,7 +527,7 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: AppColors.accent, width: 2),
+                      borderSide: BorderSide(color: Colors.white, width: 2),
                     ),
                     disabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),

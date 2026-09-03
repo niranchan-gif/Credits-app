@@ -70,7 +70,7 @@ class _CompletedLoansScreenState extends State<CompletedLoansScreen> {
         title: const Text("Completed Loans"),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+          ? const Center(child: CircularProgressIndicator(color: Colors.white))
           : Column(
               children: [
                 Padding(
@@ -154,13 +154,13 @@ class _CompletedLoansScreenState extends State<CompletedLoansScreen> {
                                             Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                               decoration: BoxDecoration(
-                                                color: AppColors.accent.withOpacity(0.1),
+                                                color: Colors.white.withOpacity(0.1),
                                                 borderRadius: BorderRadius.circular(8),
                                               ),
                                               child: Text(
                                                 borrowerCode,
                                                 style: const TextStyle(
-                                                  color: AppColors.accent,
+                                                  color: Colors.white,
                                                   fontWeight: FontWeight.bold,
                                                   fontSize: 12,
                                                 ),
@@ -179,7 +179,7 @@ class _CompletedLoansScreenState extends State<CompletedLoansScreen> {
                                         Text(
                                           fmtINR(totalLoan),
                                           style: const TextStyle(
-                                            color: AppColors.success,
+                                            color: Colors.white,
                                             fontWeight: FontWeight.bold,
                                             fontSize: 15,
                                           ),
@@ -226,7 +226,7 @@ class _CompletedLoansScreenState extends State<CompletedLoansScreen> {
                                               Text(
                                                 "Cleared: ${df.format(endDate)}",
                                                 style: const TextStyle(
-                                                  color: AppColors.success,
+                                                  color: Colors.white,
                                                   fontWeight: FontWeight.w600,
                                                   fontSize: 11,
                                                 ),

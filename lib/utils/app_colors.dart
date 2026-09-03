@@ -23,13 +23,13 @@ class AppColors {
   static const Color info = Color(0xFF948979);    // Taupe
 
   // Dark Theme Palette
-  static const Color backgroundDark = Color(0xFF222831); // Primary Background (Deep Charcoal)
-  static const Color surfaceDark = Color(0xFF393E46);    // Secondary Surface (Charcoal Grey)
-  static const Color surfaceLightDark = Color(0xFF4A5058); // Slightly lighter surface
+  static const Color backgroundDark = Color(0xFF1C1C1E); // Softer Muted Background
+  static const Color surfaceDark = Color(0xFF2C2C2E);    // Softer Surface
+  static const Color surfaceLightDark = Color(0xFF3A3A3C); // Lighter muted surface
   
-  static const Color textPrimaryDark = Color(0xFFF8F9FA); // Off White
-  static const Color textSecondaryDark = Color(0xFFDFD0B8); // Warm Highlight
-  static const Color textTertiaryDark = Color(0xFF948979);  // Neutral Accent
+  static const Color textPrimaryDark = Color(0xFFE5E5EA); // Softer White
+  static const Color textSecondaryDark = Color(0xFFD4C8B5); // Muted Warm Highlight
+  static const Color textTertiaryDark = Color(0xFF8E8E93);  // Muted Neutral
 
   // Gradients (Avoid overly colorful gradients - keep them subtle and flat-like)
   static const LinearGradient primaryGradient = LinearGradient(
@@ -45,7 +45,7 @@ class AppColors {
   );
 
   static const LinearGradient surfaceGradientDark = LinearGradient(
-    colors: [Color(0xFF393E46), Color(0xFF393E46)], // Flat charcoal for dark mode
+    colors: [Color(0xFF2C2C2E), Color(0xFF2C2C2E)], // Flat muted surface for dark mode
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );

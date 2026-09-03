@@ -136,11 +136,11 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: AppColors.accent.withOpacity( 0.1), borderRadius: BorderRadius.circular(12)),
+                      decoration: BoxDecoration(color: Colors.white.withOpacity( 0.1), borderRadius: BorderRadius.circular(12)),
                       child: Text(
                         'Ends on: ${DateFormat('dd MMM yyyy').format(_calculatedEndDate!)}',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold, fontSize: 13),
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                       ),
                     ),
                   ],

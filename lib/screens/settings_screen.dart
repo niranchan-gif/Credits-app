@@ -327,7 +327,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           return AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             title: Row(children: [
-              const Icon(Icons.lock_rounded, color: AppColors.accent, size: 22),
+              const Icon(Icons.lock_rounded, color: Colors.white, size: 22),
               const SizedBox(width: 8),
               Text(title),
             ]),
@@ -576,7 +576,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator(color: AppColors.accent)));
+    if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator(color: Colors.white)));
 
     return ValueListenableBuilder<bool>(
       valueListenable: BackupFreshnessService.isReadOnlyMode,
@@ -654,7 +654,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     ListTile(
                       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                      leading: const Icon(LucideIcons.archive, color: AppColors.accent),
+                      leading: const Icon(LucideIcons.archive, color: Colors.white),
                       title: Text('Backup & Restore', style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface)),
                       subtitle: Text('Backup and restore options', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.7), fontSize: 12)),
                       trailing: Icon(LucideIcons.chevronRight, size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.5)),
@@ -692,9 +692,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                         leading: _isGenerating 
-                            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent))
-                            : const Icon(LucideIcons.flaskConical, color: AppColors.accent),
-                        title: const Text('Generate 500 Test Borrowers', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.accent)),
+                            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                            : const Icon(LucideIcons.flaskConical, color: Colors.white),
+                        title: const Text('Generate 500 Test Borrowers', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
                         onTap: (isReadOnly || _isGenerating) ? null : _generateTestBorrowers,
                       ),
                       Divider(height: 1, color: Theme.of(context).dividerColor.withOpacity( 0.1)),

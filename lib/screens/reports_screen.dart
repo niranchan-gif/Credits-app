@@ -236,7 +236,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           title: const Text('Financial Reports'),
         ),
         body: const Center(
-          child: CircularProgressIndicator(color: AppColors.accent),
+          child: CircularProgressIndicator(color: Colors.white),
         ),
       );
     }
@@ -300,7 +300,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent),
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                   )
                 : const Icon(LucideIcons.download),
           ),
@@ -308,10 +308,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+          ? const Center(child: CircularProgressIndicator(color: Colors.white))
           : RefreshIndicator(
               onRefresh: _onRefresh,
-              color: AppColors.accent,
+              color: Colors.white,
               backgroundColor: Theme.of(context).colorScheme.surface,
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 10, 20, 100),
@@ -502,8 +502,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(color: AppColors.accent.withOpacity( 0.1), borderRadius: BorderRadius.circular(8)),
-                  child: Text(b.displayBorrowerCode, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.accent)),
+                  decoration: BoxDecoration(color: Colors.white.withOpacity( 0.1), borderRadius: BorderRadius.circular(8)),
+                  child: Text(b.displayBorrowerCode, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
                 ),
                 const SizedBox(width: 12),
                 Expanded(child: Text(b.name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Theme.of(context).colorScheme.onSurface))),

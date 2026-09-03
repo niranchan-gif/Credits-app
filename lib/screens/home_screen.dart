@@ -85,7 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 }).toList();
 
                 return RefreshIndicator(
-                  color: AppColors.accent,
+                  color: Colors.white,
                   backgroundColor: Theme.of(context).colorScheme.surface,
                   onRefresh: () async {
                     await BackupFreshnessService().checkFreshness();
@@ -221,13 +221,6 @@ class _HomeScreenState extends State<HomeScreen> {
           PremiumCard(
             padding: const EdgeInsets.all(24),
             gradient: AppColors.primaryGradient,
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.accent.withOpacity( 0.3),
-                blurRadius: 24,
-                offset: const Offset(0, 10),
-              )
-            ],
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -422,14 +415,14 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Icon(
                 isPaid ? LucideIcons.check : LucideIcons.checkCircle, 
-                color: AppColors.accent, 
+                color: Colors.white, 
                 size: 24
               ),
               const SizedBox(width: 12),
               Text(
                 isPaid ? "Done ✓" : "Quick Pay",
                 style: const TextStyle(
-                  color: AppColors.accent,
+                  color: Colors.white,
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
                 ),
@@ -664,7 +657,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 Text('Loan: ${fmtINR(l.loanAmount)}', style: const TextStyle(fontSize: 14)),
                                 if (isLoanPaidToday) ...[
                                   const SizedBox(width: 8),
-                                  const Icon(LucideIcons.checkCircle, color: AppColors.success, size: 14),
+                                  const Icon(LucideIcons.checkCircle, color: Colors.white, size: 14),
                                 ],
                               ],
                             ),
