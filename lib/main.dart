@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'providers/loan_provider.dart';
@@ -11,6 +12,9 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent, // Make status bar transparent
+  ));
   debugPrint('Startup: Launching app in local offline-first mode with SplashScreen...');
   runApp(const LoanManagerApp());
 }

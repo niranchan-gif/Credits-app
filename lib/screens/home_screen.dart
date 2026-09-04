@@ -91,9 +91,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     await BackupFreshnessService().checkFreshness();
                     await provider.loadBorrowers();
                   },
-                  child: CustomScrollView(
-                    slivers: [
-                      SliverToBoxAdapter(child: _buildHeader(totalDue, totalCollected, totalPending, todayCollection, provider)),
+                  child: MediaQuery.removePadding(
+                    context: context,
+                    removeTop: true,
+                    child: CustomScrollView(
+                      slivers: [
+                        SliverToBoxAdapter(child: _buildHeader(totalDue, totalCollected, totalPending, todayCollection, provider)),
                       SliverPadding(
                         padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
                         sliver: SliverToBoxAdapter(child: _buildSearch()),
@@ -126,6 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                     ],
                   ),
+                ),
                 );
               },
             );
@@ -186,62 +190,73 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildHeader(double due, double collected, double pending, double today, LoanProvider provider) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 60, 20, 24),
+      clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
         gradient: Theme.of(context).brightness == Brightness.dark ? AppColors.surfaceGradientDark : AppColors.surfaceGradient,
         borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).brightness == Brightness.dark 
-                      ? Colors.white.withOpacity(0.05) 
-                      : Theme.of(context).colorScheme.primary.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Theme.of(context).brightness == Brightness.dark 
-                        ? Colors.white.withOpacity(0.1) 
-                        : Theme.of(context).colorScheme.primary.withOpacity(0.2),
-                  ),
-                ),
-                child: RichText(
-                  text: TextSpan(
-                    children: [
-                      TextSpan(
-                        text: 'C',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                      TextSpan(
-                        text: 'redits',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+          // Decorative Background Elements
+          Positioned(
+            top: -40,
+            right: -40,
+            child: Container(
+              width: 180,
+              height: 180,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
               ),
-              const SyncStatusIndicator(compact: true),
-            ],
+            ),
           ),
-          const SizedBox(height: 24),
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
+          Positioned(
+            top: 80,
+            left: -50,
+            child: Container(
+              width: 140,
+              height: 140,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Theme.of(context).colorScheme.secondary.withOpacity(0.06),
+              ),
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 12, 16, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Hero(
+                      tag: 'logo_hero',
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
+                              blurRadius: 16,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Image.asset(
+                          'assets/icon/logo.png',
+                          height: 38, // Refined size
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ),
+                    const SyncStatusIndicator(compact: true),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
               // 1. Financial Element: Trending Up (Top Right)
               Positioned(
                 top: -15,
@@ -319,6 +334,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+    ),
+  ],
+),
     );
   }
 

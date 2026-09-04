@@ -93,8 +93,8 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
                     Text('Add Payment', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface)),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(color: Colors.white.withOpacity( 0.1), borderRadius: BorderRadius.circular(8)),
-                      child: Text(widget.borrower.displayBorrowerCode, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 12)),
+                      decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withOpacity( 0.1), borderRadius: BorderRadius.circular(8)),
+                      child: Text(widget.borrower.displayBorrowerCode, style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary, fontSize: 12)),
                     ),
                   ],
                 ),
@@ -162,7 +162,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
         decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface.withOpacity( 0.1), borderRadius: BorderRadius.circular(16), border: Border.all(color: Theme.of(context).colorScheme.outline.withOpacity( 0.1))),
         child: Row(
           children: [
-            Icon(icon, color: Colors.white, size: 20),
+            Icon(icon, color: Theme.of(context).colorScheme.primary, size: 20),
             const SizedBox(width: 16),
             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(title, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6), fontSize: 11)),
@@ -194,10 +194,10 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: Colors.white))
+          ? Center(child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary))
           : RefreshIndicator(
               onRefresh: _onRefresh,
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.primary,
               backgroundColor: Theme.of(context).colorScheme.surface,
               child: Column(
                 children: [
@@ -206,7 +206,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
                     padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
                     child: Row(
                       children: [
-                        const Icon(LucideIcons.history, size: 18, color: Colors.white),
+                        Icon(LucideIcons.history, size: 18, color: Theme.of(context).colorScheme.onSurface),
                         const SizedBox(width: 10),
                         Text('Payment History', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Theme.of(context).colorScheme.onSurface)),
                         const Spacer(),
@@ -354,15 +354,15 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
               children: [
                 Container(
                   padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(color: Colors.white.withOpacity( 0.1), borderRadius: BorderRadius.circular(12)),
-                  child: const Icon(LucideIcons.arrowDown, color: Colors.white, size: 20),
+                  decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withOpacity( 0.1), borderRadius: BorderRadius.circular(12)),
+                  child: Icon(LucideIcons.arrowDown, color: Theme.of(context).colorScheme.primary, size: 20),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(fmtINR(p.amount), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+                      Text(fmtINR(p.amount), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Theme.of(context).colorScheme.onSurface)),
                       if (p.notes != null) Text(p.notes!, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6), fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ],
                   ),

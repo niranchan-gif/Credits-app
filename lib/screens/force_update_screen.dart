@@ -6,13 +6,13 @@ import '../services/update_service.dart';
 
 class ForceUpdateScreen extends StatefulWidget {
   final AppUpdateInfo updateInfo;
-  final String currentVersion;
+  final int currentBuild;
   final Widget nextScreen;
 
   const ForceUpdateScreen({
     super.key,
     required this.updateInfo,
-    required this.currentVersion,
+    required this.currentBuild,
     required this.nextScreen,
   });
 
@@ -126,7 +126,7 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'Get the latest features and a better experience.',
+                          'A new version of Credits is available.\n\nCurrent version: ${widget.currentBuild}\nNew version: ${widget.updateInfo.version}',
                           textAlign: TextAlign.center,
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,

@@ -74,10 +74,8 @@ class UpdateService {
 
     UpdateStatus status = UpdateStatus.upToDate;
 
-    if (currentBuild < updateInfo.minimumBuild || (updateInfo.forceUpdate && currentBuild < updateInfo.latestBuild)) {
-      status = UpdateStatus.mandatoryUpdate;
-    } else if (currentBuild < updateInfo.latestBuild) {
-      status = UpdateStatus.optionalUpdate;
+    if (currentBuild < updateInfo.version) {
+      status = updateInfo.forceUpdate ? UpdateStatus.mandatoryUpdate : UpdateStatus.optionalUpdate;
     }
 
     return UpdateCheckResult(

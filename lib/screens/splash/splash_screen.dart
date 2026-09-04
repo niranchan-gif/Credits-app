@@ -189,7 +189,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       if (_updateResult != null && _updateResult!.status == UpdateStatus.mandatoryUpdate && _updateResult!.updateInfo != null) {
         nextScreen = ForceUpdateScreen(
           updateInfo: _updateResult!.updateInfo!,
-          currentVersion: _updateResult!.currentVersion,
+          currentBuild: _updateResult!.currentBuild,
           nextScreen: appScreen,
         );
       } else {
@@ -501,11 +501,17 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       child: Transform.translate(
         offset: const Offset(0.0, 0.0), 
         child: ClipOval(
-          child: Image.asset(
-            'assets/icon/app_icon.png',
-            fit: BoxFit.cover,
-            width: 120, 
-            height: 120,
+          child: Hero(
+            tag: 'logo_hero',
+            child: Material(
+              color: Colors.transparent,
+              child: Image.asset(
+                'assets/icon/app_icon.png',
+                fit: BoxFit.cover,
+                width: 120, 
+                height: 120,
+              ),
+            ),
           ),
         ),
       ),
