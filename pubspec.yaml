@@ -1,7 +1,7 @@
 name: credit
 description: Credits - Loan Manager App with unique borrower IDs and daily payment tracking.
 publish_to: 'none'
-version: 1.0.0+2
+version: 1.0.0+4
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -19,6 +19,7 @@ dependencies:
   permission_handler: ^11.3.1
   shared_preferences: ^2.3.2
   flutter_local_notifications: ^17.2.4
+  open_filex: ^4.7.0
   url_launcher: ^6.3.1
   local_auth: ^2.3.0
   flutter_secure_storage: ^9.2.2
@@ -42,7 +43,6 @@ dependencies:
   screenshot: ^3.0.0
   package_info_plus: ^8.1.0
   lucide_icons: ^0.257.0
-  open_filex: ^4.7.0
 
 dev_dependencies:
   flutter_test:
