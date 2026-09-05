@@ -1,16 +1,12 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:open_filex/open_filex.dart';
 import 'package:flutter/foundation.dart';
 import '../models/app_update_info.dart';
 
 enum UpdateStatus {
   upToDate,
-  optionalUpdate,
   mandatoryUpdate,
 }
 
@@ -34,20 +30,27 @@ class UpdateService {
   
   Future<UpdateCheckResult> checkForUpdates() async {
     final packageInfo = await PackageInfo.fromPlatform();
-    final int currentBuild = int.tryParse(packageInfo.buildNumber) ?? 1;
-    final String currentVersion = packageInfo.version;
+    // In some cases, buildNumber can be empty or something like "1.0.0". We will default to 1.
+    int currentBuild = int.tryParse(packageInfo.buildNumber) ?? 1;
+
+    // Bypass updates in debug mode so it doesn't loop during development
+    if (kDebugMode) {
+      return UpdateCheckResult(
+        status: UpdateStatus.upToDate,
+        currentVersion: packageInfo.version,
+        currentBuild: currentBuild,
+      );
+    }
 
     AppUpdateInfo? updateInfo;
 
     try {
-      // Short timeout for offline-first design
       final response = await http.get(Uri.parse(_updateJsonUrl)).timeout(const Duration(seconds: 2));
       
       if (response.statusCode == 200) {
         final jsonMap = json.decode(response.body);
         updateInfo = AppUpdateInfo.fromJson(jsonMap);
         
-        // Cache it for offline checks later
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_cacheKey, json.encode(jsonMap));
       }
@@ -67,74 +70,23 @@ class UpdateService {
     if (updateInfo == null) {
       return UpdateCheckResult(
         status: UpdateStatus.upToDate, 
-        currentVersion: currentVersion,
+        currentVersion: packageInfo.version,
         currentBuild: currentBuild,
       );
     }
 
     UpdateStatus status = UpdateStatus.upToDate;
 
-    if (currentBuild < updateInfo.version) {
-      final prefs = await SharedPreferences.getInstance();
-      final skippedVersion = prefs.getInt('skipped_update_version') ?? 0;
-      
-      if (skippedVersion == updateInfo.version) {
-        status = UpdateStatus.upToDate;
-      } else {
-        status = updateInfo.forceUpdate ? UpdateStatus.mandatoryUpdate : UpdateStatus.optionalUpdate;
-      }
+    // Block access if installed build number != GitHub buildNumber
+    if (currentBuild != updateInfo.buildNumber) {
+      status = UpdateStatus.mandatoryUpdate;
     }
 
     return UpdateCheckResult(
       status: status,
       updateInfo: updateInfo,
-      currentVersion: currentVersion,
+      currentVersion: packageInfo.version,
       currentBuild: currentBuild,
     );
-  }
-
-  Future<void> downloadAndInstallApk(String url, Function(double) onProgress) async {
-    try {
-      final request = http.Request('GET', Uri.parse(url));
-      final response = await http.Client().send(request);
-      
-      if (response.statusCode != 200) {
-        throw Exception('Failed to download APK. Status: ${response.statusCode}');
-      }
-
-      final contentLength = response.contentLength ?? 0;
-      int downloadedBytes = 0;
-
-      Directory? dir;
-      if (Platform.isAndroid) {
-        dir = await getExternalStorageDirectory();
-      } else {
-        dir = await getApplicationSupportDirectory();
-      }
-      
-      if (dir == null) throw Exception('Cannot access storage');
-      
-      final file = File('${dir.path}/credits_update.apk');
-      final sink = file.openWrite();
-
-      await for (final chunk in response.stream) {
-        sink.add(chunk);
-        downloadedBytes += chunk.length;
-        if (contentLength > 0) {
-          onProgress(downloadedBytes / contentLength);
-        }
-      }
-
-      await sink.close();
-      
-      // Install
-      final result = await OpenFilex.open(file.path);
-      if (result.type != ResultType.done) {
-        throw Exception('Failed to open APK: ${result.message}');
-      }
-    } catch (e) {
-      debugPrint('Download/Install error: $e');
-      rethrow;
-    }
   }
 }

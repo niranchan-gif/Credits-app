@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/app_update_info.dart';
-import '../services/update_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class ForceUpdateScreen extends StatefulWidget {
   final AppUpdateInfo updateInfo;
@@ -22,60 +21,24 @@ class ForceUpdateScreen extends StatefulWidget {
 }
 
 class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
-  final UpdateService _updateService = UpdateService();
-  bool _isDownloading = false;
-  double _downloadProgress = 0.0;
   String _errorMessage = '';
-  bool _downloadComplete = false;
 
   Future<void> _startUpdate() async {
-    if (widget.updateInfo.downloadUrl.isEmpty) {
-      setState(() => _errorMessage = 'Update URL is missing. Please configure GitHub Releases.');
+    if (widget.updateInfo.apkUrl.isEmpty) {
+      setState(() => _errorMessage = 'Update URL is missing.');
       return;
     }
-
-    setState(() {
-      _isDownloading = true;
-      _errorMessage = '';
-      _downloadProgress = 0.0;
-      _downloadComplete = false;
-    });
-
-    try {
-      await _updateService.downloadAndInstallApk(
-        widget.updateInfo.downloadUrl,
-        (progress) {
-          setState(() {
-            _downloadProgress = progress;
-          });
-        },
-      );
-      setState(() {
-        _isDownloading = false;
-        _downloadComplete = true;
-      });
-    } catch (e) {
-      setState(() {
-        _isDownloading = false;
-        _errorMessage = e.toString().replaceFirst('Exception: ', '');
-      });
-    }
-  }
-
-  void _skipUpdate() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('skipped_update_version', widget.updateInfo.version);
     
-    if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => widget.nextScreen,
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-        transitionDuration: const Duration(milliseconds: 400),
-      ),
-    );
+    setState(() => _errorMessage = '');
+
+    final Uri url = Uri.parse(widget.updateInfo.apkUrl);
+    try {
+      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        setState(() => _errorMessage = 'Could not open the update link.');
+      }
+    } catch (e) {
+      setState(() => _errorMessage = 'Error launching URL.');
+    }
   }
 
   @override
@@ -121,7 +84,7 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
                         
                         // Minimal Title
                         Text(
-                          'Update Available',
+                          'Update Required',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.leagueSpartan(
                             fontSize: 32,
@@ -131,13 +94,31 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'A new version of Credits is available.\n\nCurrent version: ${widget.currentBuild}\nNew version: ${widget.updateInfo.version}',
+                          'A new version of Credits is required to continue.\n\nCurrent version: ${widget.currentBuild}\nRequired version: ${widget.updateInfo.buildNumber}',
                           textAlign: TextAlign.center,
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                             fontSize: 16,
                           ),
                         ),
+                        
+                        if (widget.updateInfo.releaseNotes.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              widget.updateInfo.releaseNotes,
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        ],
                         
                         const Spacer(),
 
@@ -156,7 +137,7 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
 
                         // Action Buttons
                         ElevatedButton(
-                          onPressed: _isDownloading || _downloadComplete ? null : _startUpdate,
+                          onPressed: _startUpdate,
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 20),
                             elevation: 4,
@@ -166,25 +147,7 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
                               borderRadius: BorderRadius.circular(24),
                             ),
                           ),
-                          child: _buildButtonChild(),
-                        ),
-                        const SizedBox(height: 16),
-                        TextButton(
-                          onPressed: (_isDownloading && !_downloadComplete) ? null : _skipUpdate,
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                          ),
-                          child: Text(
-                            'Update later',
-                            style: TextStyle(
-                              color: theme.colorScheme.onSurfaceVariant,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
-                            ),
-                          ),
+                          child: const Text('Update Now', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ),
@@ -196,31 +159,5 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
         ),
       ),
     );
-  }
-
-  Widget _buildButtonChild() {
-    if (_downloadComplete) {
-      return const Text('Installing...', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold));
-    } else if (_isDownloading) {
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text('Downloading ${(_downloadProgress * 100).toStringAsFixed(0)}%', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-        ],
-      );
-    } else if (_errorMessage.isNotEmpty) {
-      return const Text('Retry Update', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold));
-    } else {
-      return const Text('Update Now', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold));
-    }
   }
 }
