@@ -1,5 +1,5 @@
 {
-  "buildNumber": 1,
+  "buildNumber": 2,
   "apkUrl": "https://github.com/niranchan-gif/Credits-app/releases/download/Creditsv3/app-release.apk",
-  "releaseNotes": "Bug fixes and performance improvements."
+  "releaseNotes": "Bugs fixed in Borrower profile scrol down"
 }
