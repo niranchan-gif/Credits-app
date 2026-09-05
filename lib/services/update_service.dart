@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import '../models/app_update_info.dart';
 
 enum UpdateStatus {
@@ -31,8 +32,17 @@ class UpdateService {
   
   Future<UpdateCheckResult> checkForUpdates() async {
     final packageInfo = await PackageInfo.fromPlatform();
-    // In some cases, buildNumber can be empty or something like "1.0.0". We will default to 1.
-    int currentBuild = int.tryParse(packageInfo.buildNumber) ?? 1;
+    
+    // Read the local update.json to get the bundled build number
+    int currentBuild = 1;
+    try {
+      final localJsonString = await rootBundle.loadString('update.json');
+      final localJsonMap = json.decode(localJsonString);
+      currentBuild = localJsonMap['version'] as int? ?? 1;
+    } catch (e) {
+      debugPrint('Failed to read local update.json: $e');
+      currentBuild = int.tryParse(packageInfo.buildNumber) ?? 1; // Fallback
+    }
 
     // Bypass updates in debug mode so it doesn't loop during development
     if (kDebugMode) {

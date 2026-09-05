@@ -55,6 +55,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - update.json
     - assets/icon/
     - assets/icon/logo.png
     - assets/fonts/
