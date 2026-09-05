@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../models/app_update_info.dart';
 import '../services/update_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ForceUpdateScreen extends StatefulWidget {
   final AppUpdateInfo updateInfo;
@@ -56,12 +57,16 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
     } catch (e) {
       setState(() {
         _isDownloading = false;
-        _errorMessage = 'Download failed. Please check your internet connection.';
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
       });
     }
   }
 
-  void _skipUpdate() {
+  void _skipUpdate() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('skipped_update_version', widget.updateInfo.version);
+    
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) => widget.nextScreen,

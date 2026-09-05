@@ -1,0 +1,1 @@
+import 'package:http/http.dart' as http; void main() async { final request = http.Request('GET', Uri.parse('https://github.com/niranchan-gif/Credits-app/releases/download/Creditsv3/app-release.apk')); final response = await http.Client().send(request); print(response.statusCode); }

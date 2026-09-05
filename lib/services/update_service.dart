@@ -75,7 +75,14 @@ class UpdateService {
     UpdateStatus status = UpdateStatus.upToDate;
 
     if (currentBuild < updateInfo.version) {
-      status = updateInfo.forceUpdate ? UpdateStatus.mandatoryUpdate : UpdateStatus.optionalUpdate;
+      final prefs = await SharedPreferences.getInstance();
+      final skippedVersion = prefs.getInt('skipped_update_version') ?? 0;
+      
+      if (skippedVersion == updateInfo.version) {
+        status = UpdateStatus.upToDate;
+      } else {
+        status = updateInfo.forceUpdate ? UpdateStatus.mandatoryUpdate : UpdateStatus.optionalUpdate;
+      }
     }
 
     return UpdateCheckResult(
