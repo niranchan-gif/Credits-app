@@ -38,7 +38,7 @@ class UpdateService {
     try {
       final localJsonString = await rootBundle.loadString('update.json');
       final localJsonMap = json.decode(localJsonString);
-      currentBuild = localJsonMap['version'] as int? ?? 1;
+      currentBuild = (localJsonMap['version'] ?? localJsonMap['buildNumber']) as int? ?? 1;
     } catch (e) {
       debugPrint('Failed to read local update.json: $e');
       currentBuild = int.tryParse(packageInfo.buildNumber) ?? 1; // Fallback

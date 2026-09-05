@@ -78,7 +78,7 @@ class _ProgressDialogState extends State<ProgressDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const Icon(LucideIcons.checkCircle2, color: Colors.white, size: 48),
+            Icon(LucideIcons.checkCircle2, color: isDark ? Colors.white : AppColors.primary, size: 48),
             const SizedBox(height: 16),
             Text(
               '✓ Completed',
@@ -156,7 +156,7 @@ class _ProgressDialogState extends State<ProgressDialog> {
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
                 value: _progress,
-                color: Colors.white,
+                color: isDark ? Colors.white : AppColors.primary,
                 backgroundColor: isDark ? Colors.white10 : Colors.black12,
                 minHeight: 10,
               ),
@@ -164,10 +164,10 @@ class _ProgressDialogState extends State<ProgressDialog> {
             const SizedBox(height: 16),
             Text(
               '${(_progress * 100).round()}%',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16, 
                 fontWeight: FontWeight.bold, 
-                color: Colors.white,
+                color: isDark ? Colors.white : AppColors.primary,
               ),
             ),
             const SizedBox(height: 16),
