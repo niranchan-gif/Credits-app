@@ -24,14 +24,14 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
   String _errorMessage = '';
 
   Future<void> _startUpdate() async {
-    if (widget.updateInfo.apkUrl.isEmpty) {
+    if (widget.updateInfo.downloadUrl.isEmpty) {
       setState(() => _errorMessage = 'Update URL is missing.');
       return;
     }
     
     setState(() => _errorMessage = '');
 
-    final Uri url = Uri.parse(widget.updateInfo.apkUrl);
+    final Uri url = Uri.parse(widget.updateInfo.downloadUrl);
     try {
       if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
         setState(() => _errorMessage = 'Could not open the update link.');
@@ -41,13 +41,31 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
     }
   }
 
+  void _skipUpdate() {
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => widget.nextScreen,
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isMandatory = widget.updateInfo.forceUpdate;
 
     return PopScope(
       canPop: false,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+        if (!isMandatory) {
+          _skipUpdate();
+        }
+      },
       child: Scaffold(
         body: Container(
           decoration: BoxDecoration(
@@ -84,7 +102,7 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
                         
                         // Minimal Title
                         Text(
-                          'Update Required',
+                          isMandatory ? 'Update Required' : 'Update Available',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.leagueSpartan(
                             fontSize: 32,
@@ -94,7 +112,7 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'A new version of Credits is required to continue.\n\nCurrent version: ${widget.currentBuild}\nRequired version: ${widget.updateInfo.buildNumber}',
+                          'A new version of Credits is ${isMandatory ? 'required' : 'available'}.\n\nCurrent version: ${widget.currentBuild}\nLatest version: ${widget.updateInfo.version}',
                           textAlign: TextAlign.center,
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
@@ -110,12 +128,18 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
                               color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: Text(
-                              widget.updateInfo.releaseNotes,
-                              textAlign: TextAlign.center,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: widget.updateInfo.releaseNotes.map((note) => Padding(
+                                padding: const EdgeInsets.only(bottom: 4.0),
+                                child: Text(
+                                  '• $note',
+                                  textAlign: TextAlign.left,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              )).toList(),
                             ),
                           ),
                         ],
@@ -149,6 +173,20 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
                           ),
                           child: const Text('Update Now', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                         ),
+                        if (!isMandatory) ...[
+                          const SizedBox(height: 16),
+                          TextButton(
+                            onPressed: _skipUpdate,
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 20),
+                              foregroundColor: theme.colorScheme.onSurfaceVariant,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                            ),
+                            child: const Text('Later', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                          ),
+                        ],
                       ],
                     ),
                   ),

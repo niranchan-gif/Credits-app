@@ -7,6 +7,7 @@ import '../models/app_update_info.dart';
 
 enum UpdateStatus {
   upToDate,
+  optionalUpdate,
   mandatoryUpdate,
 }
 
@@ -45,7 +46,14 @@ class UpdateService {
     AppUpdateInfo? updateInfo;
 
     try {
-      final response = await http.get(Uri.parse(_updateJsonUrl)).timeout(const Duration(seconds: 2));
+      final response = await http.get(
+        Uri.parse(_updateJsonUrl),
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      ).timeout(const Duration(seconds: 2));
       
       if (response.statusCode == 200) {
         final jsonMap = json.decode(response.body);
@@ -77,9 +85,13 @@ class UpdateService {
 
     UpdateStatus status = UpdateStatus.upToDate;
 
-    // Block access if installed build number != GitHub buildNumber
-    if (currentBuild != updateInfo.buildNumber) {
-      status = UpdateStatus.mandatoryUpdate;
+    // Check if remote version is strictly greater than installed build
+    if (currentBuild < updateInfo.version) {
+      if (updateInfo.forceUpdate) {
+        status = UpdateStatus.mandatoryUpdate;
+      } else {
+        status = UpdateStatus.optionalUpdate;
+      }
     }
 
     return UpdateCheckResult(

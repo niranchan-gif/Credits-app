@@ -186,7 +186,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           ? const AppLockWrapper(child: MainNavigationScreen())
           : const SignInScreen();
           
-      if (_updateResult != null && _updateResult!.status == UpdateStatus.mandatoryUpdate && _updateResult!.updateInfo != null) {
+      if (_updateResult != null && 
+          (_updateResult!.status == UpdateStatus.mandatoryUpdate || _updateResult!.status == UpdateStatus.optionalUpdate) && 
+          _updateResult!.updateInfo != null) {
         nextScreen = ForceUpdateScreen(
           updateInfo: _updateResult!.updateInfo!,
           currentBuild: _updateResult!.currentBuild,
