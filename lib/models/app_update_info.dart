@@ -11,30 +11,52 @@ class AppUpdateInfo {
     this.releaseNotes = const [],
   });
 
+  int get buildNumber => version;
+
   factory AppUpdateInfo.fromJson(Map<String, dynamic> json) {
     List<String> notes = [];
-    if (json['release_notes'] != null) {
-      if (json['release_notes'] is List) {
-        notes = List<String>.from(json['release_notes']);
-      } else if (json['release_notes'] is String) {
-        notes = [json['release_notes'] as String];
+    final rawNotes = json['releaseNotes'] ?? json['release_notes'] ?? json['notes'];
+    if (rawNotes != null) {
+      if (rawNotes is List) {
+        notes = List<String>.from(rawNotes.map((e) => e.toString().trim()).where((s) => s.isNotEmpty));
+      } else if (rawNotes is String) {
+        final lines = rawNotes.split('\n').map((e) => e.trim()).where((s) => s.isNotEmpty).toList();
+        notes = lines.isNotEmpty ? lines : [rawNotes.trim()];
       }
     }
 
+    final rawBuild = json['buildNumber'] ?? json['version'] ?? json['build_number'];
+    int parsedBuild = 1;
+    if (rawBuild is int) {
+      parsedBuild = rawBuild;
+    } else if (rawBuild is String) {
+      parsedBuild = int.tryParse(rawBuild) ?? 1;
+    }
+
+    final rawUrl = json['apkUrl'] ?? json['download_url'] ?? json['downloadUrl'] ?? json['apk_url'] ?? json['url'] ?? '';
+
+    final rawForce = json['forceUpdate'] ?? json['force_update'];
+    bool parsedForce = true;
+    if (rawForce is bool) {
+      parsedForce = rawForce;
+    }
+
     return AppUpdateInfo(
-      version: json['version'] as int? ?? 1,
-      forceUpdate: json['force_update'] as bool? ?? false,
-      downloadUrl: json['download_url'] as String? ?? '',
+      version: parsedBuild,
+      forceUpdate: parsedForce,
+      downloadUrl: rawUrl.toString().trim(),
       releaseNotes: notes,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
+      'buildNumber': version,
       'version': version,
-      'force_update': forceUpdate,
+      'forceUpdate': forceUpdate,
+      'apkUrl': downloadUrl,
       'download_url': downloadUrl,
-      'release_notes': releaseNotes,
+      'releaseNotes': releaseNotes,
     };
   }
 }

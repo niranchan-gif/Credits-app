@@ -7,6 +7,7 @@ class AppColors {
   static const Color surfaceLight = Color(0xFFE8DDB4); // Soft Background Accent
   
   static const Color accent = Color(0xFF285A48);      // Primary Accent (Forest Green)
+  static const Color primary = accent;                // Primary Accent Alias
   static const Color accentLight = Color(0xFF3A755D); // Lighter Green
   static const Color secondary = Color(0xFFDAA464);   // Secondary Accent (Bronze/Gold)
   static const Color highlight = Color(0xFFDEC384);   // Highlight Gold

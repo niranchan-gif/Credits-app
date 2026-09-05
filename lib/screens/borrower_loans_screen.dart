@@ -124,46 +124,79 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
               onRefresh: _onRefresh,
               color: Colors.white,
               backgroundColor: AppColors.surface,
-              child: Column(
-                children: [
-                  _buildBorrowerInfoCard(b),
-                  if (b.overdueStatus == 'OVERDUE')
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                      child: PremiumCard(
-                        color: AppColors.error.withOpacity( 0.1),
-                        border: Border.all(color: AppColors.error.withOpacity( 0.3)),
-                        padding: const EdgeInsets.all(16),
-                        child: const Row(
-                          children: [
-                            Icon(LucideIcons.alertTriangle, color: AppColors.error, size: 24),
-                            SizedBox(width: 16),
-                            Expanded(
-                              child: Text(
-                                'This borrower has exceeded the maximum due period of 140 days.',
-                                style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w600, fontSize: 17),
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildBorrowerInfoCard(b),
+                        if (b.overdueStatus == 'OVERDUE')
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                            child: PremiumCard(
+                              color: AppColors.error.withOpacity(0.1),
+                              border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                              padding: const EdgeInsets.all(16),
+                              child: const Row(
+                                children: [
+                                  Icon(LucideIcons.alertTriangle, color: AppColors.error, size: 24),
+                                  SizedBox(width: 16),
+                                  Expanded(
+                                    child: Text(
+                                      'This borrower has exceeded the maximum due period of 140 days.',
+                                      style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w600, fontSize: 17),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
+                          ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
+                          child: Row(
+                            children: [
+                              const Icon(LucideIcons.history, size: 18, color: Colors.white),
+                              const SizedBox(width: 10),
+                              Text(
+                                'Loan History',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Theme.of(context).colorScheme.onSurface),
+                              ),
+                              const Spacer(),
+                              Text('${_loans.length} loans', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6), fontSize: 17)),
+                            ],
+                          ),
                         ),
-                      ),
-                    ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
-                    child: Row(
-                      children: [
-                        const Icon(LucideIcons.history, size: 18, color: Colors.white),
-                        const SizedBox(width: 10),
-                        Text(
-                          'Loan History',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Theme.of(context).colorScheme.onSurface),
-                        ),
-                        const Spacer(),
-                        Text('${_loans.length} loans', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6), fontSize: 17)),
                       ],
                     ),
                   ),
-                  Expanded(child: _buildLoanList()),
+                  if (_loans.isEmpty)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 48),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(LucideIcons.coins, size: 48, color: AppColors.textTertiary.withOpacity(0.2)),
+                              const SizedBox(height: 16),
+                              const Text('No loans found.\nTap + to start a new loan.', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textTertiary)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (ctx, i) => _buildLoanCard(_loans[i], i),
+                          childCount: _loans.length,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -579,25 +612,8 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
     );
   }
 
-  Widget _buildLoanList() {
-    if (_loans.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(LucideIcons.coins, size: 48, color: AppColors.textTertiary.withOpacity( 0.2)),
-            const SizedBox(height: 16),
-            const Text('No loans found.\nTap + to start a new loan.', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textTertiary)),
-          ],
-        ),
-      );
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-      itemCount: _loans.length,
-      itemBuilder: (ctx, i) {
-        final loan = _loans[i];
-        final isActive = loan.status == 'active';
+  Widget _buildLoanCard(Loan loan, int i) {
+    final isActive = loan.status == 'active';
 
         return Container(
           margin: const EdgeInsets.only(bottom: 16),
@@ -656,13 +672,11 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                       ],
                     ),
                   ],
-                ),
               ),
             ),
-          ).animate().fadeIn(duration: 400.ms, delay: (i * 50).ms).slideX(begin: 0.1, end: 0),
-        );
-      },
-    );
+          ),
+        ),
+      ).animate().fadeIn(duration: 400.ms, delay: (i * 50).ms).slideX(begin: 0.1, end: 0);
   }
 
   Widget _statCol(String label, String value) {

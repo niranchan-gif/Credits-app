@@ -199,22 +199,55 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
               onRefresh: _onRefresh,
               color: Theme.of(context).colorScheme.primary,
               backgroundColor: Theme.of(context).colorScheme.surface,
-              child: Column(
-                children: [
-                  _buildLoanStatusCard(loan, totalDue, balance, progress, days),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
-                    child: Row(
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(LucideIcons.history, size: 18, color: Theme.of(context).colorScheme.onSurface),
-                        const SizedBox(width: 10),
-                        Text('Payment History', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Theme.of(context).colorScheme.onSurface)),
-                        const Spacer(),
-                        Text('${_payments.length} entries', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6), fontSize: 13)),
+                        _buildLoanStatusCard(loan, totalDue, balance, progress, days),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
+                          child: Row(
+                            children: [
+                              Icon(LucideIcons.history, size: 18, color: Theme.of(context).colorScheme.onSurface),
+                              const SizedBox(width: 10),
+                              Text('Payment History', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Theme.of(context).colorScheme.onSurface)),
+                              const Spacer(),
+                              Text('${_payments.length} entries', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6), fontSize: 13)),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                  Expanded(child: _buildPaymentList()),
+                  if (_payments.isEmpty)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 48),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(LucideIcons.checkCircle, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.2)),
+                              const SizedBox(height: 16),
+                              Text('No payments recorded yet', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6))),
+                            ],
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (ctx, i) => _buildPaymentCard(_payments[i]),
+                          childCount: _payments.length,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -328,24 +361,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
     );
   }
 
-  Widget _buildPaymentList() {
-    if (_payments.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(LucideIcons.checkCircle, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.2)),
-            const SizedBox(height: 16),
-            Text('No payments recorded yet', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6))),
-          ],
-        ),
-      );
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-      itemCount: _payments.length,
-      itemBuilder: (ctx, i) {
-        final p = _payments[i];
+  Widget _buildPaymentCard(Payment p) {
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           child: PremiumCard(
@@ -388,8 +404,6 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
             ),
           ),
         ).animate().fadeIn(duration: 400.ms).slideX(begin: 0.1, end: 0);
-      },
-    );
   }
 
   Future<void> _deletePayment(Payment p) async {
