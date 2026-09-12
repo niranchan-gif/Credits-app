@@ -13,7 +13,10 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent, // Make status bar transparent
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.light,
+    systemNavigationBarColor: Color(0xFF021711),
+    systemNavigationBarIconBrightness: Brightness.light,
   ));
   debugPrint('Startup: Launching app in local offline-first mode with SplashScreen...');
   runApp(const LoanManagerApp());
@@ -33,6 +36,7 @@ class LoanManagerApp extends StatelessWidget {
         builder: (context, themeProvider, _) {
           return MaterialApp(
             title: 'Credits',
+            color: const Color(0xFF021711),
             debugShowCheckedModeBanner: false,
             navigatorKey: navigatorKey,
             navigatorObservers: [routeObserver],

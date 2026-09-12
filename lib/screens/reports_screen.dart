@@ -236,7 +236,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           title: const Text('Financial Reports'),
         ),
         body: const Center(
-          child: CircularProgressIndicator(color: Colors.white),
+          child: CircularProgressIndicator(color: AppColors.accent),
         ),
       );
     }
@@ -300,7 +300,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent),
                   )
                 : const Icon(LucideIcons.download),
           ),
@@ -308,10 +308,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: Colors.white))
+          ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
           : RefreshIndicator(
               onRefresh: _onRefresh,
-              color: Colors.white,
+              color: AppColors.accent,
               backgroundColor: Theme.of(context).colorScheme.surface,
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 10, 20, 100),
@@ -409,17 +409,74 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Widget _buildHeaderSection() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         _sectionLabel('Overall Summary'),
-        TextButton.icon(
-          onPressed: () async {
-            await Navigator.push(context, MaterialPageRoute(builder: (_) => const InvestmentScreen()));
-            if (mounted) await _loadReports(force: true);
-          },
-          icon: const Icon(LucideIcons.coins, size: 16),
-          label: const Text('Investments'),
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () async {
+              await Navigator.push(context, MaterialPageRoute(builder: (_) => const InvestmentScreen()));
+              if (mounted) await _loadReports(force: true);
+            },
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? AppColors.accent.withValues(alpha: 0.18)
+                    : AppColors.accent.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: AppColors.accent.withValues(alpha: 0.25),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.accent.withValues(alpha: 0.35),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      LucideIcons.trendingUp,
+                      size: 11,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Investments',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? const Color(0xFF8CE1C2) : AppColors.accent,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    LucideIcons.chevronRight,
+                    size: 13,
+                    color: (isDark ? const Color(0xFF8CE1C2) : AppColors.accent)
+                        .withValues(alpha: 0.7),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ],
     );
@@ -502,8 +559,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(color: Colors.white.withOpacity( 0.1), borderRadius: BorderRadius.circular(8)),
-                  child: Text(b.displayBorrowerCode, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                  decoration: BoxDecoration(color: AppColors.accent.withOpacity( 0.1), borderRadius: BorderRadius.circular(8)),
+                  child: Text(b.displayBorrowerCode, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.accent)),
                 ),
                 const SizedBox(width: 12),
                 Expanded(child: Text(b.name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Theme.of(context).colorScheme.onSurface))),
@@ -522,7 +579,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             const SizedBox(height: 20),
             Stack(
               children: [
-                Container(height: 6, decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(3))),
+                Container(height: 6, decoration: BoxDecoration(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.08), borderRadius: BorderRadius.circular(3))),
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 1000),
                   height: 6,

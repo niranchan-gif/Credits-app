@@ -212,7 +212,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               Text(
                 label,
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: AppColors.accent,
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
                 ),

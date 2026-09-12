@@ -15,6 +15,8 @@ import '../services/backup_freshness_service.dart';
 import '../services/google_drive_service.dart';
 import '../services/auto_backup_manager.dart';
 import '../services/google_drive_excel_backup_service.dart';
+import '../services/json_restore_service.dart';
+import '../services/google_drive_json_backup_service.dart';
 import '../utils/app_colors.dart';
 import '../utils/date_parser.dart';
 import '../widgets/premium_card.dart';
@@ -247,6 +249,109 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     await _loadBackupInfo();
   }
 
+  Future<void> _initiateGDriveRestore() async {
+    final connected = await _driveService.isConnected();
+    if (!connected) {
+      _showErrorSnackbar('Google Drive is not connected.');
+      return;
+    }
+
+    bool hasJsonBackup = false;
+    try {
+      final authClient = await _driveService.getAuthClient();
+      final driveApi = drive.DriveApi(authClient);
+      final folderResult = await driveApi.files.list(
+        q: "name = '${GoogleDriveJsonBackupService.backupFolderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+        spaces: 'drive',
+        $fields: 'files(id)',
+      );
+      if (folderResult.files != null && folderResult.files!.isNotEmpty) {
+        final folderId = folderResult.files!.first.id!;
+        final fileList = await driveApi.files.list(
+          q: "parents in '$folderId' and name='${GoogleDriveJsonBackupService.backupFileName}' and trashed=false",
+          spaces: 'drive',
+          $fields: 'files(id)',
+        );
+        if (fileList.files != null && fileList.files!.isNotEmpty) {
+          hasJsonBackup = true;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error checking for JSON backup: $e');
+    }
+
+    if (!hasJsonBackup) {
+      await _initiateGDriveExcelRestore();
+      return;
+    }
+
+    if (!mounted) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(LucideIcons.downloadCloud, color: AppColors.accent),
+            SizedBox(width: 12),
+            Expanded(child: Text('Restore Cloud Backup')),
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to restore your data from Google Drive?\n\nThis will restore all borrowers, loans, payments, investments, and expenses from your cloud backup.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent),
+            child: const Text('Restore Now'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    bool success = false;
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => ProgressDialog(
+        title: 'Restoring Cloud Backup',
+        successMessage: '✓ Restore Completed',
+        errorMessage: 'Restore Failed',
+        action: (updateProgress) async {
+          updateProgress(0.1, 'Downloading encrypted cloud backup...');
+          await JsonRestoreService().restoreFromDrive(
+            onProgress: (p, msg) => updateProgress(p, msg),
+          );
+
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('local_db_last_modified_timestamp', DateTime.now().toUtc().toIso8601String());
+          await prefs.setBool('is_backup_blocked', false);
+          await prefs.setBool('last_drive_check_success', true);
+
+          if (mounted) {
+            await context.read<LoanProvider>().loadBorrowers();
+          }
+
+          success = true;
+          updateProgress(1.0, 'Restore complete!');
+        },
+      ),
+    );
+
+    if (success && mounted) {
+      _showSuccessSnackbar('Cloud backup restored successfully!');
+      await _loadBackupInfo();
+    }
+  }
+
   /// Downloads the single Excel file, validates it, and shows a premium restore preview dialog.
   Future<void> _initiateGDriveExcelRestore() async {
     File? tempFile;
@@ -405,54 +510,61 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        scrollable: true,
         title: const Row(
           children: [
-            Icon(LucideIcons.fileSpreadsheet, color: Colors.white),
+            Icon(LucideIcons.fileSpreadsheet, color: AppColors.accent),
             SizedBox(width: 12),
-            Text('Cloud Restore Preview'),
+            Expanded(child: Text('Cloud Restore Preview', overflow: TextOverflow.ellipsis)),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Restore',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Backup Details',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
+                ),
+                Text(sizeStr, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+              ],
             ),
-            const SizedBox(height: 8),
-            Text('Last Backup: ${DateFormat('dd MMM yyyy, hh:mm a').format(timestamp)}', style: const TextStyle(fontSize: 12)),
-            Text('Backup Size: $sizeStr', style: const TextStyle(fontSize: 12)),
-            const SizedBox(height: 14),
+            const SizedBox(height: 4),
+            Text('Date: ${DateFormat('dd MMM yyyy, hh:mm a').format(timestamp)}', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.8))),
+            const SizedBox(height: 12),
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity( 0.08),
+                color: Theme.of(context).colorScheme.onSurface.withOpacity( 0.06),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
                 children: [
                   _previewRow(LucideIcons.users, 'Borrowers', fmt.format(preview['borrowers'] ?? 0), AppColors.accent),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   _previewRow(LucideIcons.creditCard, 'Loans', fmt.format(preview['loans'] ?? 0), AppColors.info),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   _previewRow(LucideIcons.wallet, 'Payments', fmt.format(preview['payments'] ?? 0), AppColors.success),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   _previewRow(LucideIcons.receipt, 'Expenses', fmt.format(preview['expenses'] ?? 0), AppColors.warning),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   _previewRow(LucideIcons.trendingUp, 'Investments', fmt.format(preview['investments'] ?? 0), AppColors.secondary),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 14),
             const Text('Choose restore mode:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
             const SizedBox(height: 4),
             const Text(
-              'Merge: Adds new records and updates existing safely without wiping.\nReplace: Wipes existing local data and restores a fresh state.',
+              '• Merge: Adds new records & updates existing safely.\n• Replace: Wipes local data and restores fresh state.',
               style: TextStyle(fontSize: 11, height: 1.4),
             ),
           ],
         ),
+        actionsOverflowButtonSpacing: 8,
         actions: [
           TextButton(
             onPressed: () {
@@ -466,7 +578,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
               Navigator.pop(ctx);
               _executeGDriveExcelRestore(tempPath, merge: true);
             },
-            child: const Text('Merge Restore'),
+            child: const Text('Merge'),
           ),
           ElevatedButton(
             onPressed: () {
@@ -474,7 +586,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
               _confirmGDriveExcelReplace(tempPath);
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Replace Local DB'),
+            child: const Text('Replace'),
           ),
         ],
       ),
@@ -486,16 +598,21 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        scrollable: true,
         title: const Row(
           children: [
             Icon(LucideIcons.alertTriangle, color: AppColors.error),
             SizedBox(width: 12),
-            Text('Wipe & Replace Database?'),
+            Expanded(
+              child: Text('Wipe & Replace'),
+            ),
           ],
         ),
         content: const Text(
           'This will permanently delete ALL local borrowers, loans, payments, expenses, and investments, replacing them with the cloud backup.\n\nThis action CANNOT be undone. Are you sure?',
         ),
+        actionsOverflowButtonSpacing: 8,
         actions: [
           TextButton(
             onPressed: () {
@@ -510,7 +627,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
               _executeGDriveExcelRestore(tempPath, merge: false);
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Replace Data'),
+            child: const Text('Replace'),
           ),
         ],
       ),
@@ -560,15 +677,17 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
   }
 
   void _showRestoreSuccessExcelDialog(Map<String, int> preview, bool merge) {
+    final fmt = NumberFormat('#,##0');
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        scrollable: true,
         title: const Row(
           children: [
-            Icon(LucideIcons.checkCircle, color: Colors.white),
+            Icon(LucideIcons.checkCircle, color: AppColors.accent),
             SizedBox(width: 12),
-            Text('Restore Successful!'),
+            Expanded(child: Text('Restore Successful!')),
           ],
         ),
         content: Column(
@@ -577,26 +696,27 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           children: [
             Text(merge 
                 ? 'Your local database was successfully merged with the cloud backup.'
-                : 'Your local database has been fully replaced with the cloud backup.'
+                : 'Your local database has been fully replaced with the cloud backup.',
+              style: const TextStyle(fontSize: 13),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity( 0.08),
+                color: Theme.of(context).colorScheme.onSurface.withOpacity( 0.06),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
                 children: [
-                  _previewRow(LucideIcons.users, 'Borrowers', (preview['borrowers'] ?? 0).toString(), AppColors.accent),
-                  const SizedBox(height: 8),
-                  _previewRow(LucideIcons.creditCard, 'Loans', (preview['loans'] ?? 0).toString(), AppColors.info),
-                  const SizedBox(height: 8),
-                  _previewRow(LucideIcons.wallet, 'Payments', (preview['payments'] ?? 0).toString(), AppColors.success),
-                  const SizedBox(height: 8),
-                  _previewRow(LucideIcons.receipt, 'Expenses', (preview['expenses'] ?? 0).toString(), AppColors.warning),
-                  const SizedBox(height: 8),
-                  _previewRow(LucideIcons.trendingUp, 'Investments', (preview['investments'] ?? 0).toString(), AppColors.secondary),
+                  _previewRow(LucideIcons.users, 'Borrowers', fmt.format(preview['borrowers'] ?? 0), AppColors.accent),
+                  const SizedBox(height: 6),
+                  _previewRow(LucideIcons.creditCard, 'Loans', fmt.format(preview['loans'] ?? 0), AppColors.info),
+                  const SizedBox(height: 6),
+                  _previewRow(LucideIcons.wallet, 'Payments', fmt.format(preview['payments'] ?? 0), AppColors.success),
+                  const SizedBox(height: 6),
+                  _previewRow(LucideIcons.receipt, 'Expenses', fmt.format(preview['expenses'] ?? 0), AppColors.warning),
+                  const SizedBox(height: 6),
+                  _previewRow(LucideIcons.trendingUp, 'Investments', fmt.format(preview['investments'] ?? 0), AppColors.secondary),
                 ],
               ),
             ),
@@ -680,11 +800,13 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        scrollable: true,
         title: const Row(
           children: [
-            Icon(LucideIcons.fileSpreadsheet, color: Colors.white),
+            Icon(LucideIcons.fileSpreadsheet, color: AppColors.accent),
             SizedBox(width: 12),
-            Text('Excel Import Preview'),
+            Expanded(child: Text('Excel Import Preview')),
           ],
         ),
         content: Column(
@@ -692,34 +814,35 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity( 0.08),
+                color: Theme.of(context).colorScheme.onSurface.withOpacity( 0.06),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
                 children: [
                   _previewRow(LucideIcons.users, 'Borrowers', fmt.format(preview['borrowers'] ?? 0), AppColors.accent),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   _previewRow(LucideIcons.creditCard, 'Loans', fmt.format(preview['loans'] ?? 0), AppColors.info),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   _previewRow(LucideIcons.wallet, 'Payments', fmt.format(preview['payments'] ?? 0), AppColors.success),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   _previewRow(LucideIcons.receipt, 'Expenses', fmt.format(preview['expenses'] ?? 0), AppColors.warning),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   _previewRow(LucideIcons.trendingUp, 'Investments', fmt.format(preview['investments'] ?? 0), AppColors.secondary),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
-            const Text('Choose import mode:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            const SizedBox(height: 14),
+            const Text('Choose import mode:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
             const SizedBox(height: 4),
             const Text(
-              'Merge: Adds new records, updates existing (safe).\nReplace: Wipes your local data and imports fresh.',
-              style: TextStyle(fontSize: 12),
+              '• Merge: Adds new records & updates existing safely.\n• Replace: Wipes local data and imports fresh.',
+              style: TextStyle(fontSize: 11, height: 1.4),
             ),
           ],
         ),
+        actionsOverflowButtonSpacing: 8,
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           OutlinedButton(
@@ -747,17 +870,20 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          scrollable: true,
           title: const Row(
             children: [
               Icon(LucideIcons.alertTriangle, color: AppColors.error),
               SizedBox(width: 12),
-              Text('Replace Local Data?'),
+              Expanded(child: Text('Replace Local Data?')),
             ],
           ),
           content: const Text(
             'This will permanently delete your current local data and replace it with the Excel backup. '
             'This action cannot be undone.\n\nAre you sure?',
           ),
+          actionsOverflowButtonSpacing: 8,
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
             ElevatedButton(
@@ -805,7 +931,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       builder: (ctx) => AlertDialog(
         title: const Row(
           children: [
-            Icon(LucideIcons.checkCircle, color: Colors.white),
+            Icon(LucideIcons.checkCircle, color: AppColors.accent),
             SizedBox(width: 12),
             Text('Backup Saved!'),
           ],
@@ -819,12 +945,12 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity( 0.08),
+                color: Theme.of(context).colorScheme.onSurface.withOpacity( 0.06),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 children: [
-                  const Icon(LucideIcons.fileSpreadsheet, color: Colors.white, size: 18),
+                  const Icon(LucideIcons.fileSpreadsheet, color: AppColors.accent, size: 18),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -998,7 +1124,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                             ? Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity( 0.15),
+                                  color: AppColors.success.withOpacity( 0.15),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: const Text(
@@ -1006,7 +1132,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.white,
+                                    color: AppColors.success,
                                   ),
                                 ),
                               )
@@ -1057,7 +1183,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          const Icon(LucideIcons.shieldCheck, size: 14, color: Colors.white),
+                          const Icon(LucideIcons.shieldCheck, size: 14, color: AppColors.success),
                            const SizedBox(width: 6),
                           Expanded(
                             child: Text(
@@ -1089,7 +1215,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: OutlinedButton.icon(
-                              onPressed: isGlobalLoading ? null : _initiateGDriveExcelRestore,
+                              onPressed: isGlobalLoading ? null : _initiateGDriveRestore,
                               icon: const Icon(LucideIcons.downloadCloud, size: 16),
                               label: const Text('Restore'),
                               style: OutlinedButton.styleFrom(
@@ -1151,8 +1277,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     ListTile(
                       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                       leading: _isExporting
-                          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Icon(LucideIcons.fileSpreadsheet, color: Colors.white),
+                          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.success))
+                          : const Icon(LucideIcons.fileSpreadsheet, color: AppColors.success),
                       title: Text('Export', style: TextStyle(fontWeight: FontWeight.bold, color: onSurface)),
                       subtitle: Text(
                         'Export data to device storage.',
@@ -1220,7 +1346,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const CircularProgressIndicator(color: Colors.white),
+                      CircularProgressIndicator(color: Theme.of(context).colorScheme.primary),
                       const SizedBox(height: 16),
                       Text(
                         _isExporting

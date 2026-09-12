@@ -788,7 +788,7 @@ class _ServiceCostTabState extends State<_ServiceCostTab> {
                             child: Row(
                               children: [
                                 const Icon(LucideIcons.calendar,
-                                    color: Colors.white, size: 20),
+                                    color: AppColors.accent, size: 20),
                                 const SizedBox(width: 16),
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -26,6 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _tab = 0;
   final _searchCtrl = TextEditingController();
   String _query = '';
+  String? _selectedAddress;
 
   @override
   void initState() {
@@ -56,14 +58,28 @@ class _HomeScreenState extends State<HomeScreen> {
           final totalPending = (summary['totalPending'] ?? 0.0) as double;
           final todayCollection = provider.todayCollection;
 
-          final borrowers = provider.borrowers;
-          final paidIds = provider.paidTodayIds;
-          final completedIds = provider.completedIds;
-
           final collectList = provider.collectBorrowers;
           final paidList = provider.paidBorrowers;
           final completedList = provider.closedBorrowers;
           final dummyList = provider.dummyBorrowers;
+
+          // Extract all unique non-empty addresses
+          final allAddresses = provider.borrowers
+              .map((b) => b.address?.trim())
+              .where((a) => a != null && a.isNotEmpty)
+              .cast<String>()
+              .toSet()
+              .toList()
+            ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+
+          // Count borrowers per address
+          final Map<String, int> addressCounts = {};
+          for (final b in provider.borrowers) {
+            final addr = b.address?.trim();
+            if (addr != null && addr.isNotEmpty) {
+              addressCounts[addr] = (addressCounts[addr] ?? 0) + 1;
+            }
+          }
 
           final source = [_collectSafe(collectList), _collectSafe(paidList), _collectSafe(completedList), _collectSafe(dummyList)][_tab];
 
@@ -71,6 +87,14 @@ class _HomeScreenState extends State<HomeScreen> {
             key: ValueKey<int>(_tab),
             builder: (context, provider, _) {
                 final items = source.where((b) {
+                  // Address filter
+                  if (_selectedAddress != null && _selectedAddress!.isNotEmpty) {
+                    final addr = (b.address ?? '').trim().toLowerCase();
+                    if (addr != _selectedAddress!.trim().toLowerCase()) {
+                      return false;
+                    }
+                  }
+
                   final q = _query.toLowerCase();
                   if (q.trim().isEmpty) return true;
                   
@@ -85,7 +109,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 }).toList();
 
                 return RefreshIndicator(
-                  color: Colors.white,
+                  color: AppColors.accent,
                   backgroundColor: Theme.of(context).colorScheme.surface,
                   onRefresh: () async {
                     await BackupFreshnessService().checkFreshness();
@@ -97,10 +121,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: CustomScrollView(
                       slivers: [
                         SliverToBoxAdapter(child: _buildHeader(totalDue, totalCollected, totalPending, todayCollection, provider)),
-                      SliverPadding(
-                        padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
-                        sliver: SliverToBoxAdapter(child: _buildSearch()),
-                      ),
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
+                          sliver: SliverToBoxAdapter(
+                            child: _buildSearch(allAddresses, addressCounts, provider),
+                          ),
+                        ),
                       SliverPadding(
                         padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                         sliver: SliverToBoxAdapter(
@@ -134,55 +160,6 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             );
         },
-      ),
-      floatingActionButton: ValueListenableBuilder<bool>(
-        valueListenable: BackupFreshnessService.isReadOnlyMode,
-        builder: (context, isReadOnly, child) {
-          if (isReadOnly) return const SizedBox.shrink();
-          return child!;
-        },
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: 80), // Avoid overlap with bottom nav
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              FloatingActionButton.extended(
-                heroTag: 'quick_add_fab',
-                backgroundColor: AppColors.accent,
-                foregroundColor: AppColors.background,
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                icon: const Icon(LucideIcons.zap),
-                label: const Text("Quick Add", style: TextStyle(fontWeight: FontWeight.bold)),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => const QuickAddDialog(),
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-              FloatingActionButton.extended(
-                heroTag: 'add_borrower_fab',
-                backgroundColor: AppColors.accent,
-                foregroundColor: AppColors.background,
-                elevation: 6,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                icon: const Icon(LucideIcons.user),
-                label: const Text("Add Borrower", style: TextStyle(fontWeight: FontWeight.bold)),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const AddBorrowerScreen()),
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -306,20 +283,31 @@ class _HomeScreenState extends State<HomeScreen> {
                               Text(
                                 "Today's Collection",
                                 style: TextStyle(
-                                  color: Colors.white.withOpacity(0.8),
+                                  color: Colors.white.withOpacity(0.85),
                                   fontWeight: FontWeight.w600,
                                   fontSize: 14,
                                 ),
                               ),
-                              Icon(LucideIcons.calendarCheck, color: Colors.white.withOpacity(0.8)),
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.15),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  LucideIcons.calendarCheck,
+                                  size: 16,
+                                  color: Colors.white,
+                                ),
+                              ),
                             ],
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 6),
                           Text(
                             fmtINR(today),
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 36,
+                              fontSize: 34,
                               fontWeight: FontWeight.bold,
                               letterSpacing: -0.5,
                             ),
@@ -332,6 +320,8 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
+          const SizedBox(height: 16),
+          _buildActionButtons(context),
         ],
       ),
     ),
@@ -340,54 +330,549 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _miniStat(String label, String value, IconData icon) {
+  Widget _buildActionButtons(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return ValueListenableBuilder<bool>(
+      valueListenable: BackupFreshnessService.isReadOnlyMode,
+      builder: (context, isReadOnly, _) {
+        return Row(
+          children: [
+            // Quick Add Button (Primary Accent)
+            Expanded(
+              child: Container(
+                height: 46,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: isReadOnly
+                      ? null
+                      : [
+                          BoxShadow(
+                            color: AppColors.accent.withValues(alpha: 0.25),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                ),
+                child: Material(
+                  color: isReadOnly
+                      ? (isDark ? Colors.white12 : Colors.grey.shade300)
+                      : AppColors.accent,
+                  borderRadius: BorderRadius.circular(14),
+                  child: InkWell(
+                    onTap: isReadOnly
+                        ? null
+                        : () {
+                            HapticFeedback.lightImpact();
+                            showDialog(
+                              context: context,
+                              builder: (context) => const QuickAddDialog(),
+                            );
+                          },
+                    borderRadius: BorderRadius.circular(14),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          LucideIcons.zap,
+                          size: 16,
+                          color: isReadOnly
+                              ? (isDark ? Colors.white38 : Colors.grey)
+                              : Colors.white,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          "Quick Add",
+                          style: TextStyle(
+                            color: isReadOnly
+                                ? (isDark ? Colors.white38 : Colors.grey)
+                                : Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            letterSpacing: 0.1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Add Borrower Button (Secondary Outlined / Tinted)
+            Expanded(
+              child: Container(
+                height: 46,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: isReadOnly
+                      ? null
+                      : [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                ),
+                child: Material(
+                  color: isReadOnly
+                      ? (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100)
+                      : (isDark ? Colors.white.withValues(alpha: 0.08) : AppColors.accent.withValues(alpha: 0.07)),
+                  borderRadius: BorderRadius.circular(14),
+                  child: InkWell(
+                    onTap: isReadOnly
+                        ? null
+                        : () {
+                            HapticFeedback.lightImpact();
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const AddBorrowerScreen(),
+                              ),
+                            );
+                          },
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isReadOnly
+                              ? (isDark ? Colors.white12 : Colors.grey.shade300)
+                              : (isDark ? Colors.white24 : AppColors.accent.withValues(alpha: 0.35)),
+                          width: 1.2,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            LucideIcons.userPlus,
+                            size: 16,
+                            color: isReadOnly
+                                ? (isDark ? Colors.white38 : Colors.grey)
+                                : (isDark ? Colors.white : AppColors.accent),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            "Add Borrower",
+                            style: TextStyle(
+                              color: isReadOnly
+                                  ? (isDark ? Colors.white38 : Colors.grey)
+                                  : (isDark ? Colors.white : AppColors.accent),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                              letterSpacing: 0.1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildSearch(List<String> addresses, Map<String, int> counts, LoanProvider provider) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Icon(icon, size: 14, color: Colors.white.withOpacity( 0.7)),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: Colors.white.withOpacity( 0.7),
-                fontSize: 12,
+            Expanded(
+              child: TextField(
+                controller: _searchCtrl,
+                onChanged: (v) => setState(() => _query = v),
+                decoration: InputDecoration(
+                  hintText: "Search name, ID, address...",
+                  prefixIcon: const Icon(LucideIcons.search, size: 20),
+                  suffixIcon: _query.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(LucideIcons.x, size: 16),
+                          onPressed: () {
+                            _searchCtrl.clear();
+                            setState(() => _query = '');
+                          },
+                        )
+                      : null,
+                ),
               ),
             ),
+            if (addresses.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              _buildAddressFilterButton(addresses, counts, provider),
+            ],
           ],
         ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
+        if (_selectedAddress != null) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: AppColors.accent.withValues(alpha: 0.25),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(LucideIcons.mapPin, size: 12, color: AppColors.accent),
+                    const SizedBox(width: 5),
+                    Text(
+                      _selectedAddress!,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.accent,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    GestureDetector(
+                      onTap: () => setState(() => _selectedAddress = null),
+                      child: const Icon(LucideIcons.x, size: 13, color: AppColors.accent),
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: () => setState(() => _selectedAddress = null),
+                child: Text(
+                  "Clear filter",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ),
+        ],
       ],
     );
   }
 
+  Widget _buildAddressFilterButton(List<String> addresses, Map<String, int> counts, LoanProvider provider) {
+    final hasActiveFilter = _selectedAddress != null && _selectedAddress!.isNotEmpty;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-  Widget _buildSearch() {
-    return TextField(
-      controller: _searchCtrl,
-      onChanged: (v) => setState(() => _query = v),
-      decoration: InputDecoration(
-        hintText: "Search name, ID, address...",
-        prefixIcon: const Icon(LucideIcons.search, size: 20),
-        suffixIcon: _query.isNotEmpty
-            ? IconButton(
-                icon: const Icon(LucideIcons.x, size: 16),
-                onPressed: () {
-                  _searchCtrl.clear();
-                  setState(() => _query = '');
-                },
-              )
-            : null,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _showAddressFilterModal(addresses, counts, provider),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          height: 50,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            color: hasActiveFilter
+                ? AppColors.accent
+                : (isDark ? const Color(0xFF1E2622) : Theme.of(context).colorScheme.surface),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: hasActiveFilter
+                  ? AppColors.accent
+                  : (isDark ? Colors.white.withValues(alpha: 0.12) : const Color(0xFF285A48).withValues(alpha: 0.14)),
+              width: 1,
+            ),
+            boxShadow: hasActiveFilter
+                ? [
+                    BoxShadow(
+                      color: AppColors.accent.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                LucideIcons.slidersHorizontal,
+                size: 18,
+                color: hasActiveFilter
+                    ? Colors.white
+                    : (isDark ? Colors.white : AppColors.accent),
+              ),
+              if (hasActiveFilter) ...[
+                const SizedBox(width: 6),
+                Container(
+                  width: 7,
+                  height: 7,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
+    );
+  }
+
+  void _showAddressFilterModal(List<String> addresses, Map<String, int> counts, LoanProvider provider) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final searchFilterCtrl = TextEditingController();
+    String filterQuery = '';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            final filteredOptions = addresses.where((a) {
+              if (filterQuery.trim().isEmpty) return true;
+              return a.toLowerCase().contains(filterQuery.toLowerCase().trim());
+            }).toList();
+
+            return Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.75,
+              ),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1A231F) : Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 12),
+                  // Drag handle
+                  Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white24 : Colors.black12,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Title & Clear
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.accent.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(LucideIcons.mapPin, size: 18, color: AppColors.accent),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Filter by Address",
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : const Color(0xFF15221B),
+                                ),
+                              ),
+                              Text(
+                                "${addresses.length} unique addresses found",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark ? const Color(0xFF8FA89A) : const Color(0xFF5A7A68),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (_selectedAddress != null)
+                          TextButton(
+                            onPressed: () {
+                              setState(() => _selectedAddress = null);
+                              Navigator.pop(ctx);
+                            },
+                            child: const Text("Clear", style: TextStyle(color: AppColors.error)),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  // Search within addresses
+                  if (addresses.length > 4)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: TextField(
+                        controller: searchFilterCtrl,
+                        onChanged: (val) => setModalState(() => filterQuery = val),
+                        decoration: InputDecoration(
+                          hintText: "Search addresses...",
+                          prefixIcon: const Icon(LucideIcons.search, size: 18),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                          filled: true,
+                          fillColor: isDark ? const Color(0xFF141C18) : const Color(0xFFF2F6F4),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  const Divider(height: 1),
+                  Flexible(
+                    child: ListView(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      children: [
+                        // "All Addresses" option
+                        ListTile(
+                          leading: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: _selectedAddress == null
+                                  ? AppColors.accent
+                                  : (isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05)),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              LucideIcons.layoutGrid,
+                              size: 16,
+                              color: _selectedAddress == null
+                                  ? Colors.white
+                                  : (isDark ? Colors.white70 : Colors.black54),
+                            ),
+                          ),
+                          title: Text(
+                            "All Addresses",
+                            style: TextStyle(
+                              fontWeight: _selectedAddress == null ? FontWeight.bold : FontWeight.w500,
+                              color: _selectedAddress == null
+                                  ? AppColors.accent
+                                  : (isDark ? Colors.white : Colors.black87),
+                            ),
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                "${provider.borrowers.length}",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark ? Colors.white38 : Colors.black38,
+                                ),
+                              ),
+                              if (_selectedAddress == null) ...[
+                                const SizedBox(width: 8),
+                                const Icon(LucideIcons.check, size: 18, color: AppColors.accent),
+                              ],
+                            ],
+                          ),
+                          onTap: () {
+                            setState(() => _selectedAddress = null);
+                            Navigator.pop(ctx);
+                          },
+                        ),
+                        ...filteredOptions.map((addr) {
+                          final isSelected = _selectedAddress != null &&
+                              _selectedAddress!.toLowerCase() == addr.toLowerCase();
+                          final count = counts[addr] ?? 0;
+
+                          return ListTile(
+                            leading: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? AppColors.accent
+                                    : (isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05)),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                LucideIcons.mapPin,
+                                size: 16,
+                                color: isSelected
+                                    ? Colors.white
+                                    : (isDark ? Colors.white70 : Colors.black54),
+                              ),
+                            ),
+                            title: Text(
+                              addr,
+                              style: TextStyle(
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                color: isSelected
+                                    ? AppColors.accent
+                                    : (isDark ? Colors.white : Colors.black87),
+                              ),
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    "$count ${count == 1 ? 'borrower' : 'borrowers'}",
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: isDark ? Colors.white70 : Colors.black54,
+                                    ),
+                                  ),
+                                ),
+                                if (isSelected) ...[
+                                  const SizedBox(width: 8),
+                                  const Icon(LucideIcons.check, size: 18, color: AppColors.accent),
+                                ],
+                              ],
+                            ),
+                            onTap: () {
+                              setState(() {
+                                _selectedAddress = isSelected ? null : addr;
+                              });
+                              Navigator.pop(ctx);
+                            },
+                          );
+                        }),
+                        if (filteredOptions.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 32),
+                            child: Center(
+                              child: Text(
+                                "No addresses matching '$filterQuery'",
+                                style: TextStyle(
+                                  color: isDark ? Colors.white38 : Colors.black38,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -490,7 +975,7 @@ class _HomeScreenState extends State<HomeScreen> {
         },
         background: Container(
           decoration: BoxDecoration(
-            color: isPaid ? AppColors.accent.withOpacity( 0.2) : AppColors.accent.withOpacity( 0.3),
+            color: isPaid ? AppColors.accent.withOpacity(0.85) : AppColors.accent,
             borderRadius: BorderRadius.circular(24),
           ),
           alignment: Alignment.centerLeft,
@@ -638,9 +1123,36 @@ class _HomeScreenState extends State<HomeScreen> {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        b.phone,
-                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
+                      Row(
+                        children: [
+                          Text(
+                            b.phone,
+                            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
+                          ),
+                          if (b.address != null && b.address!.trim().isNotEmpty) ...[
+                            Text(
+                              " • ",
+                              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5), fontSize: 12),
+                            ),
+                            Icon(LucideIcons.mapPin, size: 10.5, color: AppColors.accent.withValues(alpha: 0.8)),
+                            const SizedBox(width: 3),
+                            Flexible(
+                              child: Text(
+                                b.address!.trim(),
+                                style: TextStyle(
+                                  color: _selectedAddress != null && _selectedAddress!.toLowerCase() == b.address!.trim().toLowerCase()
+                                      ? AppColors.accent
+                                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                                  fontSize: 12,
+                                  fontWeight: _selectedAddress != null && _selectedAddress!.toLowerCase() == b.address!.trim().toLowerCase()
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                   ),
@@ -819,16 +1331,43 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _emptyState() {
+    final hasFilter = _selectedAddress != null || _query.isNotEmpty;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(LucideIcons.users, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.2)),
+          Icon(
+            _selectedAddress != null ? LucideIcons.mapPin : LucideIcons.users,
+            size: 64,
+            color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.2),
+          ),
           const SizedBox(height: 16),
           Text(
-            "No borrowers found",
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6), fontSize: 16),
+            _selectedAddress != null
+                ? "No borrowers found in '$_selectedAddress'"
+                : "No borrowers found",
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+              fontSize: 16,
+            ),
           ),
+          if (hasFilter) ...[
+            const SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: () {
+                setState(() {
+                  _selectedAddress = null;
+                  _query = '';
+                  _searchCtrl.clear();
+                });
+              },
+              icon: const Icon(LucideIcons.x, size: 14),
+              label: const Text("Clear Filters"),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.accent,
+              ),
+            ),
+          ],
         ],
       ),
     );

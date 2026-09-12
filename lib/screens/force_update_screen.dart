@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:lucide_icons/lucide_icons.dart';
@@ -8,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/app_update_info.dart';
+import '../widgets/rocket_update_header.dart';
 
 class ForceUpdateScreen extends StatefulWidget {
   final AppUpdateInfo updateInfo;
@@ -30,6 +32,12 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
   double _downloadProgress = 0.0;
   String _downloadStatusText = '';
   String _downloadedSizeText = '';
+  String _downloadSpeedText = '';
+  String _etaText = '';
+  bool _downloadSuccess = false;
+  bool _isLaunching = false;
+  bool _hasLaunched = false;
+  bool _isCancelled = false;
   String _errorMessage = '';
   String? _downloadedApkPath;
   http.Client? _httpClient;
@@ -40,76 +48,6 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
     super.dispose();
   }
 
-  /// Ensures Android REQUEST_INSTALL_PACKAGES permission is granted
-  Future<bool> _ensureInstallPermission() async {
-    if (!Platform.isAndroid) return true;
-
-    try {
-      final status = await Permission.requestInstallPackages.status;
-      if (status.isGranted) {
-        return true;
-      }
-
-      // Request permission (opens system setting toggle on Android 8.0+)
-      final reqStatus = await Permission.requestInstallPackages.request();
-      if (reqStatus.isGranted) {
-        return true;
-      }
-
-      // If not granted, display guidance modal directing to Settings
-      if (mounted) {
-        final shouldOpen = await showDialog<bool>(
-          context: context,
-          barrierDismissible: false,
-          builder: (ctx) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: const Row(
-              children: [
-                Icon(LucideIcons.shieldAlert, color: Color(0xFFDAA464), size: 28),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Permission Required',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            ),
-            content: const Text(
-              'To install this update directly, Android requires permission to "Install unknown apps" from Credits.\n\nPlease enable "Allow from this source" in Settings.',
-              style: TextStyle(fontSize: 14, height: 1.4),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('Open Settings'),
-              ),
-            ],
-          ),
-        );
-
-        if (shouldOpen == true) {
-          await openAppSettings();
-          final recheck = await Permission.requestInstallPackages.status;
-          return recheck.isGranted;
-        }
-      }
-      return false;
-    } catch (e) {
-      debugPrint('Permission check error: $e');
-      return true;
-    }
-  }
-
   /// Downloads APK directly inside the app with live progress tracking
   Future<void> _startUpdate() async {
     if (widget.updateInfo.downloadUrl.isEmpty) {
@@ -117,76 +55,114 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
       return;
     }
 
-    // If APK was already downloaded, install directly
-    if (_downloadedApkPath != null && await File(_downloadedApkPath!).exists()) {
+    // If APK was already downloaded and rocket launched, open installer directly
+    if (_downloadedApkPath != null && await File(_downloadedApkPath!).exists() && _hasLaunched) {
       await _installApk(_downloadedApkPath!);
       return;
     }
 
-    // Step 1: Pre-check permission
-    final hasPermission = await _ensureInstallPermission();
-    if (!hasPermission) {
-      setState(() {
-        _errorMessage = 'Permission required to install updates. Please allow "Install unknown apps".';
-      });
-      return;
-    }
-
+    // Immediately start download and display progress bar without blocking dialogs!
+    _isCancelled = false;
     setState(() {
       _isDownloading = true;
+      _downloadSuccess = false;
+      _isLaunching = false;
+      _hasLaunched = false;
       _downloadProgress = 0.0;
       _downloadStatusText = 'Connecting to server...';
-      _downloadedSizeText = '';
+      _downloadedSizeText = 'Preparing...';
+      _downloadSpeedText = '';
+      _etaText = '';
       _errorMessage = '';
     });
 
     try {
-      final tempDir = await getTemporaryDirectory();
-      final filePath = '${tempDir.path}/credits-update-${widget.updateInfo.version}.apk';
-      final file = File(filePath);
-      if (await file.exists()) {
-        await file.delete();
-      }
+      final client = http.Client();
+      _httpClient = client;
 
-      _httpClient = http.Client();
       final request = http.Request('GET', Uri.parse(widget.updateInfo.downloadUrl));
-      final streamedResponse = await _httpClient!.send(request);
+      request.headers['User-Agent'] = 'Credits-App-Updater';
+      final response = await client.send(request);
 
-      if (streamedResponse.statusCode != 200) {
-        throw Exception('Server returned HTTP ${streamedResponse.statusCode}');
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('Server returned HTTP ${response.statusCode}');
       }
 
-      final totalBytes = streamedResponse.contentLength ?? 0;
+      final totalBytes = response.contentLength ?? 0;
       int receivedBytes = 0;
+
+      final tempDir = await getTemporaryDirectory();
+      final fileName = 'credits_v${widget.updateInfo.version}_${DateTime.now().millisecondsSinceEpoch}.apk';
+      final filePath = '${tempDir.path}/$fileName';
+      final file = File(filePath);
+
+      if (await file.exists()) {
+        try {
+          await file.delete();
+        } catch (_) {}
+      }
+
       final sink = file.openWrite();
 
-      setState(() {
-        _downloadStatusText = 'Downloading update...';
-      });
+      DateTime lastUiUpdate = DateTime.now();
+      DateTime lastSpeedTime = DateTime.now();
+      int lastSpeedBytes = 0;
 
-      await for (final chunk in streamedResponse.stream) {
-        if (!_isDownloading) {
-          await sink.close();
-          if (await file.exists()) await file.delete();
-          return;
-        }
-
+      await for (final chunk in response.stream) {
         sink.add(chunk);
         receivedBytes += chunk.length;
 
-        if (totalBytes > 0) {
-          final progress = receivedBytes / totalBytes;
-          final receivedMB = (receivedBytes / (1024 * 1024)).toStringAsFixed(1);
-          final totalMB = (totalBytes / (1024 * 1024)).toStringAsFixed(1);
-          setState(() {
-            _downloadProgress = progress.clamp(0.0, 1.0);
-            _downloadedSizeText = '$receivedMB MB / $totalMB MB';
-          });
-        } else {
-          final receivedMB = (receivedBytes / (1024 * 1024)).toStringAsFixed(1);
-          setState(() {
-            _downloadedSizeText = '$receivedMB MB';
-          });
+        final now = DateTime.now();
+
+        // Speed calculation every ~500ms
+        final speedIntervalMs = now.difference(lastSpeedTime).inMilliseconds;
+        if (speedIntervalMs >= 500) {
+          final bytesSince = receivedBytes - lastSpeedBytes;
+          final speedBytesSec = (bytesSince / (speedIntervalMs / 1000.0));
+
+          if (speedBytesSec > 1024 * 1024) {
+            _downloadSpeedText = '${(speedBytesSec / (1024 * 1024)).toStringAsFixed(1)} MB/s';
+          } else if (speedBytesSec > 1024) {
+            _downloadSpeedText = '${(speedBytesSec / 1024).toStringAsFixed(0)} KB/s';
+          } else {
+            _downloadSpeedText = '${speedBytesSec.toStringAsFixed(0)} B/s';
+          }
+
+          if (totalBytes > receivedBytes && speedBytesSec > 0) {
+            final remainingSec = ((totalBytes - receivedBytes) / speedBytesSec).round();
+            if (remainingSec <= 1) {
+              _etaText = 'Almost done';
+            } else if (remainingSec < 60) {
+              _etaText = '~$remainingSec s left';
+            } else {
+              final mins = (remainingSec / 60).floor();
+              final secs = remainingSec % 60;
+              _etaText = '~$mins m ${secs}s left';
+            }
+          }
+          lastSpeedTime = now;
+          lastSpeedBytes = receivedBytes;
+        }
+
+        // Throttle UI setState to ~80ms for 60fps smooth animation
+        if (now.difference(lastUiUpdate).inMilliseconds >= 80 || (totalBytes > 0 && receivedBytes >= totalBytes)) {
+          lastUiUpdate = now;
+          if (totalBytes > 0) {
+            final progress = receivedBytes / totalBytes;
+            final receivedMB = (receivedBytes / (1024 * 1024)).toStringAsFixed(1);
+            final totalMB = (totalBytes / (1024 * 1024)).toStringAsFixed(1);
+            setState(() {
+              _downloadProgress = progress.clamp(0.0, 1.0);
+              _downloadedSizeText = '$receivedMB MB / $totalMB MB';
+              _downloadStatusText = 'Downloading package...';
+            });
+          } else {
+            final receivedMB = (receivedBytes / (1024 * 1024)).toStringAsFixed(1);
+            setState(() {
+              _downloadedSizeText = '$receivedMB MB';
+              _downloadStatusText = 'Downloading package...';
+            });
+          }
         }
       }
 
@@ -195,21 +171,40 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
 
       _downloadedApkPath = filePath;
 
-      setState(() {
-        _isDownloading = false;
-        _downloadProgress = 1.0;
-        _downloadStatusText = 'Download complete!';
-      });
-
-      // Step 2: Trigger package installer
-      await _installApk(filePath);
-
+      if (mounted) {
+        final finalMB = (receivedBytes / (1024 * 1024)).toStringAsFixed(1);
+        setState(() {
+          // Keep progress card visible at 100% while the rocket ignites and launches!
+          _downloadProgress = 1.0;
+          _downloadSuccess = true;
+          _isLaunching = true; // ROCKET BLASTS OFF WITH FIRE AND ASH!
+          _downloadStatusText = 'Download Complete! Launching...';
+          _downloadedSizeText = '$finalMB MB package verified';
+          _downloadSpeedText = '';
+          _etaText = '';
+        });
+      }
     } catch (e) {
+      if (_isCancelled) {
+        // User intentionally cancelled download - do NOT print stack trace or error to terminal
+        if (mounted) {
+          setState(() {
+            _isDownloading = false;
+            _downloadSuccess = false;
+            _isLaunching = false;
+            _downloadProgress = 0.0;
+            _errorMessage = ''; // Do not display red error banner!
+          });
+        }
+        return;
+      }
       debugPrint('Update download failed: $e');
       if (mounted) {
         setState(() {
           _isDownloading = false;
-          _errorMessage = 'Download failed';
+          _downloadSuccess = false;
+          _isLaunching = false;
+          _errorMessage = 'Download failed: ${e.toString().replaceAll('Exception:', '').trim()}';
         });
       }
     } finally {
@@ -218,51 +213,104 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
     }
   }
 
+  /// Triggered when the rocket completes its flight into deep space
+  Future<void> _onRocketLaunchComplete() async {
+    if (!mounted) return;
+
+    setState(() {
+      _isDownloading = false;
+      _hasLaunched = true;
+    });
+
+    // Automatically launch package installer to update the app!
+    if (_downloadedApkPath != null) {
+      await _installApk(_downloadedApkPath!);
+    }
+  }
+
   /// Triggers the Android package installer on the downloaded APK
   Future<void> _installApk(String filePath) async {
-    final hasPermission = await _ensureInstallPermission();
-    if (!hasPermission) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'Permission required to install. Tap "Install Now" after allowing in settings.';
-        });
-      }
-      return;
-    }
-
     try {
+      debugPrint('ForceUpdateScreen: Opening installer for $filePath');
+
+      final file = File(filePath);
+      if (!await file.exists()) {
+        setState(() => _errorMessage = 'Update package file not found. Please tap Update Now.');
+        return;
+      }
+
       final result = await OpenFilex.open(
         filePath,
         type: 'application/vnd.android.package-archive',
       );
 
+      debugPrint('OpenFilex result: ${result.type} - ${result.message}');
+
       if (result.type != ResultType.done) {
-        debugPrint('OpenFilex error: ${result.message}');
-        if (mounted) {
-          setState(() {
-            _errorMessage = 'Could not open package installer';
-          });
+        if (Platform.isAndroid) {
+          final status = await Permission.requestInstallPackages.status;
+          if (!status.isGranted) {
+            final req = await Permission.requestInstallPackages.request();
+            if (!req.isGranted) {
+              if (mounted) {
+                setState(() {
+                  _errorMessage = 'Permission needed: Please enable "Install unknown apps" in Settings.';
+                });
+                await openAppSettings();
+              }
+            } else {
+              await OpenFilex.open(
+                filePath,
+                type: 'application/vnd.android.package-archive',
+              );
+            }
+          }
         }
       }
     } catch (e) {
       debugPrint('Error launching installer: $e');
       if (mounted) {
         setState(() {
-          _errorMessage = 'Could not open package installer';
+          _errorMessage = 'Could not open package installer: $e';
         });
       }
     }
   }
 
   void _cancelDownload() {
+    _isCancelled = true;
     setState(() {
       _isDownloading = false;
       _downloadProgress = 0.0;
+      _downloadSuccess = false;
+      _isLaunching = false;
       _downloadStatusText = '';
       _downloadedSizeText = '';
+      _downloadSpeedText = '';
+      _etaText = '';
+      _errorMessage = '';
     });
     _httpClient?.close();
     _httpClient = null;
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(LucideIcons.info, color: Colors.white, size: 18),
+              SizedBox(width: 10),
+              Text('Download cancelled', style: TextStyle(fontWeight: FontWeight.w600)),
+            ],
+          ),
+          backgroundColor: const Color(0xFF1E3A31),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   Future<void> _openInBrowser() async {
@@ -290,291 +338,523 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    // Detect active theme (Light vs Dark mode)
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
-        if (_isDownloading) {
-          _cancelDownload();
-          return;
+    // Show progress card while downloading OR while rocket is in blastoff flight
+    final bool showProgressBar = _isDownloading || (_isLaunching && !_hasLaunched);
+    final bool isReady = _hasLaunched || (_downloadSuccess && _downloadedApkPath != null && !_isDownloading);
+
+    // Curated feature items matching the reference mockup
+    final List<String> featureItems;
+    if (widget.updateInfo.releaseNotes.isNotEmpty) {
+      featureItems = widget.updateInfo.releaseNotes.take(3).toList();
+      while (featureItems.length < 3) {
+        if (!featureItems.contains('Improved user interface')) {
+          featureItems.add('Improved user interface');
+        } else if (!featureItems.contains('More reliable offline performance')) {
+          featureItems.add('More reliable offline performance');
+        } else {
+          featureItems.add('Easier to navigate');
         }
-        _skipUpdate();
-      },
-      child: Scaffold(
-        body: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                theme.colorScheme.surface,
-                isDark ? const Color(0xFF021711) : theme.colorScheme.primary.withOpacity(0.05),
-              ],
-            ),
-          ),
-          child: SafeArea(
-            child: CustomScrollView(
-              slivers: [
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 48.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const Spacer(),
-                        // Icon
-                        Center(
-                          child: Container(
-                            padding: const EdgeInsets.all(24),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: theme.colorScheme.primary.withOpacity(0.12),
-                            ),
-                            child: Icon(
-                              _downloadedApkPath != null
-                                  ? LucideIcons.checkCircle
-                                  : LucideIcons.rocket,
-                              size: 72,
-                              color: theme.colorScheme.primary,
-                            ),
-                          ),
+      }
+    } else {
+      featureItems = [
+        'Improved user interface',
+        'More reliable performance',
+        'Easier to navigate',
+      ];
+    }
+
+    final Color bottomNavColor = isDark ? const Color(0xFF010E0A) : const Color(0xFFE4F0EB);
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarColor: bottomNavColor,
+        systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarDividerColor: Colors.transparent,
+      ),
+      child: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
+          if (_isDownloading) {
+            _cancelDownload();
+            return;
+          }
+          _skipUpdate();
+        },
+        child: Scaffold(
+          backgroundColor: bottomNavColor,
+          body: SizedBox.expand(
+            child: Container(
+              width: double.infinity,
+              height: double.infinity,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: isDark
+                      ? const [
+                          Color(0xFF031610),
+                          Color(0xFF021711),
+                          Color(0xFF010E0A),
+                        ]
+                      : const [
+                          Color(0xFFF8FCFA),
+                          Color(0xFFEFF7F3),
+                          Color(0xFFE4F0EB),
+                        ],
+                ),
+              ),
+              child: SafeArea(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight,
                         ),
-                        const SizedBox(height: 28),
-                        
-                        // Title
-                        Text(
-                          _downloadedApkPath != null ? 'Update Ready' : 'Update Available',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.leagueSpartan(
-                            fontSize: 30,
-                            fontWeight: FontWeight.bold,
-                            color: theme.colorScheme.onSurface,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'A new version of Credits is ready to install.\n\nCurrent Build: ${widget.currentBuild}   •   Latest Build: ${widget.updateInfo.version}',
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                            fontSize: 15,
-                            height: 1.4,
-                          ),
-                        ),
-                        
-                        if (widget.updateInfo.releaseNotes.isNotEmpty && !_isDownloading) ...[
-                          const SizedBox(height: 20),
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: theme.colorScheme.outline.withOpacity(0.15),
-                              ),
-                            ),
+                        child: IntrinsicHeight(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 22.0, vertical: 16.0),
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
+                                // 1. Space Illustration Card with Animated Rocket (adapts to Light & Dark)
+                                RocketUpdateHeader(
+                                  isDownloading: _isDownloading,
+                                  downloadProgress: _downloadProgress,
+                                  isLaunching: _isLaunching,
+                                  isDark: isDark,
+                                  onLaunchComplete: _onRocketLaunchComplete,
+                                ),
+                                const SizedBox(height: 24),
+
+                                // 2. Title matching mockup typography
                                 Text(
-                                  "What's New:",
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                    color: theme.colorScheme.primary,
+                                  'Upgrade to the new version of our app',
+                                  style: GoogleFonts.leagueSpartan(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w700,
+                                    color: isDark ? Colors.white : const Color(0xFF142921),
+                                    letterSpacing: -0.2,
+                                    height: 1.25,
                                   ),
                                 ),
-                                const SizedBox(height: 8),
-                                ...widget.updateInfo.releaseNotes.map((note) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 6.0),
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '• ',
-                                        style: TextStyle(
-                                          color: theme.colorScheme.primary,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                
+                                const SizedBox(height: 18),
+
+                                // 4. Feature Checklist matching reference mockup
+                                ...featureItems.map((feature) => _buildCheckItem(feature, isDark)),
+
+                                const SizedBox(height: 16),
+
+                                // Error Message Display
+                                if (_errorMessage.isNotEmpty) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                    margin: const EdgeInsets.only(bottom: 14),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? const Color(0xFF3B1212) : const Color(0xFFFEF2F2),
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                        color: isDark
+                                            ? const Color(0xFFEF4444).withValues(alpha: 0.4)
+                                            : const Color(0xFFF87171).withValues(alpha: 0.5),
                                       ),
-                                      Expanded(
-                                        child: Text(
-                                          note,
-                                          style: theme.textTheme.bodySmall?.copyWith(
-                                            color: theme.colorScheme.onSurfaceVariant,
-                                            height: 1.3,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(LucideIcons.alertCircle, color: Color(0xFFEF4444), size: 18),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            _errorMessage,
+                                            style: TextStyle(
+                                              color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B),
+                                              fontSize: 12.5,
+                                              fontWeight: FontWeight.w600,
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                )),
-                              ],
-                            ),
-                          ),
-                        ],
-                        
-                        const Spacer(),
-
-                        // Error Message
-                        if (_errorMessage.isNotEmpty) ...[
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.error.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: theme.colorScheme.error.withOpacity(0.3)),
-                            ),
-                            child: Text(
-                              _errorMessage,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: theme.colorScheme.error,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-
-                        // Interactive Updating Area
-                        if (_isDownloading) ...[
-                          Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.45),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: theme.colorScheme.primary.withOpacity(0.25),
-                              ),
-                            ),
-                            child: Column(
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      _downloadStatusText.isNotEmpty ? _downloadStatusText : 'Downloading...',
-                                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                                      ],
                                     ),
-                                    Text(
-                                      '${(_downloadProgress * 100).toInt()}%',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                        color: theme.colorScheme.primary,
+                                  ),
+                                ],
+
+                                // Flexible space so buttons sit naturally without dead white gap
+                                const Spacer(),
+                                const SizedBox(height: 16),
+
+                                // 5. Interactive Progress Area while Downloading & Launching
+                                if (showProgressBar) ...[
+                                  _buildDownloadProgressCard(isDark),
+                                  const SizedBox(height: 10),
+                                  if (!_isLaunching)
+                                    Center(
+                                      child: TextButton.icon(
+                                        onPressed: _cancelDownload,
+                                        icon: const Icon(LucideIcons.x, size: 16),
+                                        label: const Text('Cancel Download', style: TextStyle(fontWeight: FontWeight.w600)),
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: const Color(0xFFDC2626),
+                                        ),
                                       ),
+                                    ),
+                                ],
+                                if (!showProgressBar) ...[
+                                  // Primary Action Button: "Update Now" or "Install Now"
+                                  if (isReady) ...[
+                                    _buildActionButton(
+                                      text: 'Install Now',
+                                      icon: LucideIcons.checkCircle2,
+                                      gradient: const LinearGradient(
+                                        colors: [Color(0xFF10B981), Color(0xFF059669)],
+                                      ),
+                                      onPressed: () {
+                                        if (_downloadedApkPath != null) {
+                                          _installApk(_downloadedApkPath!);
+                                        } else {
+                                          _startUpdate();
+                                        }
+                                      },
+                                    ),
+                                  ] else ...[
+                                    _buildActionButton(
+                                      text: 'Update Now',
+                                      icon: LucideIcons.rocket,
+                                      gradient: const LinearGradient(
+                                        colors: [
+                                          Color(0xFF13A383),
+                                          Color(0xFF0A6853),
+                                        ],
+                                      ),
+                                      onPressed: _startUpdate,
                                     ),
                                   ],
-                                ),
-                                const SizedBox(height: 14),
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: LinearProgressIndicator(
-                                    value: _downloadProgress > 0 ? _downloadProgress : null,
-                                    minHeight: 10,
-                                    backgroundColor: theme.colorScheme.primary.withOpacity(0.15),
-                                    valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+
+                                  const SizedBox(height: 10),
+
+                                  // Secondary Button: "Update Later"
+                                  Center(
+                                    child: TextButton(
+                                      onPressed: _skipUpdate,
+                                      style: TextButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                                      ),
+                                      child: Text(
+                                        'Update Later',
+                                        style: GoogleFonts.manrope(
+                                          fontSize: 14.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: isDark ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF4A5F55),
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                ),
-                                if (_downloadedSizeText.isNotEmpty) ...[
-                                  const SizedBox(height: 8),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: Text(
-                                      _downloadedSizeText,
-                                      style: theme.textTheme.bodySmall?.copyWith(
-                                        color: theme.colorScheme.onSurfaceVariant,
-                                        fontSize: 12,
+
+                                  Center(
+                                    child: TextButton(
+                                      onPressed: _openInBrowser,
+                                      child: Text(
+                                        'Download via Browser instead',
+                                        style: GoogleFonts.manrope(
+                                          fontSize: 12.5,
+                                          color: isDark
+                                              ? const Color(0xFFDAA464).withValues(alpha: 0.85)
+                                              : const Color(0xFFAD752B),
+                                          decoration: TextDecoration.underline,
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ],
+
+                                const SizedBox(height: 12),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 14),
-                          TextButton.icon(
-                            onPressed: _cancelDownload,
-                            icon: const Icon(LucideIcons.x, size: 18),
-                            label: const Text('Cancel Download', style: TextStyle(fontWeight: FontWeight.w600)),
-                            style: TextButton.styleFrom(
-                              foregroundColor: theme.colorScheme.error,
-                            ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Checklist item matching the reference mockup styling
+  Widget _buildCheckItem(String text, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10.0),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF07271E) : const Color(0xFFE1F2EB),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: isDark
+                    ? const Color(0xFF13A383).withValues(alpha: 0.35)
+                    : const Color(0xFF13A383).withValues(alpha: 0.40),
+                width: 1.2,
+              ),
+            ),
+            child: Icon(
+              LucideIcons.check,
+              color: isDark ? const Color(0xFF13A383) : const Color(0xFF0B6D55),
+              size: 16,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: GoogleFonts.manrope(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white.withValues(alpha: 0.88) : const Color(0xFF192A23),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Bulletproof Download progress card using FractionallySizedBox (zero layout crashes)
+  Widget _buildDownloadProgressCard(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF07241B) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark
+              ? const Color(0xFF13A383).withValues(alpha: 0.4)
+              : const Color(0xFF13A383).withValues(alpha: 0.3),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? const Color(0xFF13A383).withValues(alpha: 0.08)
+                : const Color(0xFF0A5844).withValues(alpha: 0.07),
+            blurRadius: 18,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF13A383)),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    _downloadStatusText.isNotEmpty ? _downloadStatusText : 'Downloading...',
+                    style: GoogleFonts.manrope(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                      color: isDark ? Colors.white : const Color(0xFF142921),
+                    ),
+                  ),
+                ],
+              ),
+              if (_downloadSpeedText.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? const Color(0xFF13A383).withValues(alpha: 0.15)
+                        : const Color(0xFFE2F3EB),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: const Color(0xFF13A383).withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        LucideIcons.zap,
+                        size: 11,
+                        color: isDark ? const Color(0xFF13A383) : const Color(0xFF0B6D55),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _downloadSpeedText,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                          color: isDark ? const Color(0xFF13A383) : const Color(0xFF0B6D55),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Rock-solid, crash-proof animated progress bar using FractionallySizedBox
+          TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 0.0, end: _downloadProgress),
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOutCubic,
+            builder: (context, animatedValue, _) {
+              final double safeProgress = animatedValue.clamp(0.0, 1.0);
+
+              return Column(
+                children: [
+                  Container(
+                    height: 10,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.08)
+                          : const Color(0xFFE2ECE7),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    alignment: Alignment.centerLeft,
+                    child: FractionallySizedBox(
+                      widthFactor: safeProgress,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFF13A383),
+                              Color(0xFF10B981),
+                              Color(0xFFFFDF73),
+                            ],
                           ),
-                        ] else ...[
-                          // Ready to Install button or Update Now button
-                          if (_downloadedApkPath != null) ...[
-                            ElevatedButton.icon(
-                              onPressed: _startUpdate,
-                              icon: const Icon(LucideIcons.checkCircle2, size: 20),
-                              label: const Text('Install Now', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 18),
-                                elevation: 4,
-                                backgroundColor: theme.colorScheme.primary,
-                                foregroundColor: theme.colorScheme.onPrimary,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(24),
-                                ),
-                              ),
-                            ),
-                          ] else ...[
-                            ElevatedButton.icon(
-                              onPressed: _startUpdate,
-                              icon: const Icon(LucideIcons.downloadCloud, size: 20),
-                              label: const Text('Update Now', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 18),
-                                elevation: 4,
-                                backgroundColor: theme.colorScheme.primary,
-                                foregroundColor: theme.colorScheme.onPrimary,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(24),
-                                ),
-                              ),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF10B981).withValues(alpha: 0.4),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
                             ),
                           ],
-                          const SizedBox(height: 12),
-                          OutlinedButton.icon(
-                            onPressed: _skipUpdate,
-                            icon: const Icon(LucideIcons.clock, size: 18),
-                            label: const Text('Update Later', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 18),
-                              foregroundColor: theme.colorScheme.onSurfaceVariant,
-                              side: BorderSide(
-                                color: theme.colorScheme.outline.withOpacity(0.35),
-                                width: 1.5,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(24),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Center(
-                            child: TextButton(
-                              onPressed: _openInBrowser,
-                              child: Text(
-                                'Download via Browser instead',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: theme.colorScheme.onSurfaceVariant.withOpacity(0.8),
-                                  decoration: TextDecoration.underline,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
+                        ),
+                      ),
                     ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        _downloadedSizeText,
+                        style: GoogleFonts.manrope(
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.7)
+                              : const Color(0xFF52665C),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? const Color(0xFF13A383).withValues(alpha: 0.15)
+                              : const Color(0xFFE2F3EB),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${(safeProgress * 100).toInt()}%',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            color: isDark ? const Color(0xFF13A383) : const Color(0xFF0B6D55),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_etaText.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        _etaText,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.5)
+                              : const Color(0xFF6A7E75),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Wide pill button matching the reference mockup
+  Widget _buildActionButton({
+    required String text,
+    required IconData icon,
+    required Gradient gradient,
+    required VoidCallback onPressed,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(30),
+        gradient: gradient,
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF13A383).withValues(alpha: 0.35),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(30),
+          onTap: onPressed,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 17.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: Colors.white, size: 20),
+                const SizedBox(width: 10),
+                Text(
+                  text,
+                  style: GoogleFonts.manrope(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    letterSpacing: 0.3,
                   ),
                 ),
               ],
@@ -585,3 +865,4 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
     );
   }
 }
+

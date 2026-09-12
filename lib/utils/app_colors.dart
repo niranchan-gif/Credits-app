@@ -32,7 +32,26 @@ class AppColors {
   static const Color textSecondaryDark = Color(0xFFD4C8B5); // Muted Warm Highlight
   static const Color textTertiaryDark = Color(0xFF8E8E93);  // Muted Neutral
 
+  // Brand Identity Tokens
+  static const Color brandBackground = Color(0xFF021711); // Deep Forest Emerald
+  static const Color brandPrimary = Color(0xFF13A383);    // Radiant Mint Emerald
+  static const Color brandPrimaryDark = Color(0xFF063628);// Deep Brand Emerald
+  static const Color brandGold = Color(0xFFDAA464);       // Warm Brand Gold
+  static const Color brandGoldLight = Color(0xFFFFDF73);  // Specular Gold Highlight
+
   // Gradients (Avoid overly colorful gradients - keep them subtle and flat-like)
+  static const LinearGradient brandGradient = LinearGradient(
+    colors: [Color(0xFF13A383), Color(0xFF063628)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient goldGradient = LinearGradient(
+    colors: [Color(0xFFFFDF73), Color(0xFFDAA464), Color(0xFF8A6327)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
   static const LinearGradient primaryGradient = LinearGradient(
     colors: [Color(0xFF285A48), Color(0xFF1E4235)],
     begin: Alignment.topLeft,

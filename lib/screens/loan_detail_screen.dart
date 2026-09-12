@@ -327,7 +327,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
             const SizedBox(height: 24),
             Stack(
               children: [
-                Container(height: 8, decoration: BoxDecoration(color: Colors.white.withOpacity( 0.05), borderRadius: BorderRadius.circular(4))),
+                Container(height: 8, decoration: BoxDecoration(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.08), borderRadius: BorderRadius.circular(4))),
                 AnimatedContainer(
                   duration: const Duration(seconds: 1),
                   height: 8,

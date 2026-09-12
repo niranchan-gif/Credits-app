@@ -59,6 +59,15 @@ class DBHelper {
     return _database?.path;
   }
 
+  Future<String> getCurrentDbPath() async {
+    if (_database != null && _database!.isOpen) {
+      return _database!.path;
+    }
+    final dbPath = await getDatabasesPath();
+    final dbName = await getDbName();
+    return join(dbPath, dbName);
+  }
+
     
   Future<Database> get database async {
     if (isRestoring) {
@@ -859,6 +868,7 @@ class DBHelper {
     await db.update('borrowers', 
       {'is_dummy': 1, 'updated_at': now},
       where: 'id = ?', whereArgs: [id]);
+    _notifyMutationChanged();
   }
 
   Future<void> moveToActiveBorrower(int id) async {
@@ -869,6 +879,7 @@ class DBHelper {
     await db.update('borrowers', 
       {'is_dummy': 0, 'updated_at': now},
       where: 'id = ?', whereArgs: [id]);
+    _notifyMutationChanged();
   }
 
   Future<void> clearAllUserData() async {
@@ -1441,6 +1452,7 @@ class DBHelper {
     await db.update('investments', 
       {'is_deleted': 1, 'updated_at': now},
       where: 'id = ?', whereArgs: [id]);
+    _notifyMutationChanged();
   }
 
   Future<double> getTotalInvested() async {
@@ -1613,6 +1625,7 @@ class DBHelper {
     await db.update('expenses', 
       {'is_deleted': 1, 'updated_at': now},
       where: 'id = ?', whereArgs: [id]);
+    _notifyMutationChanged();
   }
 
   Future<double> getTotalExpenses() async {
@@ -1670,6 +1683,7 @@ class DBHelper {
     await db.update('service_costs', 
       {'is_deleted': 1, 'timestamp': now},
       where: 'id = ?', whereArgs: [id]);
+    _notifyMutationChanged();
   }
 
   Future<double> getTotalServiceCosts() async {

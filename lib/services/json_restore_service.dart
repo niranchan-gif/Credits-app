@@ -1,9 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../database/db_helper.dart';
@@ -76,12 +74,17 @@ class JsonRestoreService {
       
       onProgress?.call(0.55, 'Validating backup structure...');
       final data = payload['data'] as Map<String, dynamic>;
-      final tempDir = await getTemporaryDirectory();
-      final tempDbPath = p.join(tempDir.path, 'restore_temp.db');
+      final databasesDir = await getDatabasesPath();
+      final tempDbPath = p.join(databasesDir, 'restore_temp_${DateTime.now().millisecondsSinceEpoch}.db');
       
       final dbHelper = DBHelper();
-      if (await File(tempDbPath).exists()) {
-        await File(tempDbPath).delete();
+      final tempFile = File(tempDbPath);
+      if (await tempFile.exists()) {
+        await tempFile.delete();
+      }
+      for (final ext in ['-wal', '-shm', '-journal']) {
+        final aux = File('$tempDbPath$ext');
+        if (await aux.exists()) await aux.delete();
       }
       
       onProgress?.call(0.60, 'Creating validation database...');
@@ -90,19 +93,21 @@ class JsonRestoreService {
       final tables = ['borrowers', 'loans', 'payments', 'investments', 'expenses', 'service_costs'];
       
       onProgress?.call(0.65, 'Importing data...');
-      await tempDb.transaction((txn) async {
-        for (var i = 0; i < tables.length; i++) {
-          final table = tables[i];
-          if (data.containsKey(table)) {
-            final rows = data[table] as List;
-            for (var row in rows) {
-              await txn.insert(table, Map<String, dynamic>.from(row), conflictAlgorithm: ConflictAlgorithm.replace);
-            }
+      final batch = tempDb.batch();
+      for (final table in tables) {
+        if (data.containsKey(table)) {
+          final rows = data[table] as List;
+          for (final row in rows) {
+            batch.insert(
+              table,
+              Map<String, dynamic>.from(row),
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
           }
-          // Update progress from 0.65 to 0.85 across tables
-          onProgress?.call(0.65 + (0.20 * (i + 1) / tables.length), 'Importing $table...');
         }
-      });
+      }
+      onProgress?.call(0.80, 'Writing data to database...');
+      await batch.commit(noResult: true);
       
       onProgress?.call(0.87, 'Running integrity check...');
       final integrityCheck = await tempDb.rawQuery('PRAGMA integrity_check');
@@ -111,11 +116,14 @@ class JsonRestoreService {
         throw Exception('Database integrity check failed after importing JSON!');
       }
       
+      try {
+        await tempDb.rawQuery('PRAGMA wal_checkpoint(FULL)');
+      } catch (_) {}
+
       await tempDb.close();
 
       onProgress?.call(0.90, 'Preparing database swap...');
-      final currentDbPath = dbHelper.currentDbPath;
-      if (currentDbPath == null) throw Exception('No current db path');
+      final currentDbPath = await dbHelper.getCurrentDbPath();
       await dbHelper.closeDatabase();
       
       final safetyCopyPath = '$currentDbPath.bak';
@@ -125,12 +133,28 @@ class JsonRestoreService {
       
       onProgress?.call(0.95, 'Replacing database...');
       try {
+        // Remove existing WAL, SHM, and journal files so old logs don't conflict
+        for (final ext in ['-wal', '-shm', '-journal']) {
+          final aux = File('$currentDbPath$ext');
+          if (await aux.exists()) await aux.delete();
+        }
+
+        // Copy validated database to current path
         await File(tempDbPath).copy(currentDbPath);
       } catch (e) {
         if (await File(safetyCopyPath).exists()) {
           await File(safetyCopyPath).copy(currentDbPath);
         }
         throw Exception('Failed to replace database: $e');
+      } finally {
+        // Clean up temporary database files
+        try {
+          if (await tempFile.exists()) await tempFile.delete();
+          for (final ext in ['-wal', '-shm', '-journal']) {
+            final aux = File('$tempDbPath$ext');
+            if (await aux.exists()) await aux.delete();
+          }
+        } catch (_) {}
       }
       
       onProgress?.call(0.98, 'Reopening database...');

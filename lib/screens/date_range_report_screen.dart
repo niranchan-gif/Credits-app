@@ -306,7 +306,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
           ? Column(
               children: [
                 _buildDateSelector(dateRangeStr),
-                const Expanded(child: Center(child: CircularProgressIndicator(color: Colors.white))),
+                const Expanded(child: Center(child: CircularProgressIndicator(color: AppColors.accent))),
               ],
             )
           : NestedScrollView(
@@ -407,7 +407,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
             children: [
               Row(
                 children: [
-                  const Icon(LucideIcons.calendar, color: Colors.white, size: 20),
+                  Icon(LucideIcons.calendar, color: Theme.of(context).colorScheme.primary, size: 20),
                   const SizedBox(width: 12),
                   Text(
                     dateRangeStr,
@@ -415,7 +415,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
                   ),
                 ],
               ),
-              const Icon(LucideIcons.chevronDown, color: Colors.white, size: 16),
+              Icon(LucideIcons.chevronDown, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 16),
             ],
           ),
         ),
@@ -542,7 +542,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
                           if (borrowerCode.isNotEmpty) ...[
                             Text(
                               "[$borrowerCode] ",
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white),
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.accent),
                             ),
                           ],
                           Expanded(
@@ -625,12 +625,12 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.1),
+                            color: AppColors.accent.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
                             code,
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                            style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold, fontSize: 11),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -714,12 +714,12 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.1),
+                            color: AppColors.accent.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
                             code,
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                            style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold, fontSize: 11),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -749,7 +749,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
                     ),
                     Text(
                       "Total: ${fmtINR(principal + interest)}",
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface),
                     ),
                   ],
                 ),

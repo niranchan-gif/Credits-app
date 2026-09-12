@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../utils/app_colors.dart';
+import 'success_celebration_badge.dart';
 
 class ProgressDialog extends StatefulWidget {
   final String title;
@@ -23,6 +24,7 @@ class ProgressDialog extends StatefulWidget {
 
 class _ProgressDialogState extends State<ProgressDialog> {
   double _progress = 0.0;
+  String _status = '';
   bool _isCompleted = false;
   bool _isFailed = false;
 
@@ -38,6 +40,9 @@ class _ProgressDialogState extends State<ProgressDialog> {
         if (mounted) {
           setState(() {
             _progress = progress.clamp(0.0, 1.0);
+            if (status.isNotEmpty) {
+              _status = status;
+            }
           });
         }
       });
@@ -67,25 +72,26 @@ class _ProgressDialogState extends State<ProgressDialog> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = isDark ? const Color(0xFF34D399) : AppColors.primary;
     
     Widget content;
     List<Widget>? actions;
 
     if (_isCompleted) {
       content = Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        padding: const EdgeInsets.symmetric(vertical: 12.0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Icon(LucideIcons.checkCircle2, color: isDark ? Colors.white : AppColors.primary, size: 48),
+            const SuccessCelebrationBadge(size: 96),
             const SizedBox(height: 16),
             Text(
-              '✓ Completed',
+              widget.successMessage.isNotEmpty ? widget.successMessage : 'Completed Successfully',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontWeight: FontWeight.bold, 
-                fontSize: 18,
+                fontSize: 17,
                 color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
               ),
             ),
@@ -151,32 +157,85 @@ class _ProgressDialogState extends State<ProgressDialog> {
                 color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
               ),
             ),
-            const SizedBox(height: 24),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: _progress,
-                color: isDark ? Colors.white : AppColors.primary,
-                backgroundColor: isDark ? Colors.white10 : Colors.black12,
-                minHeight: 10,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              '${(_progress * 100).round()}%',
-              style: TextStyle(
-                fontSize: 16, 
-                fontWeight: FontWeight.bold, 
-                color: isDark ? Colors.white : AppColors.primary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Please wait...',
-              style: TextStyle(
-                fontSize: 13, 
-                color: isDark ? Colors.white70 : Colors.black54,
-              ),
+            const SizedBox(height: 22),
+            TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: 0.0, end: _progress),
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutCubic,
+              builder: (context, animatedVal, _) {
+                return Column(
+                  children: [
+                    Stack(
+                      children: [
+                        Container(
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white10 : Colors.black12,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            return Container(
+                              height: 10,
+                              width: constraints.maxWidth * animatedVal.clamp(0.0, 1.0),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    primaryColor,
+                                    const Color(0xFF10B981),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF10B981).withOpacity(0.3),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _status.isNotEmpty ? _status : 'Please wait...',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w500,
+                              color: isDark ? Colors.white70 : Colors.black54,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: primaryColor.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '${(animatedVal * 100).toInt()}%',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.bold,
+                              color: primaryColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              },
             ),
           ],
         ),

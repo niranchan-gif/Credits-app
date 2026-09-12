@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:sqflite/sqflite.dart';
 
 import '../database/db_helper.dart';
 import 'google_drive_service.dart';
@@ -21,6 +20,10 @@ class JsonBackupService {
   int _pendingGeneration = 0;
 
   void triggerBackup() {
+    if (DBHelper.isRestoring) {
+      debugPrint('[BACKUP-DEBUG] JSON Backup skipped because database restore is in progress');
+      return;
+    }
     debugPrint('[BACKUP-DEBUG] JSON Backup worker started');
     
     if (_isBackingUp) {
@@ -35,6 +38,10 @@ class JsonBackupService {
 
   Future<void> _runBackupLoop() async {
     while (true) {
+      if (DBHelper.isRestoring) {
+        debugPrint('[BACKUP-DEBUG] JSON Backup loop paused because database restore is in progress');
+        break;
+      }
       final currentGen = DBHelper.databaseGeneration;
       _pendingGeneration = 0;
       
