@@ -92,7 +92,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       barrierDismissible: false,
       builder: (ctx) => ProgressDialog(
         title: 'Backup',
-        successMessage: '✓ Backup Completed',
+        successMessage: 'Backup',
         errorMessage: 'Backup Failed',
         action: (updateProgress) async {
           await AutoBackupManager().checkAndPerformBackup(
@@ -152,28 +152,51 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 
   Widget _buildFloatingNavBar() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       margin: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-      height: 70,
+      height: 68,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface.withOpacity( 0.8),
-        borderRadius: BorderRadius.circular(30),
+        color: isDark
+            ? AppColors.surfaceDark.withValues(alpha: 0.88)
+            : AppColors.surface.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(32),
         border: Border.all(
-          color: Theme.of(context).dividerColor.withOpacity( 0.15),
-          width: 1.5,
+          color: isDark ? AppColors.cardBorderDark : AppColors.cardBorderLight,
+          width: 1,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity( 0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        boxShadow: isDark
+            ? [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.45),
+                  blurRadius: 24,
+                  offset: const Offset(0, 10),
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ]
+            : [
+                BoxShadow(
+                  color: const Color(0xFF0F172A).withValues(alpha: 0.08),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                ),
+                BoxShadow(
+                  color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(32),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -189,32 +212,46 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   Widget _navItem(IconData icon, String label, int index) {
     final isSelected = _currentIndex == index;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final activeColor = isDark ? AppColors.accentLight : AppColors.accent;
+    final inactiveColor = isDark ? AppColors.textTertiaryDark : AppColors.textSecondary;
+
     return GestureDetector(
       onTap: () => setState(() => _currentIndex = index),
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.accent.withOpacity( 0.1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
+          color: isSelected
+              ? activeColor.withValues(alpha: isDark ? 0.20 : 0.12)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(22),
+          border: isSelected
+              ? Border.all(
+                  color: activeColor.withValues(alpha: isDark ? 0.35 : 0.22),
+                  width: 1,
+                )
+              : null,
         ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               icon,
-              color: isSelected ? AppColors.accent : Theme.of(context).colorScheme.onSurfaceVariant,
-              size: 24,
+              color: isSelected ? activeColor : inactiveColor,
+              size: 22,
             ),
             if (isSelected) ...[
               const SizedBox(width: 8),
               Text(
                 label,
-                style: const TextStyle(
-                  color: AppColors.accent,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                style: TextStyle(
+                  color: activeColor,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13.5,
+                  letterSpacing: -0.2,
                 ),
               ),
             ],

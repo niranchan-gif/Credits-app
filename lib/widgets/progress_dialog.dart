@@ -69,6 +69,22 @@ class _ProgressDialogState extends State<ProgressDialog> {
     }
   }
 
+  String get _displaySuccessMessage {
+    String msg = widget.successMessage.trim();
+    if (msg.isEmpty) {
+      msg = widget.title.isNotEmpty ? widget.title : 'Success';
+    }
+    // Strip checkmark/tick symbols since the animation already provides the checkmark
+    msg = msg.replaceAll(RegExp(r'[✓✔\u2713\u2714]'), '').trim();
+    // Strip redundant 'Completed Successfully' or 'Completed'
+    msg = msg.replaceAll(RegExp(r'\bcompleted\s+successfully\b', caseSensitive: false), '').trim();
+    msg = msg.replaceAll(RegExp(r'\bcompleted\b', caseSensitive: false), '').trim();
+    if (msg.isEmpty) {
+      msg = widget.title.isNotEmpty ? widget.title : 'Success';
+    }
+    return msg;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -87,7 +103,7 @@ class _ProgressDialogState extends State<ProgressDialog> {
             const SuccessCelebrationBadge(size: 96),
             const SizedBox(height: 16),
             Text(
-              widget.successMessage.isNotEmpty ? widget.successMessage : 'Completed Successfully',
+              _displaySuccessMessage,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontWeight: FontWeight.bold, 

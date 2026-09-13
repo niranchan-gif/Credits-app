@@ -1,6 +1,4 @@
 import 'dart:io';
-import 'dart:ui' as ui;
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -10,8 +8,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
 
 import '../models/borrower.dart';
 import '../models/loan.dart';
@@ -136,8 +132,8 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                             child: PremiumCard(
-                              color: AppColors.error.withOpacity(0.1),
-                              border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                              color: AppColors.error.withValues(alpha: 0.1),
+                              border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
                               padding: const EdgeInsets.all(16),
                               child: const Row(
                                 children: [
@@ -164,7 +160,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Theme.of(context).colorScheme.onSurface),
                               ),
                               const Spacer(),
-                              Text('${_loans.length} loans', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6), fontSize: 17)),
+                              Text('${_loans.length} loans', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.65), fontSize: 17)),
                             ],
                           ),
                         ),
@@ -179,7 +175,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(LucideIcons.coins, size: 48, color: AppColors.textTertiary.withOpacity(0.2)),
+                              Icon(LucideIcons.coins, size: 48, color: AppColors.textTertiary.withValues(alpha: 0.2)),
                               const SizedBox(height: 16),
                               const Text('No loans found.\nTap + to start a new loan.', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textTertiary)),
                             ],
@@ -280,10 +276,14 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
   }
 
   Widget _buildBorrowerInfoCard(Borrower b) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final accentCol = isDark ? AppColors.accentLight : AppColors.accent;
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: PremiumCard(
-        gradient: Theme.of(context).brightness == Brightness.dark ? AppColors.surfaceGradientDark : AppColors.surfaceGradient,
+        gradient: isDark ? AppColors.surfaceGradientDark : AppColors.surfaceGradient,
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -293,11 +293,26 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                 Hero(
                   tag: 'borrower_code_${b.id}',
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withOpacity( 0.1), borderRadius: BorderRadius.circular(8)),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: accentCol.withValues(alpha: isDark ? 0.18 : 0.10),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: accentCol.withValues(alpha: isDark ? 0.30 : 0.22),
+                        width: 1,
+                      ),
+                    ),
                     child: Material(
                       color: Colors.transparent,
-                      child: Text(b.displayBorrowerCode, style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 17, letterSpacing: 1.5)),
+                      child: Text(
+                        b.displayBorrowerCode,
+                        style: TextStyle(
+                          color: accentCol,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -399,7 +414,6 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                     }
                     
                     if (balanceToPay < 0) balanceToPay = 0.0;
-                      final todayStr = DateFormat('dd-MM-yyyy').format(DateTime.now());
 
                     try {
                       // Show loading snackbar
@@ -429,15 +443,6 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                       if (digits.length == 10) {
                         digits = '91$digits';
                       }
-
-                      final summaryMsg =
-                          'வணக்கம்,\n'
-                          'பெயர்: ${b.name} (${b.displayBorrowerCode})\n'
-                          'இதுவரை செலுத்திய தொகை: ₹${totalPaid.toStringAsFixed(0)}\n'
-                          'செலுத்த வேண்டிய தொகை: ₹${balanceToPay.toStringAsFixed(0)}\n'
-                          'உங்கள் கட்டண விபரங்கள் அடங்கிய ரசீது இத்துடன் இணைக்கப்பட்டுள்ளது.\n'
-                          'தேதி: $todayStr\n'
-                          'நன்றி';
 
                       if (Platform.isAndroid) {
                         // Android: use the native method channel to fire a targeted
@@ -561,7 +566,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
               ),
             ],
             const SizedBox(height: 16),
-            Divider(color: Theme.of(context).dividerColor.withOpacity(0.1)),
+            Divider(color: Theme.of(context).dividerColor.withValues(alpha: 0.12)),
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -569,22 +574,22 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Loan Age', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6), fontSize: 15)),
+                    Text('Loan Age', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.65), fontSize: 13)),
                     const SizedBox(height: 4),
-                    Text('${b.loanAgeDays} Days', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 19)),
+                    Text('${b.loanAgeDays} Days', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 18)),
                   ],
                 ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text('Status', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6), fontSize: 15)),
+                    Text('Status', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.65), fontSize: 13)),
                     const SizedBox(height: 4),
                     Text(
-                      b.overdueStatus == 'OVERDUE' ? '🔴 OVERDUE (Exceeded 140-Day limit)' : 'ACTIVE',
+                      b.overdueStatus == 'OVERDUE' ? '🔴 OVERDUE' : 'ACTIVE',
                       style: TextStyle(
                         color: b.overdueStatus == 'OVERDUE' ? AppColors.error : AppColors.success,
                         fontWeight: FontWeight.bold,
-                        fontSize: 18,
+                        fontSize: 16,
                       ),
                     ),
                   ],
@@ -595,13 +600,20 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: Theme.of(context).colorScheme.onSurface.withOpacity( 0.05), borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: isDark ? 0.08 : 0.04),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: isDark ? 0.12 : 0.08),
+                    width: 1,
+                  ),
+                ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(LucideIcons.stickyNote, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7)),
+                    Icon(LucideIcons.stickyNote, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7)),
                     const SizedBox(width: 8),
-                    Expanded(child: Text(b.notes!, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16, fontStyle: FontStyle.italic))),
+                    Expanded(child: Text(b.notes!, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14, fontStyle: FontStyle.italic))),
                   ],
                 ),
               ),
@@ -614,69 +626,84 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
 
   Widget _buildLoanCard(Loan loan, int i) {
     final isActive = loan.status == 'active';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final statusColor = isActive ? AppColors.info : AppColors.success;
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          child: PremiumCard(
-            padding: EdgeInsets.zero,
-            child: InkWell(
-              onTap: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => LoanDetailScreen(borrower: widget.borrower, loan: loan)),
-                );
-                _loadData();
-              },
-              borderRadius: BorderRadius.circular(24),
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: PremiumCard(
+        padding: EdgeInsets.zero,
+        child: InkWell(
+          onTap: () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => LoanDetailScreen(borrower: widget.borrower, loan: loan)),
+            );
+            _loadData();
+          },
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    Text(
+                      DateFormat('dd MMM yyyy').format(loan.loanDate),
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Theme.of(context).colorScheme.onSurface),
+                    ),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(DateFormat('dd MMM yyyy').format(loan.loanDate), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 21, color: Theme.of(context).colorScheme.onSurface)),
-                        Row(
-                          children: [
-                            if (_paidTodayLoanIds.contains(loan.id))
-                              const Padding(
-                                padding: EdgeInsets.only(right: 8),
-                                child: Icon(LucideIcons.checkCircle, color: AppColors.success, size: 16),
-                              ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(color: isActive ? AppColors.info.withOpacity( 0.15) : AppColors.success.withOpacity( 0.2), borderRadius: BorderRadius.circular(8)),
-                              child: Text(isActive ? 'ACTIVE' : 'CLEARED', style: TextStyle(color: isActive ? AppColors.info : AppColors.success, fontWeight: FontWeight.bold, fontSize: 14)),
+                        if (_paidTodayLoanIds.contains(loan.id))
+                          const Padding(
+                            padding: EdgeInsets.only(right: 8),
+                            child: Icon(LucideIcons.checkCircle, color: AppColors.success, size: 16),
+                          ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: isDark ? 0.20 : 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: statusColor.withValues(alpha: isDark ? 0.35 : 0.25),
+                              width: 0.8,
                             ),
-                          ],
+                          ),
+                          child: Text(
+                            isActive ? 'ACTIVE' : 'CLEARED',
+                            style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 12),
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 20),
-                    if (loan.installmentDays != null && loan.installmentDays! > 0) ...[
-                      Row(
-                        children: [
-                          Icon(LucideIcons.calendar, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7)),
-                          const SizedBox(width: 6),
-                          Text('${loan.installmentDays} days • Ends ${loan.endDate != null ? DateFormat('dd MMM').format(loan.endDate!) : 'N/A'}', style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                    Row(
-                      children: [
-                        _statCol('Principal', fmtINR(loan.loanAmount)),
-                        _statCol('Interest', fmtINR(loan.interestAmount)),
-                        _statCol('Total Due', fmtINR(loan.totalDue())),
-                      ],
-                    ),
                   ],
-              ),
+                ),
+                const SizedBox(height: 16),
+                if (loan.installmentDays != null && loan.installmentDays! > 0) ...[
+                  Row(
+                    children: [
+                      Icon(LucideIcons.calendar, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7)),
+                      const SizedBox(width: 6),
+                      Text('${loan.installmentDays} days • Ends ${loan.endDate != null ? DateFormat('dd MMM').format(loan.endDate!) : 'N/A'}', style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                ],
+                Row(
+                  children: [
+                    _statCol('Principal', fmtINR(loan.loanAmount)),
+                    _statCol('Interest', fmtINR(loan.interestAmount)),
+                    _statCol('Total Due', fmtINR(loan.totalDue())),
+                  ],
+                ),
+              ],
             ),
           ),
         ),
-      ).animate().fadeIn(duration: 400.ms, delay: (i * 50).ms).slideX(begin: 0.1, end: 0);
+      ),
+    ).animate().fadeIn(duration: 400.ms, delay: (i * 50).ms).slideX(begin: 0.1, end: 0);
   }
 
   Widget _statCol(String label, String value) {
@@ -684,7 +711,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6), fontSize: 15)),
+          Text(label, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.65), fontSize: 13)),
           const SizedBox(height: 4),
           FittedBox(
             fit: BoxFit.scaleDown,

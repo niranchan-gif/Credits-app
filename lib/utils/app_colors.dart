@@ -5,6 +5,7 @@ class AppColors {
   static const Color background = Color(0xFFF5F6F8); // Light grey
   static const Color surface = Color(0xFFFFFFFF);    // Pure White
   static const Color surfaceLight = Color(0xFFE8DDB4); // Soft Background Accent
+  static const Color cardBorderLight = Color(0xFFE5E5EA); // Subtle border
   
   static const Color accent = Color(0xFF285A48);      // Primary Accent (Forest Green)
   static const Color primary = accent;                // Primary Accent Alias
@@ -27,6 +28,7 @@ class AppColors {
   static const Color backgroundDark = Color(0xFF1C1C1E); // Softer Muted Background
   static const Color surfaceDark = Color(0xFF2C2C2E);    // Softer Surface
   static const Color surfaceLightDark = Color(0xFF3A3A3C); // Lighter muted surface
+  static const Color cardBorderDark = Color(0xFF3A3A3C);  // Dark card border
   
   static const Color textPrimaryDark = Color(0xFFE5E5EA); // Softer White
   static const Color textSecondaryDark = Color(0xFFD4C8B5); // Muted Warm Highlight
@@ -75,5 +77,10 @@ class AppColors {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
-}
 
+  static const LinearGradient heroCardGradient = LinearGradient(
+    colors: [Color(0xFF285A48), Color(0xFF1E4235)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+}

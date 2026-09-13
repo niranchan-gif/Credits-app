@@ -126,7 +126,7 @@ class _SignInScreenState extends State<SignInScreen>
       barrierDismissible: false,
       builder: (ctx) => ProgressDialog(
         title: 'Checking for backups...',
-        successMessage: '✓ Ready',
+        successMessage: 'Ready',
         errorMessage: 'Restore Failed',
         action: (updateProgress) async {
           updateProgress(0.1, 'Checking Google Drive for backups...');

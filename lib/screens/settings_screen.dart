@@ -161,7 +161,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 barrierDismissible: false,
                 builder: (ctx) => ProgressDialog(
                   title: 'Clearing Local Database',
-                  successMessage: '✓ Clear Completed',
+                  successMessage: 'Clear',
                   errorMessage: 'Clear Failed',
                   action: (updateProgress) async {
                     updateProgress(0.3, 'Wiping borrowers data...');
@@ -216,7 +216,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         barrierDismissible: false,
                         builder: (ctx) => ProgressDialog(
                           title: 'Factory Resetting App',
-                          successMessage: '✓ Reset Completed',
+                          successMessage: 'Reset',
                           errorMessage: 'Reset Failed',
                           action: (updateProgress) async {
                             updateProgress(0.2, 'Wiping local tables...');
@@ -473,7 +473,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 barrierDismissible: false,
                 builder: (ctx) => ProgressDialog(
                   title: 'Signing Out',
-                  successMessage: '✓ Signed Out',
+                  successMessage: 'Signed Out',
                   errorMessage: 'Error Signing Out',
                   action: (updateProgress) async {
                     updateProgress(0.5, 'Disconnecting Google Account...');

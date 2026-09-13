@@ -3,13 +3,16 @@ import 'package:excel/excel.dart';
 import 'package:credit/database/db_helper.dart';
 import 'package:credit/services/excel_backup_service.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
+    SharedPreferences.setMockInitialValues({});
   });
 
   setUp(() async {
@@ -35,7 +38,8 @@ void main() {
       'updated_at': 1000, 'created_at': 1000
     });
     await db.insert('loans', {
-      'id': 1, 'sync_id': loanSyncId, 'borrower_id': 1, 'loan_amount': 100, 
+      'id': 1, 'sync_id': loanSyncId, 'borrower_id': 1, 'loan_amount': 100, 'interest_amount': 0.0,
+      'loan_date': '2023-08-01 00:00:00',
       'updated_at': 1000, 'created_at': 1000, 'status': 'active'
     });
     await db.insert('payments', {
@@ -85,6 +89,7 @@ void main() {
     });
     await db.insert('loans', {
       'id': 99, 'sync_id': 'junk_l', 'borrower_id': 99, 'loan_amount': 100, 'interest_amount': 0,
+      'loan_date': '2023-01-01 00:00:00',
       'updated_at': 500, 'created_at': 500, 'status': 'active'
     });
     await db.insert('payments', {
@@ -136,7 +141,8 @@ void main() {
       'updated_at': 1000, 'created_at': 1000
     });
     await db.insert('loans', {
-      'id': 1, 'sync_id': loanSyncId, 'borrower_id': 1, 'loan_amount': 100, 
+      'id': 1, 'sync_id': loanSyncId, 'borrower_id': 1, 'loan_amount': 100, 'interest_amount': 0.0,
+      'loan_date': '2023-08-01 00:00:00',
       'updated_at': 1000, 'created_at': 1000, 'status': 'active'
     });
     await db.insert('payments', {

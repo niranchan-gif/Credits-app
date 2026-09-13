@@ -122,7 +122,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       slivers: [
                         SliverToBoxAdapter(child: _buildHeader(totalDue, totalCollected, totalPending, todayCollection, provider)),
                         SliverPadding(
-                          padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
+                          padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
                           sliver: SliverToBoxAdapter(
                             child: _buildSearch(allAddresses, addressCounts, provider),
                           ),
@@ -183,7 +183,7 @@ class _HomeScreenState extends State<HomeScreen> {
               height: 180,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
               ),
             ),
           ),
@@ -195,12 +195,12 @@ class _HomeScreenState extends State<HomeScreen> {
               height: 140,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Theme.of(context).colorScheme.secondary.withOpacity(0.06),
+                color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.06),
               ),
             ),
           ),
           Padding(
-            padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 12, 16, 24),
+            padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 12, 16, 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -214,7 +214,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
+                              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
                               blurRadius: 16,
                               offset: const Offset(0, 4),
                             ),
@@ -241,7 +241,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Icon(
                   LucideIcons.trendingUp,
                   size: 80,
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.12),
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.10),
                 ),
               ),
               // 2. Financial Element: Pie Chart (Bottom Left)
@@ -253,7 +253,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Icon(
                     LucideIcons.pieChart,
                     size: 90,
-                    color: Theme.of(context).colorScheme.secondary.withOpacity(0.15),
+                    color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.12),
                   ),
                 ),
               ),
@@ -269,7 +269,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Icon(
                         LucideIcons.banknote,
                         size: 120,
-                        color: Colors.white.withOpacity(0.1),
+                        color: Colors.white.withValues(alpha: 0.10),
                       ),
                     ),
                     Padding(
@@ -283,9 +283,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               Text(
                                 "Today's Collection",
                                 style: TextStyle(
-                                  color: Colors.white.withOpacity(0.85),
+                                  color: Colors.white.withValues(alpha: 0.88),
                                   fontWeight: FontWeight.w600,
                                   fontSize: 14,
+                                  letterSpacing: 0.2,
                                 ),
                               ),
                               Container(
@@ -877,19 +878,34 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildTabs(int collect, int paid, int completed, int dummy) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 4),
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
+        color: isDark ? AppColors.surfaceDark : AppColors.surface,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity( 0.03),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
+        border: Border.all(
+          color: isDark ? AppColors.cardBorderDark : AppColors.cardBorderLight,
+          width: 1,
+        ),
+        boxShadow: isDark
+            ? [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 14,
+                  offset: const Offset(0, 5),
+                ),
+              ]
+            : [
+                BoxShadow(
+                  color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+                  blurRadius: 14,
+                  offset: const Offset(0, 5),
+                ),
+              ],
       ),
       child: Row(
         children: [
@@ -904,22 +920,38 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _tabItem(int index, String label, String topText, Color color) {
     final isSelected = _tab == index;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() => _tab = index),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
           decoration: BoxDecoration(
-            color: isSelected ? Theme.of(context).scaffoldBackgroundColor : Colors.transparent,
+            color: isSelected
+                ? (isDark ? AppColors.surfaceLightDark : AppColors.surfaceLight)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(18),
-            boxShadow: isSelected ? [
-              BoxShadow(
-                color: color.withOpacity( 0.15),
-                blurRadius: 12,
-                offset: const Offset(0, 6),
-              )
-            ] : null,
+            border: isSelected
+                ? Border.all(
+                    color: isDark
+                        ? color.withValues(alpha: 0.3)
+                        : color.withValues(alpha: 0.2),
+                    width: 1,
+                  )
+                : null,
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: color.withValues(alpha: isDark ? 0.2 : 0.12),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    )
+                  ]
+                : null,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -929,7 +961,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Text(
                   topText,
                   style: TextStyle(
-                    color: isSelected ? color : Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: isSelected ? color : theme.colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),
@@ -939,9 +971,11 @@ class _HomeScreenState extends State<HomeScreen> {
               Text(
                 label,
                 style: TextStyle(
-                  color: isSelected ? Theme.of(context).colorScheme.onSurface : Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6),
+                  color: isSelected
+                      ? theme.colorScheme.onSurface
+                      : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.65),
                   fontSize: 11,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
                 ),
               ),
             ],
@@ -955,7 +989,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final isPaid = provider.paidTodayIds.contains(b.id);
     
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 14),
       child: Dismissible(
         key: Key('borrower_${b.id}'),
         direction: DismissDirection.startToEnd,
@@ -975,8 +1009,8 @@ class _HomeScreenState extends State<HomeScreen> {
         },
         background: Container(
           decoration: BoxDecoration(
-            color: isPaid ? AppColors.accent.withOpacity(0.85) : AppColors.accent,
-            borderRadius: BorderRadius.circular(24),
+            color: isPaid ? AppColors.accent.withValues(alpha: 0.85) : AppColors.accent,
+            borderRadius: BorderRadius.circular(20),
           ),
           alignment: Alignment.centerLeft,
           padding: const EdgeInsets.only(left: 24),
@@ -1008,179 +1042,210 @@ class _HomeScreenState extends State<HomeScreen> {
     final balance = b.totalBalance;
     final due = balance > 0;
     final isPaid = provider.paidTodayIds.contains(b.id);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     
     // Loan progress calculation
     final paidCount = provider.paidLoanCountsToday[b.id] ?? 0;
     final totalCount = provider.todayLoanCounts[b.id] ?? b.loanCount;
     final hasMultipleLoans = totalCount > 1;
 
+    final avatarColor = due ? AppColors.error : AppColors.accent;
+
     return PremiumCard(
-        padding: EdgeInsets.zero,
-        color: isPaid ? AppColors.accent.withOpacity( 0.05) : Theme.of(context).colorScheme.surface,
-        boxShadow: AppDecorations.subtleShadowCard(Theme.of(context).brightness == Brightness.dark).boxShadow,
-        child: InkWell(
-          onTap: () async {
-            await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => BorrowerLoansScreen(borrower: b),
-              ),
-            );
-            // Refresh counts when returning
-            if (mounted) provider.loadBorrowers();
-          },
-          borderRadius: BorderRadius.circular(24),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Hero(
-                  tag: 'borrower_code_${b.id}',
-                  child: Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: due ? AppColors.error.withOpacity( 0.1) : AppColors.accent.withOpacity( 0.1),
-                      borderRadius: BorderRadius.circular(16),
+      padding: EdgeInsets.zero,
+      color: isPaid
+          ? AppColors.accent.withValues(alpha: 0.05)
+          : (isDark ? AppColors.surfaceDark : AppColors.surface),
+      boxShadow: AppDecorations.subtleShadowCard(isDark).boxShadow,
+      child: InkWell(
+        onTap: () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => BorrowerLoansScreen(borrower: b),
+            ),
+          );
+          // Refresh counts when returning
+          if (mounted) provider.loadBorrowers();
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Hero(
+                tag: 'borrower_code_${b.id}',
+                child: Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: avatarColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: avatarColor.withValues(alpha: 0.25),
+                      width: 1,
                     ),
-                    child: Center(
-                      child: Material(
-                        color: Colors.transparent,
-                        child: Text(
-                          b.displayBorrowerCode,
-                          style: TextStyle(
-                            color: due ? AppColors.error : AppColors.accent,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                          ),
+                  ),
+                  child: Center(
+                    child: Material(
+                      color: Colors.transparent,
+                      child: Text(
+                        b.displayBorrowerCode,
+                        style: TextStyle(
+                          color: avatarColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          letterSpacing: 0.5,
                         ),
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Hero(
-                              tag: 'borrower_name_${b.id}',
-                              child: Material(
-                                color: Colors.transparent,
-                                child: Text(
-                                  b.name,
-                                  style: TextStyle(
-                                    color: Theme.of(context).colorScheme.onSurface,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                ),
-                              ),
-                            ),
-                          ),
-                          if (b.overdueStatus == 'OVERDUE') ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: AppColors.error.withOpacity( 0.1),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: AppColors.error.withOpacity( 0.2)),
-                              ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Hero(
+                            tag: 'borrower_name_${b.id}',
+                            child: Material(
+                              color: Colors.transparent,
                               child: Text(
-                                "🔴 ${b.loanAgeDays} Days Due",
-                                style: const TextStyle(
-                                  color: AppColors.error,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                          if (hasMultipleLoans) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.secondary.withOpacity( 0.3),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                "$paidCount/$totalCount",
+                                b.name,
                                 style: TextStyle(
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                  fontSize: 10,
+                                  color: theme.colorScheme.onSurface,
                                   fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Text(
-                            b.phone,
-                            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
-                          ),
-                          if (b.address != null && b.address!.trim().isNotEmpty) ...[
-                            Text(
-                              " • ",
-                              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5), fontSize: 12),
-                            ),
-                            Icon(LucideIcons.mapPin, size: 10.5, color: AppColors.accent.withValues(alpha: 0.8)),
-                            const SizedBox(width: 3),
-                            Flexible(
-                              child: Text(
-                                b.address!.trim(),
-                                style: TextStyle(
-                                  color: _selectedAddress != null && _selectedAddress!.toLowerCase() == b.address!.trim().toLowerCase()
-                                      ? AppColors.accent
-                                      : Theme.of(context).colorScheme.onSurfaceVariant,
-                                  fontSize: 12,
-                                  fontWeight: _selectedAddress != null && _selectedAddress!.toLowerCase() == b.address!.trim().toLowerCase()
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
+                                  fontSize: 16,
+                                  letterSpacing: -0.2,
                                 ),
                                 overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
                               ),
                             ),
-                          ],
+                          ),
+                        ),
+                        if (b.overdueStatus == 'OVERDUE') ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: AppColors.error.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: AppColors.error.withValues(alpha: 0.35),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: Text(
+                              "🔴 ${b.loanAgeDays} Days Due",
+                              style: const TextStyle(
+                                color: AppColors.error,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                         ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      fmtINR(balance),
-                      style: TextStyle(
-                        color: due ? AppColors.error : AppColors.accent,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
+                        if (hasMultipleLoans) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                            decoration: BoxDecoration(
+                              color: AppColors.secondary.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(7),
+                              border: Border.all(
+                                color: AppColors.secondary.withValues(alpha: 0.3),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: Text(
+                              "$paidCount/$totalCount",
+                              style: TextStyle(
+                                color: theme.colorScheme.onSurfaceVariant,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 4),
-                    Text(
+                    Row(
+                      children: [
+                        Text(
+                          b.phone,
+                          style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 12),
+                        ),
+                        if (b.address != null && b.address!.trim().isNotEmpty) ...[
+                          Text(
+                            " • ",
+                            style: TextStyle(color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5), fontSize: 12),
+                          ),
+                          Icon(LucideIcons.mapPin, size: 10.5, color: AppColors.accent.withValues(alpha: 0.8)),
+                          const SizedBox(width: 3),
+                          Flexible(
+                            child: Text(
+                              b.address!.trim(),
+                              style: TextStyle(
+                                color: _selectedAddress != null && _selectedAddress!.toLowerCase() == b.address!.trim().toLowerCase()
+                                    ? AppColors.accent
+                                    : theme.colorScheme.onSurfaceVariant,
+                                fontSize: 12,
+                                fontWeight: _selectedAddress != null && _selectedAddress!.toLowerCase() == b.address!.trim().toLowerCase()
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    fmtINR(balance),
+                    style: TextStyle(
+                      color: due ? AppColors.error : AppColors.accent,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: isPaid
+                          ? AppColors.accent.withValues(alpha: 0.1)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
                       isPaid ? "Collected" : "Pending",
                       style: TextStyle(
-                        color: isPaid ? AppColors.accent : Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6),
+                        color: isPaid
+                            ? AppColors.accent
+                            : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),

@@ -1579,6 +1579,43 @@ class DBHelper {
     return (Sqflite.firstIntValue(result) ?? 0) > 0;
   }
 
+  Future<double> getTotalCollectedOnDate(DateTime date) async {
+    final db = await database;
+    final ymd = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    final result = await db.rawQuery('''
+      SELECT SUM(p.amount) as total
+      FROM payments p
+      JOIN loans l ON p.loan_id = l.id
+      JOIN borrowers b ON l.borrower_id = b.id
+      WHERE SUBSTR(REPLACE(p.payment_date, 'T', ' '), 1, 10) = ?
+        AND COALESCE(p.is_deleted, 0) = 0
+        AND COALESCE(l.is_deleted, 0) = 0
+        AND COALESCE(b.is_deleted, 0) = 0
+        AND COALESCE(b.is_dummy, 0) = 0
+    ''', [ymd]);
+    return (result.first['total'] as num?)?.toDouble() ?? 0.0;
+  }
+
+  Future<String?> getLastPaymentBorrowerCode() async {
+    final db = await database;
+    final result = await db.rawQuery('''
+      SELECT b.borrower_code
+      FROM payments p
+      JOIN loans l ON p.loan_id = l.id
+      JOIN borrowers b ON l.borrower_id = b.id
+      WHERE COALESCE(p.is_deleted, 0) = 0
+        AND COALESCE(l.is_deleted, 0) = 0
+        AND COALESCE(b.is_deleted, 0) = 0
+        AND COALESCE(b.is_dummy, 0) = 0
+      ORDER BY p.created_at DESC, p.id DESC
+      LIMIT 1
+    ''');
+    if (result.isNotEmpty) {
+      return result.first['borrower_code'] as String?;
+    }
+    return null;
+  }
+
   Future<Set<int>> getCompletedBorrowerIds() async {
     final db = await database;
     final result = await db.rawQuery('''

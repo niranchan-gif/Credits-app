@@ -227,7 +227,7 @@ class _NewerBackupDialogContentState extends State<_NewerBackupDialogContent> {
         barrierDismissible: false,
         builder: (ctx) => ProgressDialog(
           title: 'Restoring Backup',
-          successMessage: '✓ Restore Completed',
+          successMessage: 'Restore',
           errorMessage: 'Restore Failed',
           action: (updateProgress) async {
             final driveService = GoogleDriveService();

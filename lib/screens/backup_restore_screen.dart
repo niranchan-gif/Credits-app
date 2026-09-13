@@ -178,7 +178,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       barrierDismissible: false,
       builder: (ctx) => ProgressDialog(
         title: 'Backup',
-        successMessage: '✓ Backup Completed',
+        successMessage: 'Backup',
         errorMessage: 'Backup Failed',
         action: (updateProgress) async {
           // Force manual run of backup manager
@@ -323,7 +323,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       barrierDismissible: false,
       builder: (ctx) => ProgressDialog(
         title: 'Restoring Cloud Backup',
-        successMessage: '✓ Restore Completed',
+        successMessage: 'Restore',
         errorMessage: 'Restore Failed',
         action: (updateProgress) async {
           updateProgress(0.1, 'Downloading encrypted cloud backup...');
@@ -366,7 +366,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       barrierDismissible: false,
       builder: (ctx) => ProgressDialog(
         title: 'Downloading Backup',
-        successMessage: '✓ Download Completed',
+        successMessage: 'Download',
         errorMessage: 'Download Failed',
         action: (updateProgress) async {
           updateProgress(0.1, '');
@@ -552,6 +552,10 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                   _previewRow(LucideIcons.receipt, 'Expenses', fmt.format(preview['expenses'] ?? 0), AppColors.warning),
                   const SizedBox(height: 6),
                   _previewRow(LucideIcons.trendingUp, 'Investments', fmt.format(preview['investments'] ?? 0), AppColors.secondary),
+                  if ((preview['service_costs'] ?? 0) > 0) ...[
+                    const SizedBox(height: 6),
+                    _previewRow(LucideIcons.wrench, 'Service Costs', fmt.format(preview['service_costs'] ?? 0), AppColors.accent),
+                  ],
                 ],
               ),
             ),
@@ -645,7 +649,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       barrierDismissible: false,
       builder: (ctx) => ProgressDialog(
         title: 'Restoring Backup',
-        successMessage: '✓ Restore Completed',
+        successMessage: 'Restore',
         errorMessage: 'Restore Failed',
         action: (updateProgress) async {
           final preview = await ExcelBackupService.previewImport(tempPath);
@@ -717,6 +721,10 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                   _previewRow(LucideIcons.receipt, 'Expenses', fmt.format(preview['expenses'] ?? 0), AppColors.warning),
                   const SizedBox(height: 6),
                   _previewRow(LucideIcons.trendingUp, 'Investments', fmt.format(preview['investments'] ?? 0), AppColors.secondary),
+                  if ((preview['service_costs'] ?? 0) > 0) ...[
+                    const SizedBox(height: 6),
+                    _previewRow(LucideIcons.wrench, 'Service Costs', fmt.format(preview['service_costs'] ?? 0), AppColors.accent),
+                  ],
                 ],
               ),
             ),
@@ -743,7 +751,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       barrierDismissible: false,
       builder: (ctx) => ProgressDialog(
         title: 'Export',
-        successMessage: '✓ Export Completed',
+        successMessage: 'Export',
         errorMessage: 'Export Failed',
         action: (updateProgress) async {
           final path = await ExcelBackupService.exportFullBackup(
@@ -830,6 +838,10 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                   _previewRow(LucideIcons.receipt, 'Expenses', fmt.format(preview['expenses'] ?? 0), AppColors.warning),
                   const SizedBox(height: 6),
                   _previewRow(LucideIcons.trendingUp, 'Investments', fmt.format(preview['investments'] ?? 0), AppColors.secondary),
+                  if ((preview['service_costs'] ?? 0) > 0) ...[
+                    const SizedBox(height: 6),
+                    _previewRow(LucideIcons.wrench, 'Service Costs', fmt.format(preview['service_costs'] ?? 0), AppColors.accent),
+                  ],
                 ],
               ),
             ),
@@ -908,7 +920,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       barrierDismissible: false,
       builder: (ctx) => ProgressDialog(
         title: 'Import',
-        successMessage: '✓ Import Completed',
+        successMessage: 'Import',
         errorMessage: 'Import Failed',
         action: (updateProgress) async {
           await ExcelBackupService.importBackup(
@@ -1268,7 +1280,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
               // ==========================================
               Padding(
                 padding: const EdgeInsets.only(left: 4, bottom: 12),
-                child: Text('Local Backup', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: onSurfaceVariant)),
+                child: Text('Local Master Report & Backup', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: onSurfaceVariant)),
               ),
               PremiumCard(
                 padding: EdgeInsets.zero,
@@ -1279,9 +1291,9 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                       leading: _isExporting
                           ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.success))
                           : const Icon(LucideIcons.fileSpreadsheet, color: AppColors.success),
-                      title: Text('Export', style: TextStyle(fontWeight: FontWeight.bold, color: onSurface)),
+                      title: Text('Export Report & Backup', style: TextStyle(fontWeight: FontWeight.bold, color: onSurface)),
                       subtitle: Text(
-                        'Export data to device storage.',
+                        'Generate human-readable Excel report & local backup.',
                         style: TextStyle(color: onSurfaceVariant.withOpacity( 0.7), fontSize: 12),
                       ),
                       trailing: _isExporting
@@ -1295,9 +1307,9 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                       leading: _isImporting
                           ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.info))
                           : const Icon(LucideIcons.uploadCloud, color: AppColors.info),
-                      title: Text('Import', style: TextStyle(fontWeight: FontWeight.bold, color: onSurface)),
+                      title: Text('Import Backup', style: TextStyle(fontWeight: FontWeight.bold, color: onSurface)),
                       subtitle: Text(
-                        'Import data from device storage.',
+                        'Restore app data from Excel backup file.',
                         style: TextStyle(color: onSurfaceVariant.withOpacity( 0.7), fontSize: 12),
                       ),
                       trailing: _isImporting

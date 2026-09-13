@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/loan_provider.dart';
 import '../models/borrower.dart';
@@ -30,20 +31,71 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
   Borrower? _matchedBorrower;
   bool _hasPaidToday = false;
   bool _isInactive = false;
+  
+  static String? _persistedLastCode;
   String? _lastEnteredCode;
+  double _dayTotal = 0.0;
 
   @override
   void initState() {
     super.initState();
+    _lastEnteredCode = _persistedLastCode;
     _amountController.addListener(_onFieldControllerChanged);
     _codeController.addListener(_onFieldControllerChanged);
+    _loadPersistedLastCode();
     // Fetch borrowers if empty just in case
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (context.read<LoanProvider>().borrowers.isEmpty) {
         context.read<LoanProvider>().loadBorrowers();
       }
+      _loadDayTotal();
       _codeFocusNode.requestFocus();
     });
+  }
+
+  Future<void> _loadPersistedLastCode() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedCode = prefs.getString('quick_add_last_entered_code');
+      if (savedCode != null && savedCode.isNotEmpty) {
+        if (mounted) {
+          setState(() {
+            _persistedLastCode = savedCode;
+            _lastEnteredCode = savedCode;
+          });
+        }
+        return;
+      }
+      
+      // Fallback: fetch most recent payment's borrower code from DB
+      if (mounted) {
+        final lastCode = await context.read<LoanProvider>().getLastPaymentBorrowerCode();
+        if (lastCode != null && lastCode.isNotEmpty && mounted) {
+          setState(() {
+            _persistedLastCode = lastCode;
+            _lastEnteredCode = lastCode;
+          });
+          prefs.setString('quick_add_last_entered_code', lastCode);
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _loadDayTotal() async {
+    if (!mounted) return;
+    try {
+      final total = await context.read<LoanProvider>().getTotalCollectedOnDate(_selectedDate);
+      if (mounted) {
+        setState(() {
+          _dayTotal = total;
+        });
+      }
+    } catch (_) {}
+  }
+
+  bool _isToday(DateTime date) {
+    final now = DateTime.now();
+    return date.year == now.year && date.month == now.month && date.day == now.day;
   }
 
   void _onFieldControllerChanged() {
@@ -259,6 +311,7 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
         _selectedDate = picked;
       });
       
+      _loadDayTotal();
       _checkIfPaidOnSelectedDate();
       
       // Move focus back to amount if a borrower is already matched
@@ -374,7 +427,14 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
         );
         
         // Save the last entered code
-        _lastEnteredCode = _matchedBorrower!.borrowerCode;
+        final savedCode = _matchedBorrower!.borrowerCode;
+        _persistedLastCode = savedCode;
+        _lastEnteredCode = savedCode;
+        SharedPreferences.getInstance().then((prefs) {
+          prefs.setString('quick_add_last_entered_code', savedCode);
+        }).catchError((_) {});
+
+        _loadDayTotal();
 
         // Reset for next entry, KEEPING THE DATE!
         _codeController.clear();
@@ -904,45 +964,109 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
                         ),
                         const SizedBox(height: 14),
                         
-                        // Date Selector Box (Static 54dp)
-                        InkWell(
-                          onTap: () => _selectDate(context),
-                          borderRadius: BorderRadius.circular(14),
-                          child: Container(
-                            height: 54,
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            decoration: BoxDecoration(
-                              color: isDark ? Colors.grey[850] : Colors.grey[100],
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
-                              ),
-                            ),
-                            alignment: Alignment.center,
-                            child: Row(
-                              children: [
-                                Icon(
-                                  LucideIcons.calendar,
-                                  size: 18,
-                                  color: isDark ? Colors.white : AppColors.accent,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    DateFormat('dd MMM yyyy').format(_selectedDate),
-                                    style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
+                        // Date Selector (50%) & Realtime Day Total Box (50%) Row (Static 54dp)
+                        IntrinsicHeight(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Date Selector Box (50% Space)
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () => _selectDate(context),
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: Container(
+                                    height: 54,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? Colors.grey[850] : Colors.grey[100],
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                        color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+                                      ),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          LucideIcons.calendar,
+                                          size: 16,
+                                          color: isDark ? Colors.white : AppColors.accent,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            DateFormat('dd MMM yyyy').format(_selectedDate),
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        Icon(
+                                          LucideIcons.chevronDown,
+                                          size: 16,
+                                          color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ),
-                                Icon(
-                                  LucideIcons.chevronDown,
-                                  size: 18,
-                                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                              ),
+                              const SizedBox(width: 10),
+                              // Day Total Realtime Box (50% Space)
+                              Expanded(
+                                child: Container(
+                                  height: 54,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? Colors.grey[850] : Colors.grey[100],
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            _isToday(_selectedDate) ? "Today's Total" : "Day Total",
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              height: 1.1,
+                                              fontWeight: FontWeight.w600,
+                                              color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                            ),
+                                          ),
+                                          Icon(
+                                            LucideIcons.trendingUp,
+                                            size: 13,
+                                            color: isDark ? const Color(0xFF34D399) : const Color(0xFF059669),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        fmtINR(_dayTotal),
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          height: 1.2,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark ? const Color(0xFF34D399) : const Color(0xFF059669),
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -1113,41 +1237,53 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
                               ),
                               const SizedBox(width: 10),
                               Expanded(
-                                child: Container(
-                                  constraints: const BoxConstraints(minHeight: 54),
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: isDark ? Colors.grey[850] : Colors.grey[100],
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(
-                                      color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+                                child: InkWell(
+                                  onTap: (_lastEnteredCode != null && _lastEnteredCode != '-')
+                                      ? () {
+                                          HapticFeedback.selectionClick();
+                                          _codeController.text = _lastEnteredCode!;
+                                          _onCodeChanged(_lastEnteredCode!);
+                                          setState(() => _activeField = _QuickAddField.code);
+                                          _codeFocusNode.requestFocus();
+                                        }
+                                      : null,
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: Container(
+                                    constraints: const BoxConstraints(minHeight: 54),
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? Colors.grey[850] : Colors.grey[100],
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                        color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+                                      ),
                                     ),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        'Last Entered',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          height: 1.1,
-                                          color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          'Last Entered',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            height: 1.1,
+                                            color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        _lastEnteredCode ?? '-',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          height: 1.2,
-                                          fontWeight: FontWeight.bold,
-                                          color: Theme.of(context).colorScheme.onSurface,
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          _lastEnteredCode ?? '-',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            height: 1.2,
+                                            fontWeight: FontWeight.bold,
+                                            color: Theme.of(context).colorScheme.onSurface,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),

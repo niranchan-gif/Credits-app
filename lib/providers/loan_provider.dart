@@ -286,6 +286,14 @@ class LoanProvider extends ChangeNotifier {
     return await _db.hasPaymentOnDate(borrowerId, date);
   }
 
+  Future<double> getTotalCollectedOnDate(DateTime date) async {
+    return await _db.getTotalCollectedOnDate(date);
+  }
+
+  Future<String?> getLastPaymentBorrowerCode() async {
+    return await _db.getLastPaymentBorrowerCode();
+  }
+
   Future<void> addPayment(Payment payment) async {
     await _db.executePaymentTransaction(payment);
     
