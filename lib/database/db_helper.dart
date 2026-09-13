@@ -1846,7 +1846,7 @@ class DBHelper {
     ''', [startStr, endStr]);
 
     final loansList = await db.rawQuery('''
-      SELECT l.id, l.loan_amount as amount, l.loan_date as date, b.name as borrower_name, b.borrower_code, 'Lent' as type, l.id as loan_id
+      SELECT l.id, l.loan_amount as amount, l.loan_date as date, b.name as borrower_name, b.borrower_code, 'Lent' as type, l.id as loan_id, l.created_at
       FROM loans l
       JOIN borrowers b ON l.borrower_id = b.id
       WHERE SUBSTR(REPLACE(l.loan_date, 'T', ' '), 1, 10) BETWEEN ? AND ?
@@ -1855,7 +1855,7 @@ class DBHelper {
     ''', [startStr, endStr]);
 
     final paymentsList = await db.rawQuery('''
-      SELECT p.id, p.amount as amount, p.payment_date as date, b.name as borrower_name, b.borrower_code, 'Collected' as type, p.loan_id as loan_id
+      SELECT p.id, p.amount as amount, p.payment_date as date, b.name as borrower_name, b.borrower_code, 'Collected' as type, p.loan_id as loan_id, p.created_at
       FROM payments p
       JOIN loans l ON p.loan_id = l.id
       JOIN borrowers b ON l.borrower_id = b.id
@@ -1867,7 +1867,7 @@ class DBHelper {
     ''', [startStr, endStr]);
 
     final expensesList = await db.rawQuery('''
-      SELECT id, amount, expense_date as date, category as borrower_name, '' as borrower_code, 'Expense' as type, 0 as loan_id
+      SELECT id, amount, expense_date as date, category as borrower_name, '' as borrower_code, 'Expense' as type, 0 as loan_id, created_at
       FROM expenses
       WHERE SUBSTR(REPLACE(expense_date, 'T', ' '), 1, 10) BETWEEN ? AND ?
         AND COALESCE(is_deleted, 0) = 0
@@ -1882,10 +1882,11 @@ class DBHelper {
       WHERE created_at BETWEEN ? AND ?
         AND COALESCE(is_deleted, 0) = 0
         AND COALESCE(is_dummy, 0) = 0
+      ORDER BY created_at ASC, id ASC
     ''', [startMs, endMs]);
 
     final closedLoans = await db.rawQuery('''
-      SELECT l.id, l.loan_amount, l.interest_amount, l.end_date, b.name as borrower_name, b.borrower_code
+      SELECT l.id, l.loan_amount, l.interest_amount, l.end_date, b.name as borrower_name, b.borrower_code, l.created_at
       FROM loans l
       JOIN borrowers b ON l.borrower_id = b.id
       WHERE l.status = 'cleared'
@@ -1893,10 +1894,11 @@ class DBHelper {
         AND COALESCE(l.is_deleted, 0) = 0
         AND COALESCE(b.is_deleted, 0) = 0
         AND COALESCE(b.is_dummy, 0) = 0
+      ORDER BY l.end_date ASC, l.id ASC
     ''', [startStr, endStr]);
 
     final serviceCostsList = await db.rawQuery('''
-      SELECT id, amount, dateCreated as date, COALESCE(description, 'Service Cost') as borrower_name, '' as borrower_code, 'Service' as type, 0 as loan_id
+      SELECT id, amount, dateCreated as date, COALESCE(description, 'Service Cost') as borrower_name, '' as borrower_code, 'Service' as type, 0 as loan_id, timestamp as created_at
       FROM service_costs
       WHERE SUBSTR(REPLACE(dateCreated, 'T', ' '), 1, 10) BETWEEN ? AND ?
         AND COALESCE(is_deleted, 0) = 0
@@ -1910,11 +1912,31 @@ class DBHelper {
     ''', [startStr, endStr]);
 
     final transactions = <Map<String, dynamic>>[];
-    transactions.addAll(loansList);
-    transactions.addAll(paymentsList);
-    transactions.addAll(expensesList);
-    transactions.addAll(serviceCostsList);
-    transactions.sort((a, b) => (b['date'] as String).compareTo(a['date'] as String));
+    for (final r in loansList) transactions.add(Map<String, dynamic>.from(r));
+    for (final r in paymentsList) transactions.add(Map<String, dynamic>.from(r));
+    for (final r in expensesList) transactions.add(Map<String, dynamic>.from(r));
+    for (final r in serviceCostsList) transactions.add(Map<String, dynamic>.from(r));
+
+    int getEffectiveCreatedAt(Map<String, dynamic> tx) {
+      final c = tx['created_at'];
+      if (c is int && c > 0) return c;
+      if (c is num && c > 0) return c.toInt();
+      return DateParser.safeParse(tx['date']).millisecondsSinceEpoch;
+    }
+
+    int getEffectiveId(Map<String, dynamic> tx) {
+      final id = tx['id'];
+      if (id is int) return id;
+      if (id is num) return id.toInt();
+      return 0;
+    }
+
+    // Default order: As inputted by user (created_at ASC, tie-broken by id ASC)
+    transactions.sort((a, b) {
+      final cmp = getEffectiveCreatedAt(a).compareTo(getEffectiveCreatedAt(b));
+      if (cmp != 0) return cmp;
+      return getEffectiveId(a).compareTo(getEffectiveId(b));
+    });
 
     return {
       'totalLent': (loansRes.first['total_lent'] as num?)?.toDouble() ?? 0.0,
@@ -1922,8 +1944,8 @@ class DBHelper {
       'totalExpenses': (expensesRes.first['total_expenses'] as num?)?.toDouble() ?? 0.0,
       'totalServiceCosts': (serviceCostsRes.first['total_service_costs'] as num?)?.toDouble() ?? 0.0,
       'transactions': transactions,
-      'newBorrowers': newBorrowers,
-      'closedLoans': closedLoans,
+      'newBorrowers': List<Map<String, dynamic>>.from(newBorrowers),
+      'closedLoans': List<Map<String, dynamic>>.from(closedLoans),
     };
   }
 }

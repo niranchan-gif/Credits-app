@@ -3,14 +3,86 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/loan_provider.dart';
 import '../database/db_helper.dart';
 import '../utils/app_colors.dart';
 import '../utils/fmt.dart';
+import '../utils/date_parser.dart';
 import '../widgets/premium_card.dart';
 import '../services/excel_export_service.dart';
 import '../utils/actions.dart';
+
+enum DateRangeSortOrder {
+  userInputAsc,
+  userInputDesc,
+  dateAsc,
+  dateDesc,
+  borrowerCode,
+}
+
+extension DateRangeSortOrderExt on DateRangeSortOrder {
+  String get label {
+    switch (this) {
+      case DateRangeSortOrder.userInputAsc:
+        return 'Input Order (As Entered)';
+      case DateRangeSortOrder.userInputDesc:
+        return 'Input Order (Latest First)';
+      case DateRangeSortOrder.dateAsc:
+        return 'Date (Oldest to Newest)';
+      case DateRangeSortOrder.dateDesc:
+        return 'Date (Newest to Oldest)';
+      case DateRangeSortOrder.borrowerCode:
+        return 'Borrower Code';
+    }
+  }
+
+  String get shortLabel {
+    switch (this) {
+      case DateRangeSortOrder.userInputAsc:
+        return 'As Entered';
+      case DateRangeSortOrder.userInputDesc:
+        return 'Latest First';
+      case DateRangeSortOrder.dateAsc:
+        return 'Oldest First';
+      case DateRangeSortOrder.dateDesc:
+        return 'Newest First';
+      case DateRangeSortOrder.borrowerCode:
+        return 'Code';
+    }
+  }
+
+  String get description {
+    switch (this) {
+      case DateRangeSortOrder.userInputAsc:
+        return 'Chronological order in which entries were inputted';
+      case DateRangeSortOrder.userInputDesc:
+        return 'Most recently inputted entries first';
+      case DateRangeSortOrder.dateAsc:
+        return 'Ordered from start of date range to end';
+      case DateRangeSortOrder.dateDesc:
+        return 'Ordered from end of date range to start';
+      case DateRangeSortOrder.borrowerCode:
+        return 'Ordered numerically by borrower code';
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case DateRangeSortOrder.userInputAsc:
+        return LucideIcons.history;
+      case DateRangeSortOrder.userInputDesc:
+        return LucideIcons.clock;
+      case DateRangeSortOrder.dateAsc:
+        return LucideIcons.calendar;
+      case DateRangeSortOrder.dateDesc:
+        return LucideIcons.calendar;
+      case DateRangeSortOrder.borrowerCode:
+        return LucideIcons.hash;
+    }
+  }
+}
 
 class DateRangeReportScreen extends StatefulWidget {
   const DateRangeReportScreen({super.key});
@@ -23,6 +95,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
   DateTimeRange? _selectedRange;
   bool _loading = false;
   bool _exporting = false;
+  DateRangeSortOrder _sortOrder = DateRangeSortOrder.userInputAsc;
   
   double _totalLent = 0.0;
   double _totalCollected = 0.0;
@@ -38,6 +111,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _loadSavedSortOrder();
     
     // Default to last 30 days
     final now = DateTime.now();
@@ -48,10 +122,174 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
     _loadReport();
   }
 
+  Future<void> _loadSavedSortOrder() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString('date_range_sort_order');
+      if (saved != null) {
+        final match = DateRangeSortOrder.values.cast<DateRangeSortOrder?>().firstWhere(
+          (e) => e?.name == saved,
+          orElse: () => null,
+        );
+        if (match != null && mounted) {
+          setState(() {
+            _sortOrder = match;
+          });
+          _applySort();
+        }
+      }
+    } catch (_) {}
+  }
+
   @override
   void dispose() {
     _tabController?.dispose();
     super.dispose();
+  }
+
+  void _applySort() {
+    int getEffectiveCreatedAt(Map<String, dynamic> tx) {
+      final c = tx['created_at'];
+      if (c is int && c > 0) return c;
+      if (c is num && c > 0) return c.toInt();
+      return DateParser.safeParse(tx['date']).millisecondsSinceEpoch;
+    }
+
+    int getEffectiveId(Map<String, dynamic> tx) {
+      final id = tx['id'];
+      if (id is int) return id;
+      if (id is num) return id.toInt();
+      return 0;
+    }
+
+    DateTime getEffectiveDate(Map<String, dynamic> tx) {
+      return DateParser.safeParse(tx['date']);
+    }
+
+    int parseCode(dynamic code) {
+      if (code == null) return 999999;
+      final str = code.toString().split('_del_').first.trim();
+      return int.tryParse(str) ?? 999999;
+    }
+
+    setState(() {
+      switch (_sortOrder) {
+        case DateRangeSortOrder.userInputAsc:
+          _transactions.sort((a, b) {
+            final cmp = getEffectiveCreatedAt(a).compareTo(getEffectiveCreatedAt(b));
+            if (cmp != 0) return cmp;
+            return getEffectiveId(a).compareTo(getEffectiveId(b));
+          });
+          _newBorrowers.sort((a, b) {
+            final tA = (a['created_at'] as num?)?.toInt() ?? 0;
+            final tB = (b['created_at'] as num?)?.toInt() ?? 0;
+            final cmp = tA.compareTo(tB);
+            if (cmp != 0) return cmp;
+            return ((a['id'] as num?)?.toInt() ?? 0).compareTo((b['id'] as num?)?.toInt() ?? 0);
+          });
+          _closedLoans.sort((a, b) {
+            final dA = DateParser.safeParse(a['end_date']);
+            final dB = DateParser.safeParse(b['end_date']);
+            final cmp = dA.compareTo(dB);
+            if (cmp != 0) return cmp;
+            return ((a['id'] as num?)?.toInt() ?? 0).compareTo((b['id'] as num?)?.toInt() ?? 0);
+          });
+          break;
+
+        case DateRangeSortOrder.userInputDesc:
+          _transactions.sort((a, b) {
+            final cmp = getEffectiveCreatedAt(b).compareTo(getEffectiveCreatedAt(a));
+            if (cmp != 0) return cmp;
+            return getEffectiveId(b).compareTo(getEffectiveId(a));
+          });
+          _newBorrowers.sort((a, b) {
+            final tA = (a['created_at'] as num?)?.toInt() ?? 0;
+            final tB = (b['created_at'] as num?)?.toInt() ?? 0;
+            final cmp = tB.compareTo(tA);
+            if (cmp != 0) return cmp;
+            return ((b['id'] as num?)?.toInt() ?? 0).compareTo((a['id'] as num?)?.toInt() ?? 0);
+          });
+          _closedLoans.sort((a, b) {
+            final dA = DateParser.safeParse(a['end_date']);
+            final dB = DateParser.safeParse(b['end_date']);
+            final cmp = dB.compareTo(dA);
+            if (cmp != 0) return cmp;
+            return ((b['id'] as num?)?.toInt() ?? 0).compareTo((a['id'] as num?)?.toInt() ?? 0);
+          });
+          break;
+
+        case DateRangeSortOrder.dateAsc:
+          _transactions.sort((a, b) {
+            final cmp = getEffectiveDate(a).compareTo(getEffectiveDate(b));
+            if (cmp != 0) return cmp;
+            final timeCmp = getEffectiveCreatedAt(a).compareTo(getEffectiveCreatedAt(b));
+            if (timeCmp != 0) return timeCmp;
+            return getEffectiveId(a).compareTo(getEffectiveId(b));
+          });
+          _newBorrowers.sort((a, b) {
+            final tA = (a['created_at'] as num?)?.toInt() ?? 0;
+            final tB = (b['created_at'] as num?)?.toInt() ?? 0;
+            return tA.compareTo(tB);
+          });
+          _closedLoans.sort((a, b) {
+            final dA = DateParser.safeParse(a['end_date']);
+            final dB = DateParser.safeParse(b['end_date']);
+            return dA.compareTo(dB);
+          });
+          break;
+
+        case DateRangeSortOrder.dateDesc:
+          _transactions.sort((a, b) {
+            final cmp = getEffectiveDate(b).compareTo(getEffectiveDate(a));
+            if (cmp != 0) return cmp;
+            final timeCmp = getEffectiveCreatedAt(b).compareTo(getEffectiveCreatedAt(a));
+            if (timeCmp != 0) return timeCmp;
+            return getEffectiveId(b).compareTo(getEffectiveId(a));
+          });
+          _newBorrowers.sort((a, b) {
+            final tA = (a['created_at'] as num?)?.toInt() ?? 0;
+            final tB = (b['created_at'] as num?)?.toInt() ?? 0;
+            return tB.compareTo(tA);
+          });
+          _closedLoans.sort((a, b) {
+            final dA = DateParser.safeParse(a['end_date']);
+            final dB = DateParser.safeParse(b['end_date']);
+            return dB.compareTo(dA);
+          });
+          break;
+
+        case DateRangeSortOrder.borrowerCode:
+          _transactions.sort((a, b) {
+            final cA = parseCode(a['borrower_code']);
+            final cB = parseCode(b['borrower_code']);
+            final cmp = cA.compareTo(cB);
+            if (cmp != 0) return cmp;
+            return getEffectiveCreatedAt(a).compareTo(getEffectiveCreatedAt(b));
+          });
+          _newBorrowers.sort((a, b) {
+            final cA = parseCode(a['borrower_code']);
+            final cB = parseCode(b['borrower_code']);
+            return cA.compareTo(cB);
+          });
+          _closedLoans.sort((a, b) {
+            final cA = parseCode(a['borrower_code']);
+            final cB = parseCode(b['borrower_code']);
+            return cA.compareTo(cB);
+          });
+          break;
+      }
+    });
+  }
+
+  void _changeSortOrder(DateRangeSortOrder order) {
+    if (_sortOrder == order) return;
+    setState(() {
+      _sortOrder = order;
+    });
+    _applySort();
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setString('date_range_sort_order', order.name);
+    });
   }
 
   Future<void> _loadReport() async {
@@ -70,6 +308,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
           _closedLoans = List<Map<String, dynamic>>.from(data['closedLoans']);
           _loading = false;
         });
+        _applySort();
       }
     } catch (e) {
       if (mounted) {
@@ -283,6 +522,18 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
       appBar: AppBar(
         title: const Text("Date Range Report"),
         actions: [
+          PopupMenuButton<DateRangeSortOrder>(
+            tooltip: 'Order History',
+            icon: const Icon(LucideIcons.arrowUpDown),
+            onSelected: (order) => _changeSortOrder(order),
+            itemBuilder: (context) => [
+              _buildSortMenuItem(DateRangeSortOrder.userInputAsc, 'Input Order (As Entered)', LucideIcons.history),
+              _buildSortMenuItem(DateRangeSortOrder.userInputDesc, 'Input Order (Latest First)', LucideIcons.clock),
+              _buildSortMenuItem(DateRangeSortOrder.dateAsc, 'Date (Oldest to Newest)', LucideIcons.calendar),
+              _buildSortMenuItem(DateRangeSortOrder.dateDesc, 'Date (Newest to Oldest)', LucideIcons.calendar),
+              _buildSortMenuItem(DateRangeSortOrder.borrowerCode, 'Borrower Code', LucideIcons.hash),
+            ],
+          ),
           IconButton(
             tooltip: 'Delete All Transactions',
             onPressed: _loading || _transactions.isEmpty ? null : _deleteAllTransactions,
@@ -316,6 +567,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
                     child: Column(
                       children: [
                         _buildDateSelector(dateRangeStr),
+                        _buildSortSelectorChip(),
                         // Summary Dashboard Area
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -389,9 +641,189 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
     );
   }
 
+  PopupMenuItem<DateRangeSortOrder> _buildSortMenuItem(
+    DateRangeSortOrder order,
+    String text,
+    IconData icon,
+  ) {
+    final isSelected = _sortOrder == order;
+    return PopupMenuItem<DateRangeSortOrder>(
+      value: order,
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 18,
+            color: isSelected ? AppColors.accent : Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? AppColors.accent : null,
+              ),
+            ),
+          ),
+          if (isSelected) const Icon(LucideIcons.check, size: 16, color: AppColors.accent),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSortSelectorChip() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.08)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(LucideIcons.arrowUpDown, size: 14, color: AppColors.accent),
+                ),
+                const SizedBox(width: 10),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Report Order",
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+                      ),
+                    ),
+                    Text(
+                      _sortOrder.label,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.accent,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            InkWell(
+              onTap: _showSortBottomSheet,
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      "Change",
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    Icon(LucideIcons.chevronRight, size: 14, color: Theme.of(context).colorScheme.primary),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showSortBottomSheet() async {
+    await showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 16, 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "Order History",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  IconButton(
+                    icon: const Icon(LucideIcons.x, size: 18),
+                    onPressed: () => Navigator.pop(ctx),
+                    splashRadius: 20,
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            ...DateRangeSortOrder.values.map((order) {
+              final isSelected = _sortOrder == order;
+              return ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppColors.accent.withOpacity(0.15)
+                        : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    order.icon,
+                    size: 18,
+                    color: isSelected ? AppColors.accent : Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                title: Text(
+                  order.label,
+                  style: TextStyle(
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    color: isSelected ? AppColors.accent : null,
+                  ),
+                ),
+                subtitle: Text(
+                  order.description,
+                  style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7)),
+                ),
+                trailing: isSelected ? const Icon(LucideIcons.check, color: AppColors.accent) : null,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _changeSortOrder(order);
+                },
+              );
+            }),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildDateSelector(String dateRangeStr) {
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
       child: InkWell(
         onTap: _pickDateRange,
         borderRadius: BorderRadius.circular(16),
@@ -492,7 +924,14 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
 
         DateTime? date;
         try {
-          date = DateTime.parse(dateStr);
+          date = DateParser.safeParse(dateStr);
+          final createdAt = tx['created_at'];
+          if (createdAt is int && createdAt > 0 && date.hour == 0 && date.minute == 0 && date.second == 0) {
+            final createdDt = DateTime.fromMillisecondsSinceEpoch(createdAt);
+            if (createdDt.year == date.year && createdDt.month == date.month && createdDt.day == date.day) {
+              date = createdDt;
+            }
+          }
         } catch (_) {}
 
         IconData icon;
@@ -516,7 +955,11 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
           sign = "-";
         }
 
-        final df = DateFormat('dd MMM, hh:mm a');
+        final dfWithTime = DateFormat('dd MMM, hh:mm a');
+        final dfDateOnly = DateFormat('dd MMM yyyy');
+        final formattedDate = date != null
+            ? ((date.hour == 0 && date.minute == 0 && date.second == 0) ? dfDateOnly.format(date) : dfWithTime.format(date))
+            : dateStr;
 
         return Container(
           margin: const EdgeInsets.only(bottom: 8),
@@ -557,7 +1000,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        date != null ? df.format(date) : dateStr,
+                        formattedDate,
                         style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7)),
                       ),
                     ],
