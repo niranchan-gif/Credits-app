@@ -9,6 +9,8 @@ import '../providers/loan_provider.dart';
 import '../models/borrower.dart';
 import '../utils/app_colors.dart';
 import '../utils/fmt.dart';
+import '../database/db_helper.dart';
+import '../utils/date_parser.dart';
 
 class QuickAddDialog extends StatefulWidget {
   const QuickAddDialog({super.key});
@@ -322,6 +324,32 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
         setState(() => _activeField = _QuickAddField.code);
         _codeFocusNode.requestFocus();
       }
+    }
+  }
+
+  Future<void> _showDayTransactions(BuildContext context) async {
+    HapticFeedback.selectionClick();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return _DayTransactionsSheet(
+          selectedDate: _selectedDate,
+          isDark: isDark,
+          onChanged: () {
+            _loadDayTotal();
+            _checkIfPaidOnSelectedDate();
+          },
+        );
+      },
+    );
+
+    if (mounted) {
+      _loadDayTotal();
+      _checkIfPaidOnSelectedDate();
     }
   }
 
@@ -1017,52 +1045,56 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
                               const SizedBox(width: 10),
                               // Day Total Realtime Box (50% Space)
                               Expanded(
-                                child: Container(
-                                  height: 54,
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: isDark ? Colors.grey[850] : Colors.grey[100],
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(
-                                      color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+                                child: InkWell(
+                                  onTap: () => _showDayTransactions(context),
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: Container(
+                                    height: 54,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? Colors.grey[850] : Colors.grey[100],
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                        color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+                                      ),
                                     ),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            _isToday(_selectedDate) ? "Today's Total" : "Day Total",
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              height: 1.1,
-                                              fontWeight: FontWeight.w600,
-                                              color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              _isToday(_selectedDate) ? "Today's Total" : "Day Total",
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                height: 1.1,
+                                                fontWeight: FontWeight.w600,
+                                                color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                              ),
                                             ),
-                                          ),
-                                          Icon(
-                                            LucideIcons.trendingUp,
-                                            size: 13,
+                                            Icon(
+                                              LucideIcons.arrowUpRight,
+                                              size: 13,
+                                              color: isDark ? const Color(0xFF34D399) : const Color(0xFF059669),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          fmtINR(_dayTotal),
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            height: 1.2,
+                                            fontWeight: FontWeight.bold,
                                             color: isDark ? const Color(0xFF34D399) : const Color(0xFF059669),
                                           ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        fmtINR(_dayTotal),
-                                        style: TextStyle(
-                                          fontSize: 15,
-                                          height: 1.2,
-                                          fontWeight: FontWeight.bold,
-                                          color: isDark ? const Color(0xFF34D399) : const Color(0xFF059669),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
@@ -1392,5 +1424,496 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
         ),
       ),
     );
+  }
+}
+
+class _DayTransactionsSheet extends StatefulWidget {
+  final DateTime selectedDate;
+  final bool isDark;
+  final VoidCallback onChanged;
+
+  const _DayTransactionsSheet({
+    required this.selectedDate,
+    required this.isDark,
+    required this.onChanged,
+  });
+
+  @override
+  State<_DayTransactionsSheet> createState() => _DayTransactionsSheetState();
+}
+
+class _DayTransactionsSheetState extends State<_DayTransactionsSheet> {
+  List<Map<String, dynamic>> _transactions = [];
+  bool _loading = true;
+  double _totalCollected = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchTransactions();
+  }
+
+  Future<void> _fetchTransactions() async {
+    if (!mounted) return;
+    setState(() => _loading = true);
+    try {
+      final data = await DBHelper().getDateRangeReport(widget.selectedDate, widget.selectedDate);
+      if (mounted) {
+        final list = List<Map<String, dynamic>>.from(data['transactions']);
+        list.sort((a, b) {
+          final cA = _getEffectiveCreatedAt(a);
+          final cB = _getEffectiveCreatedAt(b);
+          final cmp = cB.compareTo(cA);
+          if (cmp != 0) return cmp;
+          final idA = (a['id'] as num?)?.toInt() ?? 0;
+          final idB = (b['id'] as num?)?.toInt() ?? 0;
+          return idB.compareTo(idA);
+        });
+
+        setState(() {
+          _transactions = list;
+          _totalCollected = (data['totalCollected'] as num?)?.toDouble() ?? 0.0;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  int _getEffectiveCreatedAt(Map<String, dynamic> tx) {
+    final c = tx['created_at'];
+    if (c is int && c > 0) return c;
+    if (c is num && c > 0) return c.toInt();
+    return DateParser.safeParse(tx['date']).millisecondsSinceEpoch;
+  }
+
+  Future<void> _deleteTransaction(Map<String, dynamic> tx) async {
+    final type = tx['type'] as String? ?? '';
+    final id = tx['id'] as int?;
+    final amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
+    final borrowerName = tx['borrower_name'] as String? ?? 'Transaction';
+
+    if (id == null || (type != 'Collected' && type != 'Lent')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cannot delete this transaction type')),
+      );
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(LucideIcons.trash2, color: AppColors.error, size: 20),
+            SizedBox(width: 8),
+            Text('Delete Transaction', style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to delete this $type of ${fmtINR(amount)} for $borrowerName?',
+          style: const TextStyle(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final provider = context.read<LoanProvider>();
+      if (type == 'Collected') {
+        final loanId = tx['loan_id'] as int? ?? 0;
+        await provider.deletePayment(id, loanId);
+      } else if (type == 'Lent') {
+        await provider.deleteLoan(id);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Transaction deleted successfully'),
+            backgroundColor: AppColors.success,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+
+      widget.onChanged();
+      _fetchTransactions();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error deleting transaction: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = widget.isDark;
+    final dateStr = DateFormat('dd MMM yyyy').format(widget.selectedDate);
+    final isTodayDate = _isDateToday(widget.selectedDate);
+
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.82,
+      ),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E2024) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.5 : 0.15),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag Handle
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 10, bottom: 6),
+              width: 38,
+              height: 4,
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey[700] : Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+
+          // Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 6, 12, 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            LucideIcons.receipt,
+                            size: 18,
+                            color: isDark ? Colors.white : AppColors.accent,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            isTodayDate ? "Today's Transactions" : "Day Transactions",
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : AppColors.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        dateStr,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? Colors.grey[400] : Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Total Badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? const Color(0xFF34D399).withValues(alpha: 0.15)
+                        : const Color(0xFF059669).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: isDark
+                          ? const Color(0xFF34D399).withValues(alpha: 0.3)
+                          : const Color(0xFF059669).withValues(alpha: 0.25),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        LucideIcons.trendingUp,
+                        size: 13,
+                        color: isDark ? const Color(0xFF34D399) : const Color(0xFF059669),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        fmtINR(_totalCollected),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? const Color(0xFF34D399) : const Color(0xFF059669),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: const Icon(LucideIcons.x, size: 20),
+                  onPressed: () => Navigator.pop(context),
+                  splashRadius: 20,
+                ),
+              ],
+            ),
+          ),
+          Divider(
+            height: 1,
+            color: isDark ? Colors.grey[800] : Colors.grey[200],
+          ),
+
+          // Content List
+          Flexible(
+            child: _loading
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 48),
+                    child: Center(
+                      child: CircularProgressIndicator(color: AppColors.accent),
+                    ),
+                  )
+                : _transactions.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                LucideIcons.receipt,
+                                size: 48,
+                                color: isDark ? Colors.grey[600] : Colors.grey[350],
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                "No transactions recorded on this date",
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                "Payments collected will show up here.",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark ? Colors.grey[500] : Colors.grey[500],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                        shrinkWrap: true,
+                        itemCount: _transactions.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        itemBuilder: (context, index) {
+                          final tx = _transactions[index];
+                          final type = tx['type'] as String? ?? 'Collected';
+                          final amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
+                          final dateStr = tx['date'] as String? ?? '';
+                          final borrowerName = tx['borrower_name'] as String? ?? '';
+                          String borrowerCode = tx['borrower_code'] as String? ?? '';
+                          if (borrowerCode.contains('_del_')) {
+                            borrowerCode = borrowerCode.split('_del_').first;
+                          }
+
+                          DateTime? date;
+                          try {
+                            date = DateParser.safeParse(dateStr);
+                            final createdAt = tx['created_at'];
+                            if (createdAt is int && createdAt > 0 && date.hour == 0 && date.minute == 0 && date.second == 0) {
+                              final createdDt = DateTime.fromMillisecondsSinceEpoch(createdAt);
+                              if (createdDt.year == date.year && createdDt.month == date.month && createdDt.day == date.day) {
+                                date = createdDt;
+                              }
+                            }
+                          } catch (_) {}
+
+                          IconData icon;
+                          Color color;
+                          String sign;
+                          if (type == 'Lent') {
+                            icon = LucideIcons.arrowUpRight;
+                            color = AppColors.warning;
+                            sign = "-";
+                          } else if (type == 'Collected') {
+                            icon = LucideIcons.arrowDownLeft;
+                            color = AppColors.success;
+                            sign = "+";
+                          } else if (type == 'Service') {
+                            icon = LucideIcons.wrench;
+                            color = AppColors.success;
+                            sign = "+";
+                          } else {
+                            icon = LucideIcons.receipt;
+                            color = AppColors.error;
+                            sign = "-";
+                          }
+
+                          final dfTimeOnly = DateFormat('hh:mm a');
+                          final dfDateOnly = DateFormat('dd MMM');
+                          final formattedTime = date != null
+                              ? ((date.hour == 0 && date.minute == 0 && date.second == 0)
+                                  ? dfDateOnly.format(date)
+                                  : dfTimeOnly.format(date))
+                              : dateStr;
+
+                          final canDelete = type == 'Collected' || type == 'Lent';
+
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF282B30) : const Color(0xFFF3F4F6),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+                                width: 0.8,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(7),
+                                  decoration: BoxDecoration(
+                                    color: color.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Icon(icon, color: color, size: 16),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          if (borrowerCode.isNotEmpty) ...[
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.accent.withValues(alpha: 0.12),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Text(
+                                                borrowerCode,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 11,
+                                                  color: AppColors.accent,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                          ],
+                                          Flexible(
+                                            child: Text(
+                                              borrowerName,
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 13,
+                                                color: isDark ? Colors.white : AppColors.textPrimary,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            type,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w500,
+                                              color: color,
+                                            ),
+                                          ),
+                                          if (formattedTime.isNotEmpty) ...[
+                                            Text(
+                                              " • $formattedTime",
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      "$sign${fmtINR(amount)}",
+                                      style: TextStyle(
+                                        color: color,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (canDelete) ...[
+                                  const SizedBox(width: 6),
+                                  IconButton(
+                                    icon: const Icon(LucideIcons.trash2, size: 16, color: AppColors.error),
+                                    tooltip: 'Delete',
+                                    onPressed: () => _deleteTransaction(tx),
+                                    splashRadius: 18,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool _isDateToday(DateTime date) {
+    final now = DateTime.now();
+    return date.year == now.year && date.month == now.month && date.day == now.day;
   }
 }

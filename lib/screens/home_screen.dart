@@ -128,7 +128,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       SliverPadding(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                        padding: const EdgeInsets.fromLTRB(16, 2, 16, 12),
                         sliver: SliverToBoxAdapter(
                           child: _buildTabs(
                             collectList.length, 

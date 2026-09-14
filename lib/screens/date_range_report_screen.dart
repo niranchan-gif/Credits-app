@@ -606,7 +606,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
                             ],
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 6),
                       ],
                     ),
                   ),

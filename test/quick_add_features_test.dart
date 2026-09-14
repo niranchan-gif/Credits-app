@@ -104,7 +104,20 @@ void main() {
     // Last payment entered is now borrower 102
     expect(await dbHelper.getLastPaymentBorrowerCode(), '102');
 
-    // On the next day, total resets to 0.0
-    expect(await dbHelper.getTotalCollectedOnDate(tomorrow), 0.0);
+    // Test getDateRangeReport for today (day transactions)
+    final report = await dbHelper.getDateRangeReport(today, today);
+    expect(report['totalCollected'], 800.0);
+    final txs = report['transactions'] as List;
+    // 2 loans (Lent) + 2 payments (Collected) = 4 transactions
+    expect(txs.length, 4);
+    expect(txs.any((t) => t['borrower_code'] == '101' && t['amount'] == 500.0 && t['type'] == 'Collected'), isTrue);
+    expect(txs.any((t) => t['borrower_code'] == '102' && t['amount'] == 300.0 && t['type'] == 'Collected'), isTrue);
+    expect(txs.any((t) => t['borrower_code'] == '101' && t['type'] == 'Lent'), isTrue);
+    expect(txs.any((t) => t['borrower_code'] == '102' && t['type'] == 'Lent'), isTrue);
+
+    // On tomorrow, transactions list is empty
+    final tomorrowReport = await dbHelper.getDateRangeReport(tomorrow, tomorrow);
+    expect(tomorrowReport['totalCollected'], 0.0);
+    expect((tomorrowReport['transactions'] as List).isEmpty, isTrue);
   });
 }
