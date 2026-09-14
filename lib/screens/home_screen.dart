@@ -909,9 +909,9 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: Row(
         children: [
-          _tabItem(0, "Collect", collect.toString(), AppColors.secondary),
-          _tabItem(1, "Paid", paid.toString(), AppColors.success),
-          _tabItem(2, "Closed", completed.toString(), AppColors.info),
+          _tabItem(0, "Collect", collect.toString(), AppColors.accent),
+          _tabItem(1, "Paid", paid.toString(), AppColors.accent),
+          _tabItem(2, "Closed", completed.toString(), AppColors.accent),
           _tabItem(3, "Inactive", dummy.toString(), Colors.grey),
         ],
       ),
@@ -932,7 +932,9 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
           decoration: BoxDecoration(
             color: isSelected
-                ? (isDark ? AppColors.surfaceLightDark : AppColors.surfaceLight)
+                ? (isDark
+                    ? AppColors.accent.withValues(alpha: 0.22)
+                    : AppColors.accent.withValues(alpha: 0.12))
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(18),
             border: isSelected

@@ -10,6 +10,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/app_update_info.dart';
 import '../widgets/rocket_update_header.dart';
+import '../config/update_message.dart';
 
 class ForceUpdateScreen extends StatefulWidget {
   final AppUpdateInfo updateInfo;
@@ -345,26 +346,18 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
     final bool showProgressBar = _isDownloading || (_isLaunching && !_hasLaunched);
     final bool isReady = _hasLaunched || (_downloadSuccess && _downloadedApkPath != null && !_isDownloading);
 
-    // Curated feature items matching the reference mockup
-    final List<String> featureItems;
-    if (widget.updateInfo.releaseNotes.isNotEmpty) {
-      featureItems = widget.updateInfo.releaseNotes.take(3).toList();
-      while (featureItems.length < 3) {
-        if (!featureItems.contains('Improved user interface')) {
-          featureItems.add('Improved user interface');
-        } else if (!featureItems.contains('More reliable offline performance')) {
-          featureItems.add('More reliable offline performance');
-        } else {
-          featureItems.add('Easier to navigate');
-        }
-      }
-    } else {
-      featureItems = [
-        'Improved user interface',
-        'More reliable performance',
-        'Easier to navigate',
-      ];
-    }
+    // Feature checklist items from updateInfo or configured in UpdateMessageConfig
+    final List<String> featureItems = widget.updateInfo.releaseNotes.isNotEmpty
+        ? widget.updateInfo.releaseNotes
+        : UpdateMessageConfig.releaseNotes;
+
+    final String updateTitle = (widget.updateInfo.title != null && widget.updateInfo.title!.isNotEmpty)
+        ? widget.updateInfo.title!
+        : UpdateMessageConfig.title;
+
+    final String updateSubtitle = (widget.updateInfo.message != null && widget.updateInfo.message!.isNotEmpty)
+        ? widget.updateInfo.message!
+        : UpdateMessageConfig.message;
 
     final Color bottomNavColor = isDark ? const Color(0xFF010E0A) : const Color(0xFFE4F0EB);
 
@@ -434,9 +427,9 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
                                 ),
                                 const SizedBox(height: 24),
 
-                                // 2. Title matching mockup typography
+                                // 2. Title & subtitle matching mockup typography
                                 Text(
-                                  'Upgrade to the new version of our app',
+                                  updateTitle,
                                   style: GoogleFonts.leagueSpartan(
                                     fontSize: 24,
                                     fontWeight: FontWeight.w700,
@@ -445,6 +438,17 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
                                     height: 1.25,
                                   ),
                                 ),
+                                if (updateSubtitle.isNotEmpty) ...[
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    updateSubtitle,
+                                    style: GoogleFonts.manrope(
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w500,
+                                      color: isDark ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF4A5F55),
+                                    ),
+                                  ),
+                                ],
                                 
                                 const SizedBox(height: 18),
 

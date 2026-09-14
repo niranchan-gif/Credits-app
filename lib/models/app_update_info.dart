@@ -3,12 +3,16 @@ class AppUpdateInfo {
   final bool forceUpdate;
   final String downloadUrl;
   final List<String> releaseNotes;
+  final String? title;
+  final String? message;
 
   AppUpdateInfo({
     required this.version,
     required this.forceUpdate,
     required this.downloadUrl,
     this.releaseNotes = const [],
+    this.title,
+    this.message,
   });
 
   int get buildNumber => version;
@@ -41,11 +45,16 @@ class AppUpdateInfo {
       parsedForce = rawForce;
     }
 
+    final rawTitle = json['title'] as String?;
+    final rawMessage = json['message'] as String?;
+
     return AppUpdateInfo(
       version: parsedBuild,
       forceUpdate: parsedForce,
       downloadUrl: rawUrl.toString().trim(),
       releaseNotes: notes,
+      title: rawTitle?.trim(),
+      message: rawMessage?.trim(),
     );
   }
 
@@ -57,6 +66,8 @@ class AppUpdateInfo {
       'apkUrl': downloadUrl,
       'download_url': downloadUrl,
       'releaseNotes': releaseNotes,
+      if (title != null) 'title': title,
+      if (message != null) 'message': message,
     };
   }
 }

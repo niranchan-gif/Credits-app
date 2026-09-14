@@ -1533,7 +1533,7 @@ class _DayTransactionsSheetState extends State<_DayTransactionsSheet> {
       ),
     );
 
-    if (confirm != true) return;
+    if (confirm != true || !mounted) return;
 
     try {
       final provider = context.read<LoanProvider>();
