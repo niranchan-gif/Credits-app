@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' as dart_ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -17,6 +18,7 @@ import '../../services/google_drive_json_backup_service.dart';
 import '../../utils/app_colors.dart';
 import '../app_lock_wrapper.dart';
 import '../main_navigation_screen.dart';
+import '../../widgets/glass_card.dart';
 import '../../widgets/progress_dialog.dart';
 
 /// Sign-in / Registration screen for the Credits app.
@@ -250,116 +252,73 @@ class _SignInScreenState extends State<SignInScreen>
       backgroundColor: bgColor,
       body: Stack(
         children: [
-          // ── Background covered with geometric elements ─────────────────
-          AnimatedBuilder(
-            animation: _bgAnim,
-            builder: (_, __) => CustomPaint(
-              size: size,
-              painter: _SignInBackgroundPainter(
-                progress: _bgAnim.value,
-                isDark: isDark,
-              ),
-            ),
-          ),
-
-          // ── Radial glow top-right (Emerald) ────────────────────────────
-          Positioned(
-            top: -60,
-            right: -60,
-            child: AnimatedBuilder(
-              animation: _fadeAnim,
-              builder: (_, __) => Opacity(
-                opacity: _fadeAnim.value * 0.7,
-                child: Container(
-                  width: 320,
-                  height: 320,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        AppColors.accent.withValues(alpha: isDark ? 0.22 : 0.12),
-                        Colors.transparent,
-                      ],
+                                        // ── Professional Fintech Background ─────────────────
+          Positioned.fill(
+            child: Stack(
+                children: [
+                  // Base background
+                  Positioned.fill(
+                    child: Container(
+                      color: isDark ? const Color(0xFF0A0F0D) : const Color(0xFFF4F7F5),
                     ),
                   ),
-                ),
-              ),
-            ),
-          ),
-
-          // ── Radial glow top-left (Warm Gold / Amber) ───────────────────
-          Positioned(
-            top: -50,
-            left: -50,
-            child: AnimatedBuilder(
-              animation: _fadeAnim,
-              builder: (_, __) => Opacity(
-                opacity: _fadeAnim.value * 0.45,
-                child: Container(
-                  width: 260,
-                  height: 260,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        const Color(0xFFDAA464).withValues(alpha: isDark ? 0.16 : 0.08),
-                        Colors.transparent,
-                      ],
+                  
+                  // ── Soft Glowing Orb 1 (Top Right) ──
+                  Positioned(
+                    top: -150,
+                    right: -100,
+                    child: AnimatedBuilder(
+                      animation: _fadeAnim,
+                      builder: (_, __) => Opacity(
+                        opacity: _fadeAnim.value * 0.8,
+                        child: Container(
+                          width: 500,
+                          height: 500,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: RadialGradient(
+                              colors: [
+                                AppColors.accent.withValues(alpha: isDark ? 0.25 : 0.4),
+                                Colors.transparent,
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-            ),
-          ),
 
-          // ── Radial glow bottom-left (Teal / Secondary) ─────────────────
-          Positioned(
-            bottom: -80,
-            left: -50,
-            child: AnimatedBuilder(
-              animation: _fadeAnim,
-              builder: (_, __) => Opacity(
-                opacity: _fadeAnim.value * 0.5,
-                child: Container(
-                  width: 290,
-                  height: 290,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        AppColors.secondary.withValues(alpha: isDark ? 0.18 : 0.10),
-                        Colors.transparent,
-                      ],
+                  // ── Soft Glowing Orb 2 (Bottom Left) ──
+                  Positioned(
+                    bottom: -150,
+                    left: -100,
+                    child: AnimatedBuilder(
+                      animation: _fadeAnim,
+                      builder: (_, __) => Opacity(
+                        opacity: _fadeAnim.value * 0.8,
+                        child: Container(
+                          width: 600,
+                          height: 600,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: RadialGradient(
+                              colors: [
+                                AppColors.secondary.withValues(alpha: isDark ? 0.2 : 0.35),
+                                Colors.transparent,
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-            ),
-          ),
 
-          // ── Radial glow bottom-right (Mint) ────────────────────────────
-          Positioned(
-            bottom: -60,
-            right: -60,
-            child: AnimatedBuilder(
-              animation: _fadeAnim,
-              builder: (_, __) => Opacity(
-                opacity: _fadeAnim.value * 0.4,
-                child: Container(
-                  width: 260,
-                  height: 260,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        const Color(0xFF2DD4BF).withValues(alpha: isDark ? 0.15 : 0.08),
-                        Colors.transparent,
-                      ],
-                    ),
+                  // ── Scattered Finance Elements ──
+                  Positioned.fill(
+                    child: _buildScatteredElements(size: size, isDark: isDark),
                   ),
-                ),
+                ],
               ),
-            ),
           ),
 
           // ── Main content (Minimal & Balanced) ──────────────────────────
@@ -369,58 +328,36 @@ class _SignInScreenState extends State<SignInScreen>
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
                 child: AnimatedBuilder(
                   animation: _animController,
-                  builder: (_, child) => Opacity(
-                    opacity: _fadeAnim.value,
-                    child: Transform.translate(
+                  builder: (_, child) => Transform.translate(
                       offset: Offset(0, _slideAnim.value),
                       child: child,
-                    ),
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // ── Logo without extra text or background ─────────
-                      _buildLogo(isDark),
-
-                      AnimatedOpacity(
-                        duration: const Duration(milliseconds: 300),
-                        opacity: _isZooming ? 0.0 : 1.0,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const SizedBox(height: 28),
-
-                            // ── Minimal Sign In Card ─────────────────────
-                            Container(
-                              constraints: const BoxConstraints(maxWidth: 400),
-                              decoration: BoxDecoration(
-                                color: cardColor,
-                                borderRadius: BorderRadius.circular(24),
-                                border: Border.all(
-                                  color: isDark
-                                      ? Colors.white.withValues(alpha: 0.10)
-                                      : const Color(0xFF285A48).withValues(alpha: 0.08),
-                                  width: 1.0,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.06),
-                                    blurRadius: 36,
-                                    offset: const Offset(0, 14),
-                                  ),
-                                  BoxShadow(
-                                    color: (isDark ? Colors.white : AppColors.accent)
-                                        .withValues(alpha: isDark ? 0.03 : 0.02),
-                                    blurRadius: 1,
-                                    offset: const Offset(0, 1),
-                                  ),
-                                ],
-                              ),
-                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  // Title
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 300),
+                    opacity: _isZooming ? 0.0 : 1.0,
+                    child: GlassCard(
+                      margin: EdgeInsets.zero,
+                      borderRadius: 32,
+                      blur: 30, // Extremely clear blur
+                      color: isDark
+                          ? Colors.black.withValues(alpha: 0.05) // Ultra high transparency
+                          : Colors.white.withValues(alpha: 0.10), // Ultra high transparency
+                      border: Border.all(
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.12)
+                            : Colors.white.withValues(alpha: 0.40),
+                        width: 1.5,
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // ── Logo ──
+                          _buildLogo(isDark),
+                          const SizedBox(height: 24),
+                          
+                          // Title
                                   Text(
                                     'Sign In',
                                     style: GoogleFonts.outfit(
@@ -530,43 +467,38 @@ class _SignInScreenState extends State<SignInScreen>
                                             ),
                                     ),
                                   ),
-                                ],
-                              ),
-                            ),
+                                  const SizedBox(height: 32),
 
-                            const SizedBox(height: 20),
-
-                            // ── Security footer (overflow-safe) ──────────
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 8),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    LucideIcons.lock,
-                                    size: 12.5,
-                                    color: subtextColor.withValues(alpha: 0.7),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Flexible(
-                                    child: Text(
-                                      'Encrypted • Private Google Drive storage',
-                                      style: GoogleFonts.outfit(
-                                        fontSize: 12,
-                                        color: subtextColor.withValues(alpha: 0.7),
-                                        fontWeight: FontWeight.w400,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
+                                  // ── Security footer (overflow-safe) ──────────
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          LucideIcons.lock,
+                                          size: 12.5,
+                                          color: subtextColor.withValues(alpha: 0.7),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Flexible(
+                                          child: Text(
+                                            'Encrypted • Private Google Drive storage',
+                                            style: GoogleFonts.outfit(
+                                              fontSize: 12,
+                                              color: subtextColor.withValues(alpha: 0.7),
+                                              fontWeight: FontWeight.w400,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                    ],
                   ),
                 ),
               ),
@@ -574,6 +506,68 @@ class _SignInScreenState extends State<SignInScreen>
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildScatteredElements({required Size size, required bool isDark}) {
+    final icons = [
+      LucideIcons.indianRupee,
+      LucideIcons.creditCard,
+      LucideIcons.wallet,
+      LucideIcons.pieChart,
+      LucideIcons.trendingUp,
+      LucideIcons.shieldCheck,
+      LucideIcons.percent,
+      LucideIcons.piggyBank,
+      LucideIcons.fileText,
+      LucideIcons.landmark,
+      LucideIcons.coins,
+      LucideIcons.banknote,
+    ];
+
+    // Pre-defined random-looking positions and properties for a stable layout
+    final positions = [
+      {'x': 0.1, 'y': 0.1, 'size': 80.0, 'angle': 0.2, 'opacity': 0.15, 'icon': 0, 'speed': 0.5},
+      {'x': 0.8, 'y': 0.15, 'size': 120.0, 'angle': -0.3, 'opacity': 0.1, 'icon': 1, 'speed': -0.4},
+      {'x': 0.2, 'y': 0.3, 'size': 60.0, 'angle': 0.5, 'opacity': 0.12, 'icon': 2, 'speed': 0.3},
+      {'x': 0.85, 'y': 0.4, 'size': 90.0, 'angle': -0.1, 'opacity': 0.1, 'icon': 3, 'speed': -0.6},
+      {'x': 0.15, 'y': 0.6, 'size': 140.0, 'angle': 0.4, 'opacity': 0.08, 'icon': 4, 'speed': 0.7},
+      {'x': 0.75, 'y': 0.7, 'size': 70.0, 'angle': -0.5, 'opacity': 0.15, 'icon': 5, 'speed': -0.5},
+      {'x': 0.3, 'y': 0.85, 'size': 110.0, 'angle': 0.1, 'opacity': 0.1, 'icon': 6, 'speed': 0.4},
+      {'x': 0.9, 'y': 0.85, 'size': 85.0, 'angle': -0.2, 'opacity': 0.12, 'icon': 7, 'speed': -0.3},
+      {'x': 0.5, 'y': 0.05, 'size': 65.0, 'angle': 0.6, 'opacity': 0.09, 'icon': 8, 'speed': 0.6},
+      {'x': 0.05, 'y': 0.45, 'size': 95.0, 'angle': -0.4, 'opacity': 0.11, 'icon': 9, 'speed': -0.7},
+      {'x': 0.55, 'y': 0.95, 'size': 75.0, 'angle': 0.3, 'opacity': 0.14, 'icon': 10, 'speed': 0.5},
+      {'x': 0.95, 'y': 0.55, 'size': 130.0, 'angle': -0.6, 'opacity': 0.07, 'icon': 11, 'speed': -0.4},
+    ];
+
+    return Stack(
+      children: positions.map((pos) {
+        return Positioned(
+          left: size.width * (pos['x'] as double) - ((pos['size'] as double) / 2),
+          top: size.height * (pos['y'] as double) - ((pos['size'] as double) / 2),
+          child: AnimatedBuilder(
+            animation: _slideAnim,
+            builder: (context, child) {
+              final speed = pos['speed'] as double;
+              return Transform.translate(
+                offset: Offset(0, _slideAnim.value * speed),
+                child: Transform.rotate(
+                  angle: (pos['angle'] as double) + (_slideAnim.value * 0.01 * speed),
+                  child: Opacity(
+                    opacity: pos['opacity'] as double,
+                    child: Icon(
+                      icons[pos['icon'] as int],
+                      size: pos['size'] as double,
+                      color: isDark ? Colors.white : AppColors.primary,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -590,132 +584,3 @@ class _SignInScreenState extends State<SignInScreen>
 }
 
 /// Decorative background painter covered with subtle geometric elements
-class _SignInBackgroundPainter extends CustomPainter {
-  final double progress;
-  final bool isDark;
-
-  _SignInBackgroundPainter({required this.progress, required this.isDark});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final strokeColor = (isDark ? const Color(0xFF2DD4BF) : const Color(0xFF285A48))
-        .withValues(alpha: 0.07 * progress);
-    final goldColor = const Color(0xFFDAA464).withValues(alpha: 0.06 * progress);
-    final accentColor = (isDark ? const Color(0xFF10B981) : const Color(0xFF285A48))
-        .withValues(alpha: 0.07 * progress);
-
-    final strokePaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
-
-    // 1. Concentric ripple rings across the corners & background
-    // Top-right rings
-    strokePaint.color = strokeColor;
-    canvas.drawCircle(Offset(size.width * 0.90, size.height * 0.08), 45, strokePaint);
-    canvas.drawCircle(Offset(size.width * 0.90, size.height * 0.08), 90, strokePaint);
-    canvas.drawCircle(Offset(size.width * 0.90, size.height * 0.08), 150, strokePaint);
-
-    // Top-left rings
-    strokePaint.color = goldColor;
-    canvas.drawCircle(Offset(size.width * 0.08, size.height * 0.12), 40, strokePaint);
-    canvas.drawCircle(Offset(size.width * 0.08, size.height * 0.12), 85, strokePaint);
-
-    // Bottom-left rings
-    strokePaint.color = strokeColor;
-    canvas.drawCircle(Offset(size.width * 0.10, size.height * 0.92), 55, strokePaint);
-    canvas.drawCircle(Offset(size.width * 0.10, size.height * 0.92), 110, strokePaint);
-    canvas.drawCircle(Offset(size.width * 0.10, size.height * 0.92), 180, strokePaint);
-
-    // Bottom-right rings
-    strokePaint.color = goldColor;
-    canvas.drawCircle(Offset(size.width * 0.92, size.height * 0.88), 60, strokePaint);
-    canvas.drawCircle(Offset(size.width * 0.92, size.height * 0.88), 120, strokePaint);
-
-    // 2. Smooth wavy financial contours crossing the background
-    final wavePaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0
-      ..color = accentColor;
-
-    final path1 = Path()
-      ..moveTo(0, size.height * 0.28)
-      ..cubicTo(
-        size.width * 0.35, size.height * 0.22,
-        size.width * 0.65, size.height * 0.34,
-        size.width, size.height * 0.26,
-      );
-    canvas.drawPath(path1, wavePaint);
-
-    final path2 = Path()
-      ..moveTo(0, size.height * 0.72)
-      ..cubicTo(
-        size.width * 0.30, size.height * 0.78,
-        size.width * 0.70, size.height * 0.66,
-        size.width, size.height * 0.74,
-      );
-    canvas.drawPath(path2, wavePaint);
-
-    // 3. Floating geometric diamond shapes across the canvas
-    _drawDiamond(canvas, Offset(size.width * 0.16, size.height * 0.36), 9, strokePaint);
-    _drawDiamond(canvas, Offset(size.width * 0.85, size.height * 0.40), 11, strokePaint);
-    _drawDiamond(canvas, Offset(size.width * 0.18, size.height * 0.62), 10, strokePaint);
-    _drawDiamond(canvas, Offset(size.width * 0.84, size.height * 0.66), 12, strokePaint);
-
-    // Small floating outline circles
-    canvas.drawCircle(Offset(size.width * 0.82, size.height * 0.22), 7, strokePaint);
-    canvas.drawCircle(Offset(size.width * 0.14, size.height * 0.48), 6, strokePaint);
-    canvas.drawCircle(Offset(size.width * 0.88, size.height * 0.54), 6, strokePaint);
-    canvas.drawCircle(Offset(size.width * 0.24, size.height * 0.80), 8, strokePaint);
-
-    // 4. Subtle plus (+) cross markers scattered across background
-    final crossPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2
-      ..color = (isDark ? Colors.white : const Color(0xFF285A48))
-          .withValues(alpha: 0.12 * progress);
-    _drawCross(canvas, Offset(size.width * 0.14, size.height * 0.20), 4.5, crossPaint);
-    _drawCross(canvas, Offset(size.width * 0.86, size.height * 0.30), 4.5, crossPaint);
-    _drawCross(canvas, Offset(size.width * 0.12, size.height * 0.70), 4.5, crossPaint);
-    _drawCross(canvas, Offset(size.width * 0.84, size.height * 0.76), 4.5, crossPaint);
-    _drawCross(canvas, Offset(size.width * 0.50, size.height * 0.08), 4.0, crossPaint);
-    _drawCross(canvas, Offset(size.width * 0.50, size.height * 0.94), 4.0, crossPaint);
-
-    // 5. Full-canvas dot matrix grid
-    const double spacing = 32.0;
-    final dotPaint = Paint()..style = PaintingStyle.fill;
-    final center = Offset(size.width * 0.5, size.height * 0.5);
-    final maxDist = size.width * 1.1;
-
-    for (double x = 0; x <= size.width; x += spacing) {
-      for (double y = 0; y <= size.height; y += spacing) {
-        final dist = (Offset(x, y) - center).distance;
-        double alpha = (1.0 - (dist / maxDist) * 0.4).clamp(0.0, 1.0);
-        alpha = alpha * (isDark ? 0.06 : 0.04) * progress;
-        if (alpha > 0.005) {
-          dotPaint.color = (isDark ? Colors.white : const Color(0xFF285A48))
-              .withValues(alpha: alpha);
-          canvas.drawCircle(Offset(x, y), 0.85, dotPaint);
-        }
-      }
-    }
-  }
-
-  void _drawCross(Canvas canvas, Offset center, double s, Paint paint) {
-    canvas.drawLine(Offset(center.dx - s, center.dy), Offset(center.dx + s, center.dy), paint);
-    canvas.drawLine(Offset(center.dx, center.dy - s), Offset(center.dx, center.dy + s), paint);
-  }
-
-  void _drawDiamond(Canvas canvas, Offset center, double s, Paint paint) {
-    final path = Path()
-      ..moveTo(center.dx, center.dy - s)
-      ..lineTo(center.dx + s, center.dy)
-      ..lineTo(center.dx, center.dy + s)
-      ..lineTo(center.dx - s, center.dy)
-      ..close();
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _SignInBackgroundPainter oldDelegate) =>
-      oldDelegate.progress != progress;
-}

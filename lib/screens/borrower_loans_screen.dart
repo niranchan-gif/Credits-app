@@ -16,6 +16,7 @@ import '../utils/actions.dart';
 import '../utils/fmt.dart';
 import '../utils/app_colors.dart';
 import '../widgets/premium_card.dart';
+import '../widgets/glass_card.dart';
 import 'add_borrower_screen.dart';
 import 'add_loan_screen.dart';
 import 'loan_detail_screen.dart';
@@ -131,7 +132,8 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
                         if (b.overdueStatus == 'OVERDUE')
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                            child: PremiumCard(
+                            child: GlassCard(
+                              borderRadius: 16,
                               color: AppColors.error.withValues(alpha: 0.1),
                               border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
                               padding: const EdgeInsets.all(16),
@@ -282,8 +284,11 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: PremiumCard(
-        gradient: isDark ? AppColors.surfaceGradientDark : AppColors.surfaceGradient,
+      child: GlassCard(
+        borderRadius: 24,
+        blur: 15,
+        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.45),
+        border: Border.all(color: isDark ? Colors.white.withValues(alpha: 0.1) : AppColors.accent.withValues(alpha: 0.2)),
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -631,7 +636,11 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      child: PremiumCard(
+      child: GlassCard(
+        borderRadius: 20,
+        blur: 15,
+        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.45),
+        border: Border.all(color: isDark ? Colors.white.withValues(alpha: 0.1) : AppColors.accent.withValues(alpha: 0.2)),
         padding: EdgeInsets.zero,
         child: InkWell(
           onTap: () async {

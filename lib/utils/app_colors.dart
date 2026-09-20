@@ -60,6 +60,15 @@ class AppColors {
     end: Alignment.bottomRight,
   );
 
+  static LinearGradient get glassGreenGradient => LinearGradient(
+    colors: [
+      const Color(0xFF13A383).withValues(alpha: 0.25),
+      const Color(0xFF063628).withValues(alpha: 0.35),
+    ],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
   static const LinearGradient surfaceGradient = LinearGradient(
     colors: [Color(0xFFFFFFFF), Color(0xFFFFFFFF)], // Flat white for light mode
     begin: Alignment.topCenter,

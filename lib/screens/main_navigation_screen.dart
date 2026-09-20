@@ -12,6 +12,7 @@ import '../services/backup_freshness_service.dart';
 import '../widgets/read_only_banner.dart';
 import '../services/auto_backup_manager.dart';
 import '../widgets/progress_dialog.dart';
+import '../widgets/glass_card.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -53,6 +54,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     final shouldBackup = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: Theme.of(context).colorScheme.surface,
         title: const Text('Backup Before Exit', style: TextStyle(fontWeight: FontWeight.bold)),
         content: const Text('Do you want to back up your latest data before closing the application?\n\nBacking up now helps keep your Google Drive backup up to date.'),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -131,15 +133,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               children: [
                 if (isReadOnly) const ReadOnlyBanner(),
                 Expanded(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
-                    transitionBuilder: (child, animation) {
-                      return FadeTransition(
-                        opacity: animation,
-                        child: child,
-                      );
-                    },
-                    child: _pages[_currentIndex],
+                  child: IndexedStack(
+                    index: _currentIndex,
+                    children: _pages,
                   ),
                 ),
               ],
@@ -155,110 +151,135 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Container(
+    return GlassCard(
       margin: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-      height: 68,
-      decoration: BoxDecoration(
+      borderRadius: 32,
+      blur: 35,
+      color: isDark
+          ? Colors.black.withValues(alpha: 0.5)
+          : Colors.white.withValues(alpha: 0.75),
+      border: Border.all(
         color: isDark
-            ? AppColors.surfaceDark.withValues(alpha: 0.88)
-            : AppColors.surface.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(32),
-        border: Border.all(
-          color: isDark ? AppColors.cardBorderDark : AppColors.cardBorderLight,
-          width: 1,
+            ? Colors.white.withValues(alpha: 0.15)
+            : Colors.black.withValues(alpha: 0.08),
+        width: 1.0,
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: isDark ? Colors.black.withValues(alpha: 0.4) : const Color(0xFF0F172A).withValues(alpha: 0.08),
+          blurRadius: 20,
+          offset: const Offset(0, 8),
         ),
-        boxShadow: isDark
-            ? [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.45),
-                  blurRadius: 24,
-                  offset: const Offset(0, 10),
+      ],
+      child: SizedBox(
+        height: 68,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final tabWidth = constraints.maxWidth / 3;
+            return Stack(
+              children: [
+                // Sliding Water Glass Pill
+                AnimatedPositioned(
+                  duration: const Duration(milliseconds: 350),
+                  curve: Curves.easeOutBack,
+                  left: _currentIndex * tabWidth,
+                  top: 0,
+                  bottom: 0,
+                  width: tabWidth,
+                  child: Padding(
+                    padding: const EdgeInsets.all(6.0),
+                    child: RepaintBoundary(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(26),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(26),
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Colors.white.withValues(alpha: isDark ? 0.2 : 0.6),
+                                Colors.white.withValues(alpha: isDark ? 0.05 : 0.15),
+                              ],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.white.withValues(alpha: isDark ? 0.15 : 0.9),
+                                blurRadius: 10,
+                                spreadRadius: -5,
+                                offset: const Offset(0, -5),
+                              ),
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.08),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: isDark ? 0.3 : 0.9),
+                              width: 1.2,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.2),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ]
-            : [
-                BoxShadow(
-                  color: const Color(0xFF0F172A).withValues(alpha: 0.08),
-                  blurRadius: 24,
-                  offset: const Offset(0, 8),
-                ),
-                BoxShadow(
-                  color: const Color(0xFF0F172A).withValues(alpha: 0.03),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
+              // Icons and Labels
+                Row(
+                  children: [
+                    _navItem(LucideIcons.home, "Home", 0, tabWidth),
+                    _navItem(LucideIcons.barChart3, "Reports", 1, tabWidth),
+                    _navItem(LucideIcons.settings, "Settings", 2, tabWidth),
+                  ],
                 ),
               ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(32),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _navItem(LucideIcons.home, "Home", 0),
-              _navItem(LucideIcons.barChart3, "Reports", 1),
-              _navItem(LucideIcons.settings, "Settings", 2),
-            ],
-          ),
+            );
+          },
         ),
       ),
     ).animate().slideY(begin: 0.5, end: 0, duration: 800.ms, curve: Curves.easeOutBack);
   }
 
-  Widget _navItem(IconData icon, String label, int index) {
+  Widget _navItem(IconData icon, String label, int index, double width) {
     final isSelected = _currentIndex == index;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final activeColor = isDark ? AppColors.accentLight : AppColors.accent;
     final inactiveColor = isDark ? AppColors.textTertiaryDark : AppColors.textSecondary;
 
     return GestureDetector(
-      onTap: () => setState(() => _currentIndex = index),
+      onTap: () {
+        HapticFeedback.lightImpact();
+        setState(() => _currentIndex = index);
+      },
       behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? activeColor.withValues(alpha: isDark ? 0.20 : 0.12)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(22),
-          border: isSelected
-              ? Border.all(
-                  color: activeColor.withValues(alpha: isDark ? 0.35 : 0.22),
-                  width: 1,
-                )
-              : null,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              color: isSelected ? activeColor : inactiveColor,
-              size: 22,
-            ),
-            if (isSelected) ...[
+      child: SizedBox(
+        width: width,
+        child: Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                color: isSelected ? activeColor : inactiveColor,
+                size: 22,
+              ),
               const SizedBox(width: 8),
               Text(
                 label,
                 style: TextStyle(
-                  color: activeColor,
-                  fontWeight: FontWeight.w700,
+                  color: isSelected ? activeColor : inactiveColor,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                   fontSize: 13.5,
                   letterSpacing: -0.2,
                 ),
               ),
             ],
-          ],
+          ),
         ),
       ),
     );
   }
 }
+
 

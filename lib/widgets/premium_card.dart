@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../utils/app_colors.dart';
+import 'glass_card.dart';
 
 class PremiumCard extends StatelessWidget {
   final Widget child;
@@ -66,18 +67,15 @@ class PremiumCard extends StatelessWidget {
     return Container(
       margin: margin,
       decoration: BoxDecoration(
-        color: color ?? cardTheme.color ?? (isDark ? AppColors.surfaceDark : AppColors.surface),
+        color: gradient == null ? (color ?? cardTheme.color?.withValues(alpha: isDark ? 0.08 : 0.45) ?? (isDark ? Colors.black26 : Colors.white54)) : null,
         gradient: gradient,
         borderRadius: BorderRadius.circular(borderRadius ?? 20),
         border: effectiveBorder,
         boxShadow: boxShadow ?? defaultShadow,
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius ?? 20),
-        child: Padding(
-          padding: padding ?? const EdgeInsets.all(20),
-          child: child,
-        ),
+      child: Padding(
+        padding: padding ?? const EdgeInsets.all(20),
+        child: child,
       ),
     );
   }

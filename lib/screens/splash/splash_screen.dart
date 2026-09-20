@@ -44,7 +44,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 3500),
+      duration: const Duration(milliseconds: 1500),
     );
 
     // Coin Toss: Up then Down
@@ -98,7 +98,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     _initBackendConcurrently();
 
     // Minimum animation duration ensures smooth cinematic completion
-    Future.delayed(const Duration(milliseconds: 3500), () {
+    Future.delayed(const Duration(milliseconds: 1500), () {
       if (mounted) {
         _animationMinimumReached = true;
         _checkAndNavigate();
@@ -106,7 +106,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     });
 
     // Safety fallback timeout
-    Future.delayed(const Duration(milliseconds: 4500), () {
+    Future.delayed(const Duration(milliseconds: 2000), () {
       if (mounted && !_navigated) {
         _checkAndNavigate(force: true);
       }

@@ -8,7 +8,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      scaffoldBackgroundColor: AppColors.background,
+      scaffoldBackgroundColor: Colors.transparent, // Glassmorphism base
       primaryColor: AppColors.accent,
       colorScheme: const ColorScheme.light(
         primary: AppColors.accent,
@@ -119,7 +119,7 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.surface,
+        fillColor: Colors.white.withValues(alpha: 0.35),
         hintStyle: const TextStyle(color: AppColors.textTertiary, fontSize: 14),
         contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         border: OutlineInputBorder(
@@ -148,8 +148,8 @@ class AppTheme {
         },
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: AppColors.surface,
-        elevation: 16,
+        backgroundColor: AppColors.surface, // Removed transparent to fix invisible dialogs
+        elevation: 0,
         shadowColor: Colors.black.withValues(alpha: 0.12),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
@@ -157,7 +157,7 @@ class AppTheme {
         ),
       ),
       bottomSheetTheme: const BottomSheetThemeData(
-        backgroundColor: AppColors.surface,
+        backgroundColor: Colors.transparent, // Glassmorphism handle this internally
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
@@ -170,7 +170,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      scaffoldBackgroundColor: AppColors.backgroundDark,
+      scaffoldBackgroundColor: Colors.transparent, // Glassmorphism base
       primaryColor: AppColors.accent,
       colorScheme: const ColorScheme.dark(
         primary: AppColors.accent,
@@ -280,7 +280,7 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.surfaceDark,
+        fillColor: Colors.black.withValues(alpha: 0.25),
         hintStyle: const TextStyle(color: AppColors.textTertiaryDark, fontSize: 14),
         contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         border: OutlineInputBorder(
@@ -309,8 +309,8 @@ class AppTheme {
         },
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: AppColors.surfaceDark,
-        elevation: 24,
+        backgroundColor: AppColors.surfaceDark, // Removed transparent to fix invisible dialogs
+        elevation: 0,
         shadowColor: Colors.black.withValues(alpha: 0.5),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
@@ -318,7 +318,7 @@ class AppTheme {
         ),
       ),
       bottomSheetTheme: const BottomSheetThemeData(
-        backgroundColor: AppColors.surfaceDark,
+        backgroundColor: Colors.transparent, // Glassmorphism handle this internally
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),

@@ -13,6 +13,7 @@ import '../utils/actions.dart';
 import '../utils/fmt.dart';
 import '../utils/app_colors.dart';
 import '../widgets/premium_card.dart';
+import '../widgets/glass_card.dart';
 import '../services/backup_freshness_service.dart';
 
 class LoanDetailScreen extends StatefulWidget {
@@ -296,8 +297,11 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
   Widget _buildLoanStatusCard(Loan loan, double totalDue, double balance, double progress, int days) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: PremiumCard(
-        gradient: Theme.of(context).brightness == Brightness.dark ? AppColors.surfaceGradientDark : AppColors.surfaceGradient,
+      child: GlassCard(
+        borderRadius: 24,
+        blur: 15,
+        color: Theme.of(context).brightness == Brightness.dark ? Colors.white.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.45),
+        border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? Colors.white.withValues(alpha: 0.1) : AppColors.accent.withValues(alpha: 0.2)),
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
@@ -364,7 +368,11 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
   Widget _buildPaymentCard(Payment p) {
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
-          child: PremiumCard(
+          child: GlassCard(
+            borderRadius: 20,
+            blur: 15,
+            color: Theme.of(context).brightness == Brightness.dark ? Colors.white.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.45),
+            border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? Colors.white.withValues(alpha: 0.1) : AppColors.accent.withValues(alpha: 0.2)),
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [

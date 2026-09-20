@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -12,6 +13,7 @@ import '../utils/app_decorations.dart';
 import '../widgets/premium_card.dart';
 import '../widgets/sync_status_indicator.dart';
 import '../widgets/quick_add_dialog.dart';
+import '../widgets/glass_card.dart';
 import 'add_borrower_screen.dart';
 import 'borrower_loans_screen.dart';
 import '../services/backup_freshness_service.dart';
@@ -165,14 +167,22 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHeader(double due, double collected, double pending, double today, LoanProvider provider) {
-    return Container(
-      width: double.infinity,
-      clipBehavior: Clip.hardEdge,
-      decoration: BoxDecoration(
-        gradient: Theme.of(context).brightness == Brightness.dark ? AppColors.surfaceGradientDark : AppColors.surfaceGradient,
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
-      ),
-      child: Stack(
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark 
+              ? Colors.black.withValues(alpha: 0.15)
+              : Colors.white.withValues(alpha: 0.25),
+            border: Border(
+              bottom: BorderSide(
+                color: Colors.white.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.05 : 0.4),
+                width: 1.5,
+              ),
+            ),
+          ),
+          child: Stack(
         children: [
           // Decorative Background Elements
           Positioned(
@@ -259,7 +269,8 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               PremiumCard(
                 padding: EdgeInsets.zero,
-                gradient: AppColors.primaryGradient,
+                borderRadius: 32,
+                gradient: AppColors.primaryGradient, // Back to actual app green
                 child: Stack(
                   children: [
                     // Inner professional watermark icon
@@ -327,7 +338,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     ),
   ],
-),
+        ),
+      ),
     );
   }
 
@@ -344,7 +356,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Container(
                 height: 46,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(24),
                   boxShadow: isReadOnly
                       ? null
                       : [
@@ -400,27 +412,23 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const SizedBox(width: 12),
-            // Add Borrower Button (Secondary Outlined / Tinted)
+            // Add Borrower Button (Glass Variant)
             Expanded(
-              child: Container(
-                height: 46,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: isReadOnly
-                      ? null
-                      : [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
+              child: GlassCard(
+                borderRadius: 24,
+                blur: 15,
+                color: isReadOnly
+                    ? (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade200.withValues(alpha: 0.5))
+                    : (isDark ? Colors.white.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.45)),
+                border: Border.all(
+                  color: isReadOnly
+                      ? (isDark ? Colors.white12 : Colors.grey.shade300)
+                      : (isDark ? Colors.white.withValues(alpha: 0.15) : AppColors.accent.withValues(alpha: 0.25)),
+                  width: 1.2,
                 ),
                 child: Material(
-                  color: isReadOnly
-                      ? (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100)
-                      : (isDark ? Colors.white.withValues(alpha: 0.08) : AppColors.accent.withValues(alpha: 0.07)),
-                  borderRadius: BorderRadius.circular(14),
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(24),
                   child: InkWell(
                     onTap: isReadOnly
                         ? null
@@ -433,17 +441,9 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             );
                           },
-                    borderRadius: BorderRadius.circular(14),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: isReadOnly
-                              ? (isDark ? Colors.white12 : Colors.grey.shade300)
-                              : (isDark ? Colors.white24 : AppColors.accent.withValues(alpha: 0.35)),
-                          width: 1.2,
-                        ),
-                      ),
+                    borderRadius: BorderRadius.circular(24),
+                    child: SizedBox(
+                      height: 46,
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -486,21 +486,39 @@ class _HomeScreenState extends State<HomeScreen> {
         Row(
           children: [
             Expanded(
-              child: TextField(
-                controller: _searchCtrl,
-                onChanged: (v) => setState(() => _query = v),
-                decoration: InputDecoration(
-                  hintText: "Search name, ID, address...",
-                  prefixIcon: const Icon(LucideIcons.search, size: 20),
-                  suffixIcon: _query.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(LucideIcons.x, size: 16),
-                          onPressed: () {
-                            _searchCtrl.clear();
-                            setState(() => _query = '');
-                          },
-                        )
-                      : null,
+              child: GlassCard(
+                borderRadius: 16,
+                padding: EdgeInsets.zero,
+                color: Theme.of(context).brightness == Brightness.dark 
+                    ? Colors.white.withValues(alpha: 0.05) 
+                    : Colors.white.withValues(alpha: 0.45),
+                border: Border.all(
+                  color: Theme.of(context).brightness == Brightness.dark 
+                      ? Colors.white.withValues(alpha: 0.1) 
+                      : AppColors.accent.withValues(alpha: 0.25),
+                  width: 1,
+                ),
+                child: TextField(
+                  controller: _searchCtrl,
+                  onChanged: (v) => setState(() => _query = v),
+                  decoration: InputDecoration(
+                    hintText: "Search name, ID, address...",
+                    prefixIcon: const Icon(LucideIcons.search, size: 20),
+                    filled: false, // Ensure no solid background inside
+                    border: InputBorder.none, // Hide default border
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                    suffixIcon: _query.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(LucideIcons.x, size: 16),
+                            onPressed: () {
+                              _searchCtrl.clear();
+                              setState(() => _query = '');
+                            },
+                          )
+                        : null,
+                  ),
                 ),
               ),
             ),
@@ -568,35 +586,25 @@ class _HomeScreenState extends State<HomeScreen> {
     final hasActiveFilter = _selectedAddress != null && _selectedAddress!.isNotEmpty;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => _showAddressFilterModal(addresses, counts, provider),
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          height: 50,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          decoration: BoxDecoration(
-            color: hasActiveFilter
-                ? AppColors.accent
-                : (isDark ? const Color(0xFF1E2622) : Theme.of(context).colorScheme.surface),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: hasActiveFilter
-                  ? AppColors.accent
-                  : (isDark ? Colors.white.withValues(alpha: 0.12) : const Color(0xFF285A48).withValues(alpha: 0.14)),
-              width: 1,
-            ),
-            boxShadow: hasActiveFilter
-                ? [
-                    BoxShadow(
-                      color: AppColors.accent.withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
-          ),
+    return GlassCard(
+      borderRadius: 16,
+      color: hasActiveFilter
+          ? AppColors.accent.withValues(alpha: 0.85)
+          : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.45)),
+      border: Border.all(
+        color: hasActiveFilter
+            ? AppColors.accent
+            : (isDark ? Colors.white.withValues(alpha: 0.1) : AppColors.accent.withValues(alpha: 0.25)),
+        width: 1,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _showAddressFilterModal(addresses, counts, provider),
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            height: 50,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -622,7 +630,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-    );
+    ));
   }
 
   void _showAddressFilterModal(List<String> addresses, Map<String, int> counts, LoanProvider provider) {
@@ -878,83 +886,97 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildTabs(int collect, int paid, int completed, int dummy) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Container(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return GlassCard(
       margin: const EdgeInsets.symmetric(horizontal: 4),
       padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : AppColors.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: isDark ? AppColors.cardBorderDark : AppColors.cardBorderLight,
-          width: 1,
-        ),
-        boxShadow: isDark
-            ? [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  blurRadius: 14,
-                  offset: const Offset(0, 5),
+      borderRadius: 28, // Rounder for water drop feel
+      blur: 25,
+      color: isDark ? Colors.black.withValues(alpha: 0.25) : Colors.white.withValues(alpha: 0.35),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final tabWidth = constraints.maxWidth / 4;
+          return Stack(
+            children: [
+              // Sliding Water Drop Pill
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 350),
+                curve: Curves.easeOutBack, // Smoother liquid settling
+                left: _tab * tabWidth,
+                top: 0,
+                bottom: 0,
+                width: tabWidth,
+                child: Padding(
+                  padding: const EdgeInsets.all(4.0),
+                  child: RepaintBoundary(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(22),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(22),
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Colors.white.withValues(alpha: isDark ? 0.2 : 0.6),
+                              Colors.white.withValues(alpha: isDark ? 0.05 : 0.15),
+                            ],
+                          ),
+                          boxShadow: [
+                            // Inner top highlight for 3D liquid look
+                            BoxShadow(
+                              color: Colors.white.withValues(alpha: isDark ? 0.15 : 0.9),
+                              blurRadius: 10,
+                              spreadRadius: -5,
+                              offset: const Offset(0, -5),
+                            ),
+                            // Soft shadow
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.08),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: isDark ? 0.3 : 0.9),
+                            width: 1.2,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-              ]
-            : [
-                BoxShadow(
-                  color: const Color(0xFF0F172A).withValues(alpha: 0.04),
-                  blurRadius: 14,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-      ),
-      child: Row(
-        children: [
-          _tabItem(0, "Collect", collect.toString(), AppColors.accent),
-          _tabItem(1, "Paid", paid.toString(), AppColors.accent),
-          _tabItem(2, "Closed", completed.toString(), AppColors.accent),
-          _tabItem(3, "Inactive", dummy.toString(), Colors.grey),
-        ],
+              ),
+              Row(
+                children: [
+                  _tabItem(0, "Collect", collect.toString(), AppColors.accent, tabWidth),
+                  _tabItem(1, "Paid", paid.toString(), AppColors.accent, tabWidth),
+                  _tabItem(2, "Closed", completed.toString(), AppColors.accent, tabWidth),
+                  _tabItem(3, "Inactive", dummy.toString(), Colors.grey, tabWidth),
+                ],
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _tabItem(int index, String label, String topText, Color color) {
+  Widget _tabItem(int index, String label, String topText, Color color, double width) {
     final isSelected = _tab == index;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _tab = index),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOutCubic,
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        setState(() => _tab = index);
+      },
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: width,
+        child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? (isDark
-                    ? AppColors.accent.withValues(alpha: 0.22)
-                    : AppColors.accent.withValues(alpha: 0.12))
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(18),
-            border: isSelected
-                ? Border.all(
-                    color: isDark
-                        ? color.withValues(alpha: 0.3)
-                        : color.withValues(alpha: 0.2),
-                    width: 1,
-                  )
-                : null,
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: color.withValues(alpha: isDark ? 0.2 : 0.12),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    )
-                  ]
-                : null,
-          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -964,8 +986,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   topText,
                   style: TextStyle(
                     color: isSelected ? color : theme.colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.bold,
                     fontSize: 16,
+                    shadows: isSelected ? [
+                      Shadow(
+                        color: color.withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      )
+                    ] : null,
                   ),
                 ),
               ),
@@ -977,7 +1006,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ? theme.colorScheme.onSurface
                       : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.65),
                   fontSize: 11,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
+                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.normal,
                 ),
               ),
             ],
@@ -1009,30 +1038,30 @@ class _HomeScreenState extends State<HomeScreen> {
           }
           return await _handleQuickPay(context, b);
         },
-        background: Container(
-          decoration: BoxDecoration(
-            color: isPaid ? AppColors.accent.withValues(alpha: 0.85) : AppColors.accent,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          alignment: Alignment.centerLeft,
-          padding: const EdgeInsets.only(left: 24),
-          child: Row(
-            children: [
-              Icon(
-                isPaid ? LucideIcons.check : LucideIcons.checkCircle, 
-                color: Colors.white, 
-                size: 24
-              ),
-              const SizedBox(width: 12),
-              Text(
-                isPaid ? "Done ✓" : "Quick Pay",
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
+        background: GlassCard(
+          borderRadius: 20,
+          color: isPaid ? AppColors.accent.withValues(alpha: 0.85) : AppColors.accent,
+          child: Container(
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.only(left: 24),
+            child: Row(
+              children: [
+                Icon(
+                  isPaid ? LucideIcons.check : LucideIcons.checkCircle, 
+                  color: Colors.white, 
+                  size: 24
                 ),
-              ),
-            ],
+                const SizedBox(width: 12),
+                Text(
+                  isPaid ? "Done ✓" : "Quick Pay",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
         child: _borrowerCard(b, provider),
@@ -1054,12 +1083,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final avatarColor = due ? AppColors.error : AppColors.accent;
 
-    return PremiumCard(
+    return GlassCard(
       padding: EdgeInsets.zero,
       color: isPaid
-          ? AppColors.accent.withValues(alpha: 0.05)
-          : (isDark ? AppColors.surfaceDark : AppColors.surface),
-      boxShadow: AppDecorations.subtleShadowCard(isDark).boxShadow,
+          ? AppColors.accent.withValues(alpha: 0.15)
+          : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.4)),
+      border: Border.all(
+        color: isDark ? Colors.white.withValues(alpha: 0.1) : AppColors.accent.withValues(alpha: 0.2),
+        width: 1,
+      ),
+      borderRadius: 20,
       child: InkWell(
         onTap: () async {
           await Navigator.push(

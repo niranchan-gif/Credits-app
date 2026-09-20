@@ -6,6 +6,7 @@ import 'providers/loan_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/splash/splash_screen.dart';
 import 'utils/app_theme.dart';
+import 'widgets/glass_background.dart';
 
 final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -43,6 +44,9 @@ class LoanManagerApp extends StatelessWidget {
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: themeProvider.themeMode,
+            builder: (context, child) {
+              return GlassBackground(child: child!);
+            },
             home: const SplashScreen(),
           );
         },

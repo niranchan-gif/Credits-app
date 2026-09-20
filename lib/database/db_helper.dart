@@ -153,18 +153,18 @@ class DBHelper {
         await db.execute('CREATE INDEX IF NOT EXISTS idx_loans_created ON loans(created_at)');
         await db.execute('CREATE INDEX IF NOT EXISTS idx_payments_created ON payments(created_at)');
         
-        // Dynamic Schema Validation
+        // Dynamic Schema Validation and Normalization (Run Once)
         try {
-          await _validateDatabaseSchema(db);
+          final prefs = await SharedPreferences.getInstance();
+          final bool isNormalized = prefs.getBool('is_db_normalized_v15') ?? false;
+          if (!isNormalized) {
+            await _validateDatabaseSchema(db);
+            await _normalizeDatabaseData(db);
+            await prefs.setBool('is_db_normalized_v15', true);
+            debugPrint('DBHelper: Validation and Normalization ran successfully and flagged as done.');
+          }
         } catch (e) {
-          debugPrint('DBHelper Schema Validation CRITICAL Error: $e');
-        }
-
-        // Dynamic Data Normalization
-        try {
-          await _normalizeDatabaseData(db);
-        } catch (e) {
-          debugPrint('DBHelper Data Normalization CRITICAL Error: $e');
+          debugPrint('DBHelper Setup CRITICAL Error: $e');
         }
       },
     );
