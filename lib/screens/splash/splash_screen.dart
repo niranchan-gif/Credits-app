@@ -12,6 +12,8 @@ import '../main_navigation_screen.dart';
 import '../../services/update_service.dart';
 import '../force_update_screen.dart';
 import '../../utils/app_colors.dart';
+import 'package:provider/provider.dart';
+import '../../providers/loan_provider.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -44,7 +46,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 3000),
     );
 
     // Coin Toss: Up then Down
@@ -97,16 +99,16 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     // Start background services asynchronously without blocking the animation ticker
     _initBackendConcurrently();
 
-    // Minimum animation duration ensures smooth cinematic completion
-    Future.delayed(const Duration(milliseconds: 1500), () {
+    // Minimum animation duration ensures smooth cinematic completion (Exactly 3 seconds)
+    Future.delayed(const Duration(milliseconds: 3000), () {
       if (mounted) {
         _animationMinimumReached = true;
         _checkAndNavigate();
       }
     });
 
-    // Safety fallback timeout
-    Future.delayed(const Duration(milliseconds: 2000), () {
+    // Safety fallback timeout slightly longer than 3 seconds
+    Future.delayed(const Duration(milliseconds: 3500), () {
       if (mounted && !_navigated) {
         _checkAndNavigate(force: true);
       }
@@ -145,6 +147,13 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       try {
         AutoBackupManager().start();
       } catch (_) {}
+
+      // Eagerly trigger LoanProvider initialization here in the background
+      // so the database queries complete during the 3 second splash animation,
+      // guaranteeing zero-jank buttery smooth routing later.
+      if (mounted) {
+        context.read<LoanProvider>();
+      }
     } catch (e) {
       debugPrint('SplashScreen backend init error: $e');
     }
@@ -197,7 +206,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               ),
             );
           },
-          transitionDuration: const Duration(milliseconds: 1000), // Slower cinematic transition
+          transitionDuration: const Duration(milliseconds: 400), // Professional snappy transition
         ),
       );
     }

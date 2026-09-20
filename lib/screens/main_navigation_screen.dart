@@ -264,15 +264,27 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                 color: isSelected ? activeColor : inactiveColor,
                 size: 22,
               ),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  color: isSelected ? activeColor : inactiveColor,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  fontSize: 13.5,
-                  letterSpacing: -0.2,
-                ),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutCubic,
+                alignment: Alignment.centerLeft,
+                child: isSelected
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const SizedBox(width: 8),
+                          Text(
+                            label,
+                            style: TextStyle(
+                              color: activeColor,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13.5,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                        ],
+                      )
+                    : const SizedBox(width: 0, height: 0),
               ),
             ],
           ),

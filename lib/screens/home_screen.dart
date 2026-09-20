@@ -34,9 +34,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<LoanProvider>().loadBorrowers();
-    });
   }
 
   @override
@@ -167,23 +164,57 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHeader(double due, double collected, double pending, double today, LoanProvider provider) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return ClipRRect(
-      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
-      child: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark 
-              ? Colors.black.withValues(alpha: 0.15)
-              : Colors.white.withValues(alpha: 0.25),
+      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(36)),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
+        child: Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: isDark
+                  ? [
+                      Colors.white.withValues(alpha: 0.12),
+                      Colors.white.withValues(alpha: 0.03),
+                    ]
+                  : [
+                      Colors.white.withValues(alpha: 0.65),
+                      Colors.white.withValues(alpha: 0.25),
+                    ],
+            ),
             border: Border(
               bottom: BorderSide(
-                color: Colors.white.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.05 : 0.4),
+                color: Colors.white.withValues(alpha: isDark ? 0.2 : 0.8),
                 width: 1.5,
               ),
             ),
           ),
           child: Stack(
         children: [
+          // Glossy top edge highlight for water drop effect
+          Positioned(
+            top: 0,
+            left: 30,
+            right: 30,
+            height: 12,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withValues(alpha: isDark ? 0.15 : 0.6),
+                    Colors.white.withValues(alpha: 0.0),
+                  ],
+                ),
+              ),
+            ),
+          ),
           // Decorative Background Elements
           Positioned(
             top: -40,
@@ -340,6 +371,7 @@ class _HomeScreenState extends State<HomeScreen> {
   ],
         ),
       ),
+      ), // BackdropFilter
     );
   }
 
