@@ -30,6 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _searchCtrl = TextEditingController();
   String _query = '';
   String? _selectedAddress;
+  bool _filter10PlusDays = false;
 
   @override
   void initState() {
@@ -86,10 +87,15 @@ class _HomeScreenState extends State<HomeScreen> {
             key: ValueKey<int>(_tab),
             builder: (context, provider, _) {
                 final items = source.where((b) {
-                  // Address filter
                   if (_selectedAddress != null && _selectedAddress!.isNotEmpty) {
                     final addr = (b.address ?? '').trim().toLowerCase();
                     if (addr != _selectedAddress!.trim().toLowerCase()) {
+                      return false;
+                    }
+                  }
+
+                  if (_filter10PlusDays) {
+                    if ((b.daysSinceLastPayment ?? 0) < 10) {
                       return false;
                     }
                   }
@@ -556,7 +562,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             if (addresses.isNotEmpty) ...[
               const SizedBox(width: 8),
-              _buildAddressFilterButton(addresses, counts, provider),
+              _buildFilterButton(addresses, counts, provider),
             ],
           ],
         ),
@@ -614,8 +620,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildAddressFilterButton(List<String> addresses, Map<String, int> counts, LoanProvider provider) {
-    final hasActiveFilter = _selectedAddress != null && _selectedAddress!.isNotEmpty;
+
+  Widget _buildFilterButton(List<String> addresses, Map<String, int> counts, LoanProvider provider) {
+    final hasActiveFilter = (_selectedAddress != null && _selectedAddress!.isNotEmpty) || _filter10PlusDays;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return GlassCard(
@@ -632,7 +639,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => _showAddressFilterModal(addresses, counts, provider),
+          onTap: () => _showFilterModal(addresses, counts, provider),
           borderRadius: BorderRadius.circular(16),
           child: Container(
             height: 50,
@@ -665,7 +672,7 @@ class _HomeScreenState extends State<HomeScreen> {
     ));
   }
 
-  void _showAddressFilterModal(List<String> addresses, Map<String, int> counts, LoanProvider provider) {
+  void _showFilterModal(List<String> addresses, Map<String, int> counts, LoanProvider provider) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final searchFilterCtrl = TextEditingController();
     String filterQuery = '';
@@ -726,7 +733,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                "Filter by Address",
+                                "Filters",
                                 style: TextStyle(
                                   fontSize: 17,
                                   fontWeight: FontWeight.bold,
@@ -734,7 +741,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               ),
                               Text(
-                                "${addresses.length} unique addresses found",
+                                "${addresses.length} addresses available",
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: isDark ? const Color(0xFF8FA89A) : const Color(0xFF5A7A68),
@@ -777,6 +784,41 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   const SizedBox(height: 8),
+                  
+                  // 10+ Days Filter Toggle
+                  SwitchListTile(
+                    title: const Text(
+                      "10+ Days Without Payment",
+                      style: TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                    subtitle: const Text(
+                      "Show borrowers with no payments in 10+ days",
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    value: _filter10PlusDays,
+                    activeColor: AppColors.accent,
+                    onChanged: (val) {
+                      setState(() => _filter10PlusDays = val);
+                      setModalState(() {});
+                    },
+                    secondary: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: _filter10PlusDays
+                            ? AppColors.accent
+                            : (isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05)),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        LucideIcons.calendarClock,
+                        size: 16,
+                        color: _filter10PlusDays
+                            ? Colors.white
+                            : (isDark ? Colors.white70 : Colors.black54),
+                      ),
+                    ),
+                  ),
+                  
                   const Divider(height: 1),
                   Flexible(
                     child: ListView(
@@ -1117,9 +1159,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return GlassCard(
       padding: EdgeInsets.zero,
-      color: isPaid
-          ? AppColors.accent.withValues(alpha: 0.15)
-          : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.4)),
+      color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.4),
       border: Border.all(
         color: isDark ? Colors.white.withValues(alpha: 0.1) : AppColors.accent.withValues(alpha: 0.2),
         width: 1,
@@ -1296,15 +1336,21 @@ class _HomeScreenState extends State<HomeScreen> {
                     decoration: BoxDecoration(
                       color: isPaid
                           ? AppColors.accent.withValues(alpha: 0.1)
-                          : Colors.transparent,
+                          : (!isPaid && due && !b.isClosed && !b.isDummy && (b.daysSinceLastPayment ?? 0) >= 10
+                              ? Colors.orange.withValues(alpha: 0.1)
+                              : Colors.transparent),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      isPaid ? "Collected" : "Pending",
+                      isPaid
+                          ? "Collected"
+                          : (due && !b.isClosed && !b.isDummy && (b.daysSinceLastPayment ?? 0) >= 10 ? "${b.daysSinceLastPayment}d No Pay" : "Pending"),
                       style: TextStyle(
                         color: isPaid
                             ? AppColors.accent
-                            : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                            : (!isPaid && due && !b.isClosed && !b.isDummy && (b.daysSinceLastPayment ?? 0) >= 10
+                                ? Colors.orange
+                                : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                       ),

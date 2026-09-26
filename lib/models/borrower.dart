@@ -19,6 +19,7 @@ class Borrower {
   double totalBalance;
   int loanCount;
   int loanAgeDays;
+  int? daysSinceLastPayment;
   String overdueStatus;
 
   String get displayBorrowerCode {

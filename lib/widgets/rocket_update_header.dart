@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui';
 import 'package:flutter/material.dart';
 
 /// Interactive Space Header with an animated Rocket that matches the Credits brand theme
@@ -137,32 +138,36 @@ class _RocketUpdateHeaderState extends State<RocketUpdateHeader> with TickerProv
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 230.0,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(26),
-        gradient: widget.isDark
-            ? const RadialGradient(
-                center: Alignment(0.2, -0.3),
-                radius: 1.4,
-                colors: [
-                  Color(0xFF09362A), // Deep Emerald Space Core
-                  Color(0xFF041B15), // Mid Space Night
-                  Color(0xFF02130E), // Outer Edge Deep Obsidian
-                ],
-                stops: [0.0, 0.6, 1.0],
-              )
-            : const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFFE8F6F1), // Crisp mint light dawn
-                  Color(0xFFD3EFE3), // Soft jade morning sky
-                  Color(0xFFBEE7D5), // Fresh light emerald tint
-                ],
-              ),
-        border: Border.all(
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(26),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+        child: Container(
+          height: 230.0,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(26),
+            gradient: widget.isDark
+                ? RadialGradient(
+                    center: const Alignment(0.2, -0.3),
+                    radius: 1.4,
+                    colors: [
+                      const Color(0xFF09362A).withValues(alpha: 0.35),
+                      const Color(0xFF041B15).withValues(alpha: 0.45),
+                      const Color(0xFF02130E).withValues(alpha: 0.55),
+                    ],
+                    stops: const [0.0, 0.6, 1.0],
+                  )
+                : LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      const Color(0xFFE8F6F1).withValues(alpha: 0.4),
+                      const Color(0xFFD3EFE3).withValues(alpha: 0.3),
+                      const Color(0xFFBEE7D5).withValues(alpha: 0.2),
+                    ],
+                  ),
+            border: Border.all(
           color: widget.isDark
               ? const Color(0xFF13A383).withValues(alpha: 0.3)
               : const Color(0xFF13A383).withValues(alpha: 0.25),
@@ -202,6 +207,8 @@ class _RocketUpdateHeaderState extends State<RocketUpdateHeader> with TickerProv
             );
           },
         ),
+      ),
+      ),
       ),
     );
   }

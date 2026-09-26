@@ -380,7 +380,7 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
           _skipUpdate();
         },
         child: Scaffold(
-          backgroundColor: bottomNavColor,
+          backgroundColor: Colors.transparent,
           body: SizedBox.expand(
             child: Container(
               width: double.infinity,
@@ -390,15 +390,13 @@ class _ForceUpdateScreenState extends State<ForceUpdateScreen> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: isDark
-                      ? const [
-                          Color(0xFF031610),
-                          Color(0xFF021711),
-                          Color(0xFF010E0A),
+                      ? [
+                          Colors.black.withValues(alpha: 0.4),
+                          Colors.black.withValues(alpha: 0.6),
                         ]
-                      : const [
-                          Color(0xFFF8FCFA),
-                          Color(0xFFEFF7F3),
-                          Color(0xFFE4F0EB),
+                      : [
+                          Colors.white.withValues(alpha: 0.5),
+                          Colors.white.withValues(alpha: 0.7),
                         ],
                 ),
               ),

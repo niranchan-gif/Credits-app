@@ -749,6 +749,9 @@ class DBHelper {
                JOIN loans l2 ON p.loan_id = l2.id
                WHERE l2.borrower_id = b.id AND l2.status = 'active' AND COALESCE(p.is_deleted, 0) = 0 AND COALESCE(l2.is_deleted, 0) = 0),
             0.0) AS computed_balance,
+        (SELECT MAX(p.payment_date) FROM payments p 
+         JOIN loans l3 ON p.loan_id = l3.id 
+         WHERE l3.borrower_id = b.id AND COALESCE(p.is_deleted, 0) = 0) AS last_payment_date,
         SUM(CASE WHEN l.status = 'active' AND COALESCE(l.is_deleted, 0) = 0 THEN 1 ELSE 0 END) AS loan_count,
         MIN(CASE WHEN l.status = 'active' AND COALESCE(l.is_deleted, 0) = 0 THEN l.loan_date ELSE NULL END) AS oldest_active_loan_date
       FROM borrowers b
@@ -772,6 +775,15 @@ class DBHelper {
       } else {
         borrower.loanAgeDays = 0;
         borrower.overdueStatus = 'ACTIVE';
+      }
+
+      final lastPaymentDateStr = m['last_payment_date'] as String?;
+      if (lastPaymentDateStr != null && lastPaymentDateStr.isNotEmpty) {
+        final lastPaymentDate = DateParser.safeParse(lastPaymentDateStr);
+        borrower.daysSinceLastPayment = DateTime.now().difference(lastPaymentDate).inDays;
+      } else {
+        // If no payments ever, use the loan age
+        borrower.daysSinceLastPayment = borrower.loanAgeDays;
       }
       return borrower;
     }).toList();
