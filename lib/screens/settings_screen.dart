@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'dart:convert';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:math';
@@ -38,6 +40,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _developerModeEnabled = false;
   int _tapCount = 0;
   DateTime? _lastTapTime;
+  int _buildNumber = 0;
 
   void _handleSettingsTap() {
     final now = DateTime.now();
@@ -249,6 +252,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     _loadSettings();
+    _loadBuildNumber();
+  }
+
+  Future<void> _loadBuildNumber() async {
+    try {
+      final json = await rootBundle.loadString('update.json');
+      final map = jsonDecode(json) as Map<String, dynamic>;
+      final raw = map['buildNumber'];
+      if (mounted) {
+        setState(() => _buildNumber = raw is int ? raw : int.tryParse(raw.toString()) ?? 0);
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadSettings() async {
@@ -721,7 +736,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
  
           Center(
             child: Text(
-              'Credits v1.0.0',
+              'Build No : $_buildNumber',
               style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6), fontSize: 12),
             ),
           ),

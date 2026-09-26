@@ -1,11 +1,11 @@
 {
-  "buildNumber": 8,
+  "buildNumber": 10,
   "apkUrl": "https://github.com/niranchan-gif/Credits-app/releases/download/Creditsv3/app-release.apk",
   "title": "Upgrade to the new version of our app",
   "message": "What's new in this update:",
   "releaseNotes": [
     "Quick Add: Tap today's total to view all transactions for that date",
     "Fixed layout gap at the top of the tabs",
-    "Colour theme fixed "
+    "No dues 10+ days"
   ]
 }
