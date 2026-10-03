@@ -141,8 +141,13 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
     final provider = context.read<LoanProvider>();
     final code = value.trim();
     try {
+      final inputNum = int.tryParse(code);
       final borrower = provider.borrowers.firstWhere(
-        (b) => b.borrowerCode == code && !b.isDummy,
+        (b) =>
+            (b.borrowerCode == code ||
+                b.displayBorrowerCode == code ||
+                (inputNum != null && int.tryParse(b.displayBorrowerCode) == inputNum)) &&
+            !b.isDummy,
       );
       
       final inactive = borrower.isClosed || borrower.totalBalance <= 0;
@@ -911,24 +916,28 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
                   color: _isInactive ? Colors.grey : AppColors.accent,
                   width: 1.2,
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      isCode ? 'Next' : 'Save',
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        isCode ? 'Next' : 'Save',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        isCode ? LucideIcons.arrowRight : LucideIcons.checkCircle,
+                        size: 17,
                         color: Colors.white,
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      isCode ? LucideIcons.arrowRight : LucideIcons.checkCircle,
-                      size: 17,
-                      color: Colors.white,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],

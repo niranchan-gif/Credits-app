@@ -581,7 +581,7 @@ class ExcelBackupService {
   }
 
   static final Map<String, List<String>> _columnAliases = {
-    'id': ['id', 'borrowerid', 'loanid', 'paymentid', 'expenseid', 'investmentid', 'servicecostid'],
+    'id': ['id'],
     'borrower_id': ['borrowerid', 'borrower'],
     'borrower_code': ['borrowercode', 'code', 'borrowerno', 'uniqueid'],
     'borrower_sync_id': ['borrowersyncid'],
@@ -614,7 +614,11 @@ class ExcelBackupService {
     'is_closed': ['isclosed'],
   };
 
-  static Map<String, dynamic> _sanitizeMap(Map<String, dynamic> map, List<String> validColumns) {
+  static Map<String, dynamic> _sanitizeMap(
+    Map<String, dynamic> map,
+    List<String> validColumns, {
+    Map<String, List<String>>? customAliases,
+  }) {
     final sanitized = <String, dynamic>{};
 
     final normalizedKeyMap = <String, String>{};
@@ -630,8 +634,8 @@ class ExcelBackupService {
         continue;
       }
 
-      // Check column aliases
-      final aliases = _columnAliases[col];
+      // Check column aliases (customAliases first, then default _columnAliases)
+      final aliases = customAliases?[col] ?? _columnAliases[col];
       if (aliases != null) {
         for (final alias in aliases) {
           if (normalizedKeyMap.containsKey(alias)) {
@@ -703,7 +707,9 @@ class ExcelBackupService {
           final sanitized = _sanitizeMap(map, [
             'id', 'sync_id', 'borrower_code', 'name', 'phone', 'address', 'notes',
             'updated_at', 'created_at', 'last_modified_device', 'is_deleted', 'is_dummy', 'is_closed'
-          ]);
+          ], customAliases: {
+            'id': ['borrowerid', 'id'],
+          });
 
           final oldId = (sanitized['id'] ?? map['id'] ?? map['borrower_id'] ?? map['borrowerid'] ?? '').toString();
           final oldSyncId = (sanitized['sync_id'] ?? map['sync_id'] ?? map['syncid'] ?? '').toString();
@@ -795,14 +801,16 @@ class ExcelBackupService {
           if (map.isEmpty) continue;
 
           final sanitized = _sanitizeMap(map, [
-            'id', 'sync_id', 'borrower_sync_id', 'loan_amount', 'interest_amount', 'loan_date',
+            'id', 'borrower_id', 'sync_id', 'borrower_sync_id', 'loan_amount', 'interest_amount', 'loan_date',
             'installment_days', 'end_date', 'status', 'notes',
             'updated_at', 'created_at', 'last_modified_device', 'is_deleted'
-          ]);
+          ], customAliases: {
+            'id': ['loanid', 'id'],
+          });
 
-          final oldId = (sanitized['id'] ?? map['id'] ?? map['loan_id'] ?? map['loanid'] ?? '').toString();
+          final oldId = (sanitized['id'] ?? map['loan_id'] ?? map['loanid'] ?? map['id'] ?? '').toString();
           final oldSyncId = (sanitized['sync_id'] ?? map['sync_id'] ?? map['syncid'] ?? '').toString();
-          final oldBorrowerId = map['borrower_id']?.toString() ?? map['borrowerid']?.toString() ?? '';
+          final oldBorrowerId = (sanitized['borrower_id'] ?? map['borrower_id'] ?? map['borrowerid'] ?? '').toString();
           final bCode = map['borrower_code']?.toString() ?? map['borrowercode']?.toString() ?? '';
           final oldBorrowerSyncId = (sanitized['borrower_sync_id'] ?? map['borrower_sync_id'] ?? map['borrowersyncid'] ?? '').toString();
 
@@ -931,12 +939,14 @@ class ExcelBackupService {
           if (map.isEmpty) continue;
 
           final sanitized = _sanitizeMap(map, [
-            'id', 'sync_id', 'loan_sync_id', 'amount', 'payment_date', 'notes',
+            'id', 'loan_id', 'sync_id', 'loan_sync_id', 'amount', 'payment_date', 'notes',
             'updated_at', 'created_at', 'last_modified_device', 'is_deleted'
-          ]);
+          ], customAliases: {
+            'id': ['paymentid', 'id'],
+          });
 
-          final oldPaymentId = (sanitized['id'] ?? map['id'] ?? map['payment_id'] ?? map['paymentid'] ?? '').toString();
-          final oldLoanId = map['loan_id']?.toString() ?? map['loanid']?.toString() ?? '';
+          final oldPaymentId = (sanitized['id'] ?? map['payment_id'] ?? map['paymentid'] ?? map['id'] ?? '').toString();
+          final oldLoanId = (sanitized['loan_id'] ?? map['loan_id'] ?? map['loanid'] ?? '').toString();
           final oldSyncId = (sanitized['sync_id'] ?? map['sync_id'] ?? map['syncid'] ?? '').toString();
           final oldLoanSyncId = (sanitized['loan_sync_id'] ?? map['loan_sync_id'] ?? map['loansyncid'] ?? '').toString();
 
@@ -954,6 +964,10 @@ class ExcelBackupService {
           }
 
           if (sanitized['loan_id'] == null) continue; // Skip orphaned payment
+
+          // Verify referenced loan exists in database to prevent foreign key violation
+          final lCheck = await txn.query('loans', columns: ['id'], where: 'id = ?', whereArgs: [sanitized['loan_id']]);
+          if (lCheck.isEmpty) continue; // Skip orphaned payment
 
           if (sanitized['loan_sync_id'] == null || sanitized['loan_sync_id'].toString().isEmpty) {
             final l = await txn.query('loans', where: 'id = ?', whereArgs: [sanitized['loan_id']]);
@@ -1041,9 +1055,11 @@ class ExcelBackupService {
             final sanitized = _sanitizeMap(map, [
               'id', 'sync_id', 'amount', 'expense_date', 'category', 'notes',
               'updated_at', 'created_at', 'last_modified_device', 'is_deleted'
-            ]);
+            ], customAliases: {
+              'id': ['expenseid', 'id'],
+            });
 
-            final oldExpenseId = (sanitized['id'] ?? map['id'] ?? map['expense_id'] ?? map['expenseid'] ?? '').toString();
+            final oldExpenseId = (sanitized['id'] ?? map['expense_id'] ?? map['expenseid'] ?? map['id'] ?? '').toString();
             final oldSyncId = (sanitized['sync_id'] ?? map['sync_id'] ?? map['syncid'] ?? '').toString();
 
             if (sanitized['sync_id'] == null || sanitized['sync_id'].toString().isEmpty) {
@@ -1119,9 +1135,11 @@ class ExcelBackupService {
             final sanitized = _sanitizeMap(map, [
               'id', 'sync_id', 'amount', 'inv_date', 'notes',
               'updated_at', 'created_at', 'last_modified_device', 'is_deleted'
-            ]);
+            ], customAliases: {
+              'id': ['investmentid', 'id'],
+            });
 
-            final oldInvId = (sanitized['id'] ?? map['id'] ?? map['investment_id'] ?? map['investmentid'] ?? '').toString();
+            final oldInvId = (sanitized['id'] ?? map['investment_id'] ?? map['investmentid'] ?? map['id'] ?? '').toString();
             final oldSyncId = (sanitized['sync_id'] ?? map['sync_id'] ?? map['syncid'] ?? '').toString();
 
             if (sanitized['sync_id'] == null || sanitized['sync_id'].toString().isEmpty) {
@@ -1196,9 +1214,11 @@ class ExcelBackupService {
 
             final sanitized = _sanitizeMap(map, [
               'id', 'sync_id', 'amount', 'description', 'dateCreated', 'createdBy', 'timestamp', 'is_deleted'
-            ]);
+            ], customAliases: {
+              'id': ['servicecostid', 'id'],
+            });
 
-            final oldCostId = (sanitized['id'] ?? map['id'] ?? map['servicecost_id'] ?? map['servicecostid'] ?? '').toString();
+            final oldCostId = (sanitized['id'] ?? map['servicecost_id'] ?? map['servicecostid'] ?? map['id'] ?? '').toString();
             final oldSyncId = (sanitized['sync_id'] ?? map['sync_id'] ?? map['syncid'] ?? '').toString();
 
             if (sanitized['sync_id'] == null || sanitized['sync_id'].toString().isEmpty) {

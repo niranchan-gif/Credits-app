@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../providers/loan_provider.dart';
+import '../models/borrower.dart';
 import '../models/payment.dart';
 import '../utils/fmt.dart';
 import '../utils/app_colors.dart';
@@ -17,6 +18,7 @@ import '../widgets/glass_card.dart';
 import 'add_borrower_screen.dart';
 import 'borrower_loans_screen.dart';
 import '../services/backup_freshness_service.dart';
+import '../widgets/app_keyboard/app_keyboard.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -28,6 +30,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _tab = 0;
   final _searchCtrl = TextEditingController();
+  final _searchFocusNode = FocusNode();
   String _query = '';
   String? _selectedAddress;
   bool _filter10PlusDays = false;
@@ -40,6 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _searchCtrl.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -81,38 +85,88 @@ class _HomeScreenState extends State<HomeScreen> {
             }
           }
 
-          final source = [_collectSafe(collectList), _collectSafe(paidList), _collectSafe(completedList), _collectSafe(dummyList)][_tab];
+          bool matchesFilter(Borrower b) {
+            if (_selectedAddress != null && _selectedAddress!.isNotEmpty) {
+              final addr = (b.address ?? '').trim().toLowerCase();
+              if (addr != _selectedAddress!.trim().toLowerCase()) {
+                return false;
+              }
+            }
+
+            if (_filter10PlusDays) {
+              if ((b.daysSinceLastPayment ?? 0) < 10) {
+                return false;
+              }
+            }
+
+            final q = _query.trim().toLowerCase();
+            if (q.isEmpty) return true;
+
+            final code = b.borrowerCode.toLowerCase();
+            final displayCode = b.displayBorrowerCode.toLowerCase();
+            final name = b.name.toLowerCase();
+            final address = (b.address ?? '').toLowerCase();
+            final phone = b.phone.toLowerCase();
+
+            final queryNum = int.tryParse(q);
+            if (queryNum != null) {
+              final codeNum = int.tryParse(displayCode) ?? int.tryParse(code);
+              final isExactCodeMatch = (codeNum != null && codeNum == queryNum) ||
+                  displayCode == q ||
+                  code == q;
+              if (isExactCodeMatch) return true;
+
+              if (q.length >= 5 && phone.contains(q)) return true;
+              return name.contains(q);
+            }
+
+            return code.contains(q) ||
+                displayCode.contains(q) ||
+                name.contains(q) ||
+                address.contains(q) ||
+                phone.contains(q);
+          }
+
+          final matchingCollect = collectList.where(matchesFilter).toList();
+          final matchingPaid = paidList.where(matchesFilter).toList();
+          final matchingClosed = completedList.where(matchesFilter).toList();
+          final matchingDummy = dummyList.where(matchesFilter).toList();
+
+          final tabMatches = [
+            _collectSafe(matchingCollect),
+            _collectSafe(matchingPaid),
+            _collectSafe(matchingClosed),
+            _collectSafe(matchingDummy)
+          ][_tab];
+
+          List<Borrower> items;
+          bool isCrossTab = false;
+          String? crossTabMessage;
+
+          if (_query.trim().isNotEmpty && tabMatches.isEmpty) {
+            final allMatches = provider.borrowers
+                .where((b) => !b.isDeleted && matchesFilter(b))
+                .toList();
+            if (allMatches.isNotEmpty) {
+              items = allMatches;
+              isCrossTab = true;
+              final tabNames = ['Collect', 'Paid', 'Closed', 'Inactive'];
+              final otherTabsWithMatches = <String>[];
+              if (matchingCollect.isNotEmpty) otherTabsWithMatches.add('Collect (${matchingCollect.length})');
+              if (matchingPaid.isNotEmpty) otherTabsWithMatches.add('Paid (${matchingPaid.length})');
+              if (matchingClosed.isNotEmpty) otherTabsWithMatches.add('Closed (${matchingClosed.length})');
+              if (matchingDummy.isNotEmpty) otherTabsWithMatches.add('Inactive (${matchingDummy.length})');
+              crossTabMessage = 'No results in ${tabNames[_tab]}. Found: ${otherTabsWithMatches.join(', ')}';
+            } else {
+              items = [];
+            }
+          } else {
+            items = tabMatches;
+          }
 
           return Consumer<LoanProvider>(
             key: ValueKey<int>(_tab),
             builder: (context, provider, _) {
-                final items = source.where((b) {
-                  if (_selectedAddress != null && _selectedAddress!.isNotEmpty) {
-                    final addr = (b.address ?? '').trim().toLowerCase();
-                    if (addr != _selectedAddress!.trim().toLowerCase()) {
-                      return false;
-                    }
-                  }
-
-                  if (_filter10PlusDays) {
-                    if ((b.daysSinceLastPayment ?? 0) < 10) {
-                      return false;
-                    }
-                  }
-
-                  final q = _query.toLowerCase();
-                  if (q.trim().isEmpty) return true;
-                  
-                  final isNumeric = int.tryParse(q.trim()) != null;
-                  if (isNumeric) {
-                    return b.borrowerCode.toLowerCase() == q.trim();
-                  }
-
-                  return b.name.toLowerCase().contains(q) ||
-                      b.borrowerCode.toLowerCase().contains(q) ||
-                      (b.address ?? '').toLowerCase().contains(q);
-                }).toList();
-
                 return RefreshIndicator(
                   color: AppColors.accent,
                   backgroundColor: Theme.of(context).colorScheme.surface,
@@ -136,13 +190,43 @@ class _HomeScreenState extends State<HomeScreen> {
                         padding: const EdgeInsets.fromLTRB(16, 2, 16, 12),
                         sliver: SliverToBoxAdapter(
                           child: _buildTabs(
-                            collectList.length, 
-                            paidList.length, 
-                            completedList.length,
-                            dummyList.length,
+                            _query.trim().isNotEmpty ? matchingCollect.length : collectList.length, 
+                            _query.trim().isNotEmpty ? matchingPaid.length : paidList.length, 
+                            _query.trim().isNotEmpty ? matchingClosed.length : completedList.length, 
+                            _query.trim().isNotEmpty ? matchingDummy.length : dummyList.length,
                           ),
                         ),
                       ),
+                      if (isCrossTab && crossTabMessage != null)
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: AppColors.accent.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppColors.accent.withValues(alpha: 0.25)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(LucideIcons.info, size: 16, color: AppColors.accent),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      crossTabMessage,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.accent,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
                       if (items.isEmpty)
                         SliverFillRemaining(hasScrollBody: false, child: _emptyState())
                       else
@@ -538,6 +622,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 child: TextField(
                   controller: _searchCtrl,
+                  focusNode: _searchFocusNode,
+                  keyboardType: TextInputType.none,
+                  showCursor: true,
+                  onTap: () {
+                    AppKeyboardController.instance.attach(
+                      controller: _searchCtrl,
+                      focusNode: _searchFocusNode,
+                      type: AppKeyboardType.text,
+                      action: AppKeyboardAction.search,
+                      label: 'Search Borrowers',
+                      onChanged: (v) => setState(() => _query = v),
+                    );
+                  },
                   onChanged: (v) => setState(() => _query = v),
                   decoration: InputDecoration(
                     hintText: "Search name, ID, address...",
@@ -1334,23 +1431,35 @@ class _HomeScreenState extends State<HomeScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: isPaid
-                          ? AppColors.accent.withValues(alpha: 0.1)
-                          : (!isPaid && due && !b.isClosed && !b.isDummy && (b.daysSinceLastPayment ?? 0) >= 10
-                              ? Colors.orange.withValues(alpha: 0.1)
-                              : Colors.transparent),
+                      color: b.isDummy
+                          ? Colors.grey.withValues(alpha: 0.15)
+                          : (b.isClosed || balance <= 0
+                              ? Colors.purple.withValues(alpha: 0.12)
+                              : (isPaid
+                                  ? AppColors.accent.withValues(alpha: 0.1)
+                                  : (!isPaid && due && (b.daysSinceLastPayment ?? 0) >= 10
+                                      ? Colors.orange.withValues(alpha: 0.1)
+                                      : Colors.transparent))),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      isPaid
-                          ? "Collected"
-                          : (due && !b.isClosed && !b.isDummy && (b.daysSinceLastPayment ?? 0) >= 10 ? "${b.daysSinceLastPayment}d No Pay" : "Pending"),
+                      b.isDummy
+                          ? "Inactive"
+                          : (b.isClosed || balance <= 0
+                              ? "Closed"
+                              : (isPaid
+                                  ? "Collected"
+                                  : (due && (b.daysSinceLastPayment ?? 0) >= 10 ? "${b.daysSinceLastPayment}d No Pay" : "Pending"))),
                       style: TextStyle(
-                        color: isPaid
-                            ? AppColors.accent
-                            : (!isPaid && due && !b.isClosed && !b.isDummy && (b.daysSinceLastPayment ?? 0) >= 10
-                                ? Colors.orange
-                                : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
+                        color: b.isDummy
+                            ? Colors.grey
+                            : (b.isClosed || balance <= 0
+                                ? Colors.purple
+                                : (isPaid
+                                    ? AppColors.accent
+                                    : (!isPaid && due && (b.daysSinceLastPayment ?? 0) >= 10
+                                        ? Colors.orange
+                                        : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)))),
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                       ),

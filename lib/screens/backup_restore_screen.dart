@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
@@ -1271,7 +1270,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     ],
                   ],
                 ),
-              ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.05, end: 0),
+              ),
  
               const SizedBox(height: 28),
  
@@ -1319,7 +1318,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     ),
                   ],
                 ),
-              ).animate().fadeIn(duration: 400.ms, delay: 100.ms).slideY(begin: 0.05, end: 0),
+              ),
  
               if (_lastExcelBackupDate != null) ...[
                 const SizedBox(height: 8),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../utils/app_colors.dart';
-import 'glass_card.dart';
 
 class PremiumCard extends StatelessWidget {
   final Widget child;

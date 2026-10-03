@@ -6,6 +6,7 @@ import 'providers/loan_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/splash/splash_screen.dart';
 import 'utils/app_theme.dart';
+import 'widgets/app_keyboard/app_keyboard.dart';
 import 'widgets/glass_background.dart';
 
 final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
@@ -45,7 +46,9 @@ class LoanManagerApp extends StatelessWidget {
             darkTheme: AppTheme.darkTheme,
             themeMode: themeProvider.themeMode,
             builder: (context, child) {
-              return GlassBackground(child: child!);
+              return GlassBackground(
+                child: AppKeyboardOverlay(child: child!),
+              );
             },
             home: const SplashScreen(),
           );

@@ -7,12 +7,12 @@ import '../utils/app_colors.dart';
 import 'home_screen.dart';
 import 'reports_screen.dart';
 import 'settings_screen.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import '../services/backup_freshness_service.dart';
 import '../widgets/read_only_banner.dart';
 import '../services/auto_backup_manager.dart';
 import '../widgets/progress_dialog.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/app_keyboard/app_keyboard.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -89,6 +89,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     }
 
     // Backup & Exit flow
+    if (!context.mounted) return false;
     final backupSuccess = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -118,6 +119,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           canPop: false,
           onPopInvokedWithResult: (didPop, _) async {
             if (didPop) return;
+            if (AppKeyboardController.instance.isVisible) {
+              AppKeyboardController.instance.hide();
+              return;
+            }
             if (_currentIndex != 0) {
               setState(() => _currentIndex = 0);
               return;
@@ -238,7 +243,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           },
         ),
       ),
-    ).animate().slideY(begin: 0.5, end: 0, duration: 800.ms, curve: Curves.easeOutBack);
+    );
   }
 
   Widget _navItem(IconData icon, String label, int index, double width) {

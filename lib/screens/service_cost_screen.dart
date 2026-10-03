@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
 import '../providers/loan_provider.dart';
 import '../utils/fmt.dart';
@@ -404,7 +403,7 @@ class _ServiceCostScreenState extends State<ServiceCostScreen> {
                               ],
                             ),
                           ),
-                        ).animate().fadeIn(duration: 400.ms).slideX(begin: 0.1, end: 0);
+                        );
                       },
                       childCount: costs.length,
                     ),

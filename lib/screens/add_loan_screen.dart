@@ -7,6 +7,7 @@ import '../models/borrower.dart';
 import '../models/loan.dart';
 import '../providers/loan_provider.dart';
 import '../utils/app_colors.dart';
+import '../widgets/app_keyboard/app_keyboard.dart';
 import '../widgets/premium_card.dart';
 
 class AddLoanScreen extends StatefulWidget {
@@ -196,17 +197,20 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
     int maxLines = 1,
     bool readOnly = false,
   }) {
-    return TextFormField(
+    final appKbType = keyboardType == TextInputType.number
+        ? AppKeyboardType.number
+        : (keyboardType == TextInputType.phone ? AppKeyboardType.phone : AppKeyboardType.text);
+
+    return AppTextFormField(
       controller: controller,
-      keyboardType: keyboardType,
+      labelText: label,
+      prefixIcon: icon,
+      keyboardType: appKbType,
+      textInputAction: AppKeyboardAction.next,
       maxLines: maxLines,
       validator: validator,
       onChanged: onChanged,
       readOnly: readOnly,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, size: 20),
-      ),
     );
   }
 }

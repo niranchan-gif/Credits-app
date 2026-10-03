@@ -894,7 +894,7 @@ class DBHelper {
     final now = DateTime.now().millisecondsSinceEpoch;
     
     await db.update('borrowers', 
-      {'is_dummy': 0, 'updated_at': now},
+      {'is_dummy': 0, 'is_closed': 0, 'is_deleted': 0, 'updated_at': now},
       where: 'id = ?', whereArgs: [id]);
     _notifyMutationChanged();
   }

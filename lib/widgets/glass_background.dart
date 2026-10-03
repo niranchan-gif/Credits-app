@@ -1,113 +1,94 @@
-import 'dart:math';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../utils/app_colors.dart';
 
-class GlassBackground extends StatefulWidget {
+/// High-performance static glass background.
+/// Provides rich ambient glow using hardware-accelerated radial gradients
+/// without CPU/GPU animation loops or costly full-screen ImageFiltered blur overhead.
+class GlassBackground extends StatelessWidget {
   final Widget child;
 
   const GlassBackground({super.key, required this.child});
 
   @override
-  State<GlassBackground> createState() => _GlassBackgroundState();
-}
-
-class _GlassBackgroundState extends State<GlassBackground>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 20),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    // Background base color
     final bgColor = isDark ? const Color(0xFF0F1714) : const Color(0xFFE8F0EA);
-    
+
     return Stack(
       children: [
         // Base solid color
-        Container(color: bgColor),
-        
-        // Animated Orbs with ImageFiltered instead of BackdropFilter
-        // This avoids nested BackdropFilter rendering glitches in Impeller
         Positioned.fill(
-          child: ImageFiltered(
-            imageFilter: ImageFilter.blur(sigmaX: 80, sigmaY: 80, tileMode: TileMode.decal),
-            child: AnimatedBuilder(
-              animation: _controller,
-              builder: (context, child) {
-                final t = _controller.value;
-                final width = MediaQuery.of(context).size.width;
-                final height = MediaQuery.of(context).size.height;
-                
-                return Stack(
-                  children: [
-                    // Top Right Orb (Primary Accent)
-                    Positioned(
-                      top: height * 0.1 + sin(t * pi * 2) * 50,
-                      right: width * -0.2 + cos(t * pi * 2) * 50,
-                      child: Container(
-                        width: width * 0.8,
-                        height: width * 0.8,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.brandPrimary.withValues(alpha: isDark ? 0.3 : 0.4),
-                        ),
-                      ),
-                    ),
-                    
-                    // Bottom Left Orb (Secondary Accent)
-                    Positioned(
-                      bottom: height * 0.05 + cos(t * pi * 2) * 60,
-                      left: width * -0.3 + sin(t * pi * 2) * 40,
-                      child: Container(
-                        width: width * 0.9,
-                        height: width * 0.9,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.brandGold.withValues(alpha: isDark ? 0.25 : 0.35),
-                        ),
-                      ),
-                    ),
-                    
-                    // Center Subtle Orb (Deep Blue/Teal)
-                    Positioned(
-                      top: height * 0.4 + sin(t * pi * 4) * 30,
-                      left: width * 0.2 + cos(t * pi * 4) * 30,
-                      child: Container(
-                        width: width * 0.6,
-                        height: width * 0.6,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: (isDark ? const Color(0xFF063628) : const Color(0xFF6EDDBB)).withValues(alpha: isDark ? 0.4 : 0.5),
-                        ),
-                      ),
-                    ),
+          child: ColoredBox(color: bgColor),
+        ),
+
+        // Top Right Ambient Orb (Primary Accent)
+        Positioned(
+          top: -60,
+          right: -60,
+          width: 360,
+          height: 360,
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    AppColors.brandPrimary.withValues(alpha: isDark ? 0.28 : 0.32),
+                    AppColors.brandPrimary.withValues(alpha: 0.0),
                   ],
-                );
-              },
+                ),
+              ),
             ),
           ),
         ),
-        
-        // Actual content
-        Positioned.fill(child: widget.child),
+
+        // Bottom Left Ambient Orb (Secondary Gold Accent)
+        Positioned(
+          bottom: -50,
+          left: -80,
+          width: 380,
+          height: 380,
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    AppColors.brandGold.withValues(alpha: isDark ? 0.20 : 0.25),
+                    AppColors.brandGold.withValues(alpha: 0.0),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        // Center Subtle Emerald Orb
+        Positioned(
+          top: 260,
+          left: 40,
+          width: 280,
+          height: 280,
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    (isDark ? const Color(0xFF063628) : const Color(0xFF6EDDBB))
+                        .withValues(alpha: isDark ? 0.24 : 0.30),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        // App content
+        Positioned.fill(child: child),
       ],
     );
   }
 }
+

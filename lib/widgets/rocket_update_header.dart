@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui';
 import 'package:flutter/material.dart';
 
 /// Interactive Space Header with an animated Rocket that matches the Credits brand theme
@@ -96,7 +95,11 @@ class _RocketUpdateHeaderState extends State<RocketUpdateHeader> with TickerProv
     _smokeController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 10),
-    )..repeat();
+    );
+
+    if (widget.isDownloading || widget.isLaunching) {
+      _smokeController.repeat();
+    }
 
     _blastController = AnimationController(
       vsync: this,
@@ -118,6 +121,11 @@ class _RocketUpdateHeaderState extends State<RocketUpdateHeader> with TickerProv
   @override
   void didUpdateWidget(covariant RocketUpdateHeader oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if ((widget.isDownloading || widget.isLaunching) && !_smokeController.isAnimating) {
+      _smokeController.repeat();
+    } else if (!widget.isDownloading && !widget.isLaunching && _smokeController.isAnimating) {
+      _smokeController.stop();
+    }
     if (widget.isLaunching && !oldWidget.isLaunching) {
       _startLaunch();
     }
@@ -138,52 +146,48 @@ class _RocketUpdateHeaderState extends State<RocketUpdateHeader> with TickerProv
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(26),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-        child: Container(
-          height: 230.0,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(26),
-            gradient: widget.isDark
-                ? RadialGradient(
-                    center: const Alignment(0.2, -0.3),
-                    radius: 1.4,
-                    colors: [
-                      const Color(0xFF09362A).withValues(alpha: 0.35),
-                      const Color(0xFF041B15).withValues(alpha: 0.45),
-                      const Color(0xFF02130E).withValues(alpha: 0.55),
-                    ],
-                    stops: const [0.0, 0.6, 1.0],
-                  )
-                : LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      const Color(0xFFE8F6F1).withValues(alpha: 0.4),
-                      const Color(0xFFD3EFE3).withValues(alpha: 0.3),
-                      const Color(0xFFBEE7D5).withValues(alpha: 0.2),
-                    ],
-                  ),
-            border: Border.all(
+    return Container(
+      height: 230.0,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(26),
+        gradient: widget.isDark
+            ? RadialGradient(
+                center: const Alignment(0.2, -0.3),
+                radius: 1.4,
+                colors: [
+                  const Color(0xFF09362A).withValues(alpha: 0.85),
+                  const Color(0xFF041B15).withValues(alpha: 0.90),
+                  const Color(0xFF02130E).withValues(alpha: 0.95),
+                ],
+                stops: const [0.0, 0.6, 1.0],
+              )
+            : const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFE8F6F1),
+                  Color(0xFFD3EFE3),
+                  Color(0xFFBEE7D5),
+                ],
+              ),
+        border: Border.all(
           color: widget.isDark
-              ? const Color(0xFF13A383).withValues(alpha: 0.3)
-              : const Color(0xFF13A383).withValues(alpha: 0.25),
+              ? const Color(0xFF13A383).withValues(alpha: 0.4)
+              : const Color(0xFF13A383).withValues(alpha: 0.35),
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
             color: widget.isDark
-                ? const Color(0xFF13A383).withValues(alpha: 0.12)
-                : const Color(0xFF0B6D55).withValues(alpha: 0.08),
+                ? const Color(0xFF13A383).withValues(alpha: 0.16)
+                : const Color(0xFF0B6D55).withValues(alpha: 0.10),
             blurRadius: 20,
             offset: const Offset(0, 6),
           ),
           if (widget.isDark)
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.4),
+              color: Colors.black.withValues(alpha: 0.5),
               blurRadius: 16,
               offset: const Offset(0, 4),
             ),
@@ -207,8 +211,6 @@ class _RocketUpdateHeaderState extends State<RocketUpdateHeader> with TickerProv
             );
           },
         ),
-      ),
-      ),
       ),
     );
   }

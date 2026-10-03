@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
 import '../models/borrower.dart';
 import '../models/loan.dart';
@@ -351,7 +350,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
           ],
         ),
       ),
-    ).animate().fadeIn(duration: 500.ms).scale(begin: const Offset(0.95, 0.95));
+    );
   }
 
   Widget _miniStat(String label, String value) {
@@ -411,7 +410,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
               ],
             ),
           ),
-        ).animate().fadeIn(duration: 400.ms).slideX(begin: 0.1, end: 0);
+        );
   }
 
   Future<void> _deletePayment(Payment p) async {

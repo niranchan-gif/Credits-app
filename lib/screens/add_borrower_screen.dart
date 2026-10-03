@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
 import 'package:intl/intl.dart';
 import '../models/borrower.dart';
 import '../models/loan.dart';
 import '../providers/loan_provider.dart';
 import '../utils/app_colors.dart';
+import '../widgets/app_keyboard/app_keyboard.dart';
 import '../widgets/premium_card.dart';
 
 class AddBorrowerScreen extends StatefulWidget {
@@ -189,17 +189,20 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _sectionLabel('Borrower ID').animate().fadeIn(delay: 100.ms).slideX(begin: -0.1),
-              _buildField(
-                controller: _codeCtrl,
-                label: 'Borrower Code',
-                icon: LucideIcons.check,
-                readOnly: _isEditMode && widget.borrower?.isDummy != true,
-                validator: (v) => v == null || v.trim().isEmpty ? 'ID required' : null,
-              ).animate().fadeIn(delay: 200.ms).slideX(begin: -0.1),
+              _sectionLabel('Borrower ID'),
+              PremiumCard(
+                padding: const EdgeInsets.all(20),
+                child: _buildField(
+                  controller: _codeCtrl,
+                  label: 'Borrower Code',
+                  icon: LucideIcons.check,
+                  readOnly: _isEditMode && widget.borrower?.isDummy != true,
+                  validator: (v) => v == null || v.trim().isEmpty ? 'ID required' : null,
+                ),
+              ),
               const SizedBox(height: 24),
               
-              _sectionLabel('Personal Details').animate().fadeIn(delay: 300.ms).slideX(begin: -0.1),
+              _sectionLabel('Personal Details'),
               PremiumCard(
                 padding: const EdgeInsets.all(20),
                 child: Column(
@@ -227,11 +230,11 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
                     ),
                   ],
                 ),
-              ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.1),
+              ),
               const SizedBox(height: 24),
 
               if (!_isEditMode) ...[
-                _sectionLabel('Loan Information').animate().fadeIn(delay: 500.ms).slideX(begin: -0.1),
+                _sectionLabel('Loan Information'),
                 PremiumCard(
                   padding: const EdgeInsets.all(20),
                   child: Column(
@@ -286,17 +289,20 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
                       ),
                     ],
                   ),
-                ).animate().fadeIn(delay: 600.ms).slideY(begin: 0.1),
+                ),
                 const SizedBox(height: 24),
               ],
 
-              _sectionLabel('Additional Notes').animate().fadeIn(delay: 700.ms).slideX(begin: -0.1),
-              _buildField(
-                controller: _notesCtrl,
-                label: 'Internal Notes',
-                icon: LucideIcons.stickyNote,
-                maxLines: 3,
-              ).animate().fadeIn(delay: 800.ms).slideY(begin: 0.1),
+              _sectionLabel('Additional Notes'),
+              PremiumCard(
+                padding: const EdgeInsets.all(20),
+                child: _buildField(
+                  controller: _notesCtrl,
+                  label: 'Internal Notes',
+                  icon: LucideIcons.stickyNote,
+                  maxLines: 3,
+                ),
+              ),
               const SizedBox(height: 40),
 
               SizedBox(
@@ -307,7 +313,7 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
                     ? const CircularProgressIndicator(color: Colors.white)
                     : Text(_isEditMode ? 'Update Profile' : 'Create Borrower'),
                 ),
-              ).animate().fadeIn(delay: 900.ms).scale(begin: const Offset(0.95, 0.95)),
+              ),
             ],
           ),
         ),
@@ -332,17 +338,20 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
     int maxLines = 1,
     bool readOnly = false,
   }) {
-    return TextFormField(
+    final appKbType = keyboardType == TextInputType.phone
+        ? AppKeyboardType.phone
+        : (keyboardType == TextInputType.number ? AppKeyboardType.number : AppKeyboardType.text);
+
+    return AppTextFormField(
       controller: controller,
-      keyboardType: keyboardType,
+      labelText: label,
+      prefixIcon: icon,
+      keyboardType: appKbType,
+      textInputAction: AppKeyboardAction.next,
       maxLines: maxLines,
       validator: validator,
       onChanged: onChanged,
       readOnly: readOnly,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, size: 20),
-      ),
     );
   }
 }

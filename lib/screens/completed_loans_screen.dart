@@ -53,10 +53,24 @@ class _CompletedLoansScreenState extends State<CompletedLoansScreen> {
   void _filter(String query) {
     setState(() {
       _query = query;
+      final q = query.trim().toLowerCase();
+      if (q.isEmpty) {
+        _filteredLoans = _allLoans;
+        return;
+      }
+      final queryNum = int.tryParse(q);
       _filteredLoans = _allLoans.where((loan) {
         final name = (loan['borrower_name'] as String? ?? '').toLowerCase();
-        final code = (loan['borrower_code'] as String? ?? '').toLowerCase();
-        final q = query.toLowerCase();
+        var code = (loan['borrower_code'] as String? ?? '').toLowerCase();
+        if (code.contains('_del_')) {
+          code = code.split('_del_').first;
+        }
+        if (queryNum != null) {
+          final codeNum = int.tryParse(code);
+          final isExactCode = (codeNum != null && codeNum == queryNum) || code == q;
+          if (isExactCode) return true;
+          return name.contains(q);
+        }
         return name.contains(q) || code.contains(q);
       }).toList();
     });

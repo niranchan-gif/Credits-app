@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
 import '../providers/loan_provider.dart';
 import '../utils/fmt.dart';
@@ -166,7 +165,7 @@ class _ExpenseTab extends StatelessWidget {
                       ),
                     ],
                   ),
-                ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
+                ),
               ),
             ),
 
@@ -305,10 +304,7 @@ class _ExpenseTab extends StatelessWidget {
                             ],
                           ),
                         ),
-                      )
-                          .animate()
-                          .fadeIn(duration: 300.ms)
-                          .slideY(begin: 0.1, end: 0);
+                      );
                     },
                     childCount:
                         provider.expenses.length > 5 ? 5 : provider.expenses.length,
@@ -594,10 +590,7 @@ class _ExpenseHistoryTabState extends State<_ExpenseHistoryTab> {
                             ],
                           ),
                         ),
-                      )
-                          .animate()
-                          .fadeIn(duration: 400.ms)
-                          .slideX(begin: 0.1, end: 0);
+                      );
                     },
                     childCount: expenses.length,
                   ),
@@ -846,7 +839,7 @@ class _ServiceCostTabState extends State<_ServiceCostTab> {
                       ],
                     ),
                   ),
-                ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
+                ),
               ),
             ),
 
@@ -1118,10 +1111,7 @@ class _ServiceCostHistoryTabState extends State<_ServiceCostHistoryTab> {
                             ],
                           ),
                         ),
-                      )
-                          .animate()
-                          .fadeIn(duration: 400.ms)
-                          .slideX(begin: 0.1, end: 0);
+                      );
                     },
                     childCount: costs.length,
                   ),

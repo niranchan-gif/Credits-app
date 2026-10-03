@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
@@ -233,9 +232,11 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
               _exportExcel();
             } else if (value == 'edit') {
               if (isReadOnly) return;
-              await showDialog(
-                context: context,
-                builder: (_) => AddBorrowerScreen(borrower: b),
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => AddBorrowerScreen(borrower: b),
+                ),
               );
               _loadData();
             } else if (value == 'delete') {
@@ -625,7 +626,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
             ],
           ],
         ),
-      ).animate().fadeIn(duration: 500.ms).slideY(begin: -0.1, end: 0),
+      ),
     );
   }
 
@@ -712,7 +713,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
           ),
         ),
       ),
-    ).animate().fadeIn(duration: 400.ms, delay: (i * 50).ms).slideX(begin: 0.1, end: 0);
+    );
   }
 
   Widget _statCol(String label, String value) {
@@ -751,6 +752,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
       debugPrint('UI: Moving to inactive. ID=${widget.borrower.id}, Code=${widget.borrower.borrowerCode}');
       await context.read<LoanProvider>().moveToDummy(widget.borrower.id ?? 0);
       debugPrint('UI: Provider reload complete');
+      if (mounted) _loadData();
     }
   }
 
@@ -774,6 +776,7 @@ class _BorrowerLoansScreenState extends State<BorrowerLoansScreen> {
       debugPrint('UI: Restoring to active. ID=${widget.borrower.id}, Code=${widget.borrower.borrowerCode}');
       await context.read<LoanProvider>().moveToActive(widget.borrower.id ?? 0);
       debugPrint('UI: Provider reload complete');
+      if (mounted) _loadData();
     }
   }
 

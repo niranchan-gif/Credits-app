@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
 import '../database/db_helper.dart';
 import '../services/backup_freshness_service.dart';
@@ -396,12 +395,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
                   _sectionLabel('Borrower Breakdown'),
                   const SizedBox(height: 16),
-                  ..._reports.asMap().entries.map((entry) => 
-                    _buildBorrowerReportCard(entry.value)
-                      .animate()
-                      .fadeIn(duration: 400.ms)
-                      .slideX(begin: 0.1, end: 0)
-                  ),
+                  ..._reports.map((report) => _buildBorrowerReportCard(report)),
                 ],
               ),
             ),
