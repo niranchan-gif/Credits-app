@@ -11,7 +11,6 @@ import '../services/excel_export_service.dart';
 import '../utils/actions.dart';
 import '../utils/fmt.dart';
 import '../utils/app_colors.dart';
-import '../widgets/premium_card.dart';
 import '../widgets/glass_card.dart';
 import '../services/backup_freshness_service.dart';
 
@@ -93,7 +92,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
                     Text('Add Payment', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface)),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withOpacity( 0.1), borderRadius: BorderRadius.circular(8)),
+                      decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withValues( alpha: 0.1), borderRadius: BorderRadius.circular(8)),
                       child: Text(widget.borrower.displayBorrowerCode, style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary, fontSize: 12)),
                     ),
                   ],
@@ -159,17 +158,17 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface.withOpacity( 0.1), borderRadius: BorderRadius.circular(16), border: Border.all(color: Theme.of(context).colorScheme.outline.withOpacity( 0.1))),
+        decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface.withValues( alpha: 0.1), borderRadius: BorderRadius.circular(16), border: Border.all(color: Theme.of(context).colorScheme.outline.withValues( alpha: 0.1))),
         child: Row(
           children: [
             Icon(icon, color: Theme.of(context).colorScheme.primary, size: 20),
             const SizedBox(width: 16),
             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6), fontSize: 11)),
+              Text(title, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues( alpha: 0.6), fontSize: 11)),
               Text(subtitle, style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 14)),
             ]),
             const Spacer(),
-            Icon(LucideIcons.chevronRight, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6)),
+            Icon(LucideIcons.chevronRight, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues( alpha: 0.6)),
           ],
         ),
       ),
@@ -215,7 +214,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
                               const SizedBox(width: 10),
                               Text('Payment History', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Theme.of(context).colorScheme.onSurface)),
                               const Spacer(),
-                              Text('${_payments.length} entries', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6), fontSize: 13)),
+                              Text('${_payments.length} entries', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues( alpha: 0.6), fontSize: 13)),
                             ],
                           ),
                         ),
@@ -230,9 +229,9 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(LucideIcons.checkCircle, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.2)),
+                              Icon(LucideIcons.checkCircle, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues( alpha: 0.2)),
                               const SizedBox(height: 16),
-                              Text('No payments recorded yet', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6))),
+                              Text('No payments recorded yet', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues( alpha: 0.6))),
                             ],
                           ),
                         ),
@@ -330,7 +329,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
             const SizedBox(height: 24),
             Stack(
               children: [
-                Container(height: 8, decoration: BoxDecoration(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.08), borderRadius: BorderRadius.circular(4))),
+                Container(height: 8, decoration: BoxDecoration(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(4))),
                 AnimatedContainer(
                   duration: const Duration(seconds: 1),
                   height: 8,
@@ -343,7 +342,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Active for $days days', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6), fontSize: 11)),
+                Text('Active for $days days', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues( alpha: 0.6), fontSize: 11)),
                 Text('${(progress * 100).toStringAsFixed(0)}% Complete', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 11, fontWeight: FontWeight.bold)),
               ],
             ),
@@ -357,7 +356,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6), fontSize: 10)),
+        Text(label, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues( alpha: 0.6), fontSize: 10)),
         const SizedBox(height: 4),
         Text(value, style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 14)),
       ],
@@ -377,7 +376,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
               children: [
                 Container(
                   padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withOpacity( 0.1), borderRadius: BorderRadius.circular(12)),
+                  decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withValues( alpha: 0.1), borderRadius: BorderRadius.circular(12)),
                   child: Icon(LucideIcons.arrowDown, color: Theme.of(context).colorScheme.primary, size: 20),
                 ),
                 const SizedBox(width: 16),
@@ -386,7 +385,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(fmtINR(p.amount), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Theme.of(context).colorScheme.onSurface)),
-                      if (p.notes != null) Text(p.notes!, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6), fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      if (p.notes != null) Text(p.notes!, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues( alpha: 0.6), fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ],
                   ),
                 ),
@@ -401,7 +400,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
                         if (isReadOnly) return const SizedBox.shrink();
                         return GestureDetector(
                           onTap: () => _deletePayment(p),
-                          child: Icon(LucideIcons.trash2, size: 16, color: AppColors.error.withOpacity(0.6)),
+                          child: Icon(LucideIcons.trash2, size: 16, color: AppColors.error.withValues(alpha: 0.6)),
                         );
                       },
                     ),

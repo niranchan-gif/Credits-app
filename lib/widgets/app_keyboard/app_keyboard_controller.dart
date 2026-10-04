@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/scheduler.dart';
 import '../../services/voice_typing_service.dart';
 import 'app_keyboard_types.dart';
 
@@ -39,6 +40,39 @@ class AppKeyboardController extends ChangeNotifier {
   bool get isCapsLock => _isCapsLock;
   String? get label => _label;
 
+  void _onFocusChanged() {
+    if (_currentFocusNode != null && !_currentFocusNode!.hasFocus) {
+      hide();
+    }
+  }
+
+  void _safeNotifyListeners() {
+    try {
+      final binding = WidgetsBinding.instance;
+      final phase = binding.schedulerPhase;
+      if (phase == SchedulerPhase.persistentCallbacks ||
+          phase == SchedulerPhase.midFrameMicrotasks) {
+        binding.addPostFrameCallback((_) {
+          notifyListeners();
+        });
+      } else {
+        notifyListeners();
+      }
+    } catch (_) {
+      notifyListeners();
+    }
+  }
+
+  void _safeNotifyListenersDeferred() {
+    try {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        notifyListeners();
+      });
+    } catch (_) {
+      notifyListeners();
+    }
+  }
+
   /// Attach a text editing controller and focus node to the custom keyboard.
   void attach({
     required TextEditingController controller,
@@ -49,6 +83,13 @@ class AppKeyboardController extends ChangeNotifier {
     void Function(String)? onChanged,
     String? label,
   }) {
+    // If previously attached to another node, remove listener from it
+    if (_currentFocusNode != null && _currentFocusNode != focusNode) {
+      try {
+        _currentFocusNode!.removeListener(_onFocusChanged);
+      } catch (_) {}
+    }
+
     _currentController = controller;
     _currentFocusNode = focusNode;
     _keyboardType = type;
@@ -56,6 +97,12 @@ class AppKeyboardController extends ChangeNotifier {
     _onAction = onAction;
     _onChanged = onChanged;
     _label = label;
+
+    // Listen to focus changes to auto-hide when focus is lost (widget closes, tab switches, etc.)
+    try {
+      focusNode.removeListener(_onFocusChanged);
+      focusNode.addListener(_onFocusChanged);
+    } catch (_) {}
 
     // Automatically default to numeric numpad for numbers/phones, QWERTY for text
     if (type == AppKeyboardType.number || type == AppKeyboardType.phone) {
@@ -67,38 +114,48 @@ class AppKeyboardController extends ChangeNotifier {
     _isShifted = false;
     _isCapsLock = false;
     _isVisible = true;
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
-  /// Detach when a focus node loses focus.
+  /// Detach when a focus node loses focus or widget is disposed.
   void detach(FocusNode? node) {
-    if (_currentFocusNode == node) {
-      if (_isVoiceTyping) {
-        VoiceTypingService.instance.stopListening();
-        _isVoiceTyping = false;
-      }
-      _isVisible = false;
-      _currentController = null;
-      _currentFocusNode = null;
-      _onAction = null;
-      _onChanged = null;
-      _label = null;
-      notifyListeners();
+    if (node == null || _currentFocusNode == node) {
+      hide();
     }
   }
 
   /// Explicitly hide the keyboard.
   void hide() {
-    if (_isVisible) {
-      if (_isVoiceTyping) {
-        VoiceTypingService.instance.stopListening();
-        _isVoiceTyping = false;
-      }
-      HapticFeedback.lightImpact();
-      _isVisible = false;
-      _currentFocusNode?.unfocus();
-      notifyListeners();
+    if (!_isVisible && _currentFocusNode == null && _currentController == null) {
+      return;
     }
+    if (_isVoiceTyping) {
+      VoiceTypingService.instance.stopListening();
+      _isVoiceTyping = false;
+    }
+    _isVisible = false;
+
+    final node = _currentFocusNode;
+    _currentFocusNode = null;
+    _currentController = null;
+    _onAction = null;
+    _onChanged = null;
+    _label = null;
+
+    if (node != null) {
+      try {
+        node.removeListener(_onFocusChanged);
+      } catch (_) {}
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        try {
+          if (node.hasFocus) {
+            node.unfocus();
+          }
+        } catch (_) {}
+      });
+    }
+
+    _safeNotifyListenersDeferred();
   }
 
   /// Start voice typing mode
@@ -270,3 +327,34 @@ class AppKeyboardController extends ChangeNotifier {
     }
   }
 }
+
+/// Navigator observer that automatically hides the in-app keyboard whenever
+/// any route (dialog, bottom sheet, full screen) is popped, pushed, or removed.
+class AppKeyboardNavigatorObserver extends NavigatorObserver {
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPop(route, previousRoute);
+    AppKeyboardController.instance.hide();
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPush(route, previousRoute);
+    if (previousRoute != null) {
+      AppKeyboardController.instance.hide();
+    }
+  }
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didRemove(route, previousRoute);
+    AppKeyboardController.instance.hide();
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
+    AppKeyboardController.instance.hide();
+  }
+}
+

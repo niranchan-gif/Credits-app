@@ -10,6 +10,7 @@ import '../widgets/premium_card.dart';
 import '../services/google_drive_service.dart';
 import 'add_expense_dialog.dart';
 import '../services/backup_freshness_service.dart';
+import '../widgets/app_keyboard/app_keyboard.dart';
 
 class OnHandCashScreen extends StatefulWidget {
   const OnHandCashScreen({super.key});
@@ -47,7 +48,7 @@ class _OnHandCashScreenState extends State<OnHandCashScreen>
           indicatorColor: AppColors.accent,
           labelColor: AppColors.accent,
           unselectedLabelColor:
-              Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6),
+              Theme.of(context).colorScheme.onSurfaceVariant.withValues( alpha: 0.6),
           labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
           unselectedLabelStyle: const TextStyle(fontSize: 13),
           tabs: const [
@@ -136,7 +137,7 @@ class _ExpenseTab extends StatelessWidget {
                           color: Theme.of(context)
                               .colorScheme
                               .onSurfaceVariant
-                              .withOpacity( 0.7),
+                              .withValues( alpha: 0.7),
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -190,7 +191,7 @@ class _ExpenseTab extends StatelessWidget {
                         color: Theme.of(context)
                             .colorScheme
                             .onSurfaceVariant
-                            .withOpacity( 0.6),
+                            .withValues( alpha: 0.6),
                         fontSize: 13,
                       ),
                     ),
@@ -213,7 +214,7 @@ class _ExpenseTab extends StatelessWidget {
                               color: Theme.of(context)
                                   .colorScheme
                                   .onSurfaceVariant
-                                  .withOpacity( 0.2)),
+                                  .withValues( alpha: 0.2)),
                           const SizedBox(height: 12),
                           Text(
                             'No expenses recorded yet',
@@ -221,7 +222,7 @@ class _ExpenseTab extends StatelessWidget {
                                 color: Theme.of(context)
                                     .colorScheme
                                     .onSurfaceVariant
-                                    .withOpacity( 0.6)),
+                                    .withValues( alpha: 0.6)),
                           ),
                         ],
                       ),
@@ -245,7 +246,7 @@ class _ExpenseTab extends StatelessWidget {
                               Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: AppColors.error.withOpacity( 0.1),
+                                  color: AppColors.error.withValues( alpha: 0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: const Icon(LucideIcons.arrowUpRight,
@@ -274,7 +275,7 @@ class _ExpenseTab extends StatelessWidget {
                                           color: Theme.of(context)
                                               .colorScheme
                                               .onSurfaceVariant
-                                              .withOpacity( 0.6),
+                                              .withValues( alpha: 0.6),
                                         ),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
@@ -287,7 +288,7 @@ class _ExpenseTab extends StatelessWidget {
                                         color: Theme.of(context)
                                             .colorScheme
                                             .onSurfaceVariant
-                                            .withOpacity( 0.5),
+                                            .withValues( alpha: 0.5),
                                       ),
                                     ),
                                   ],
@@ -332,9 +333,14 @@ class _ExpenseHistoryTab extends StatefulWidget {
 class _ExpenseHistoryTabState extends State<_ExpenseHistoryTab> {
   String _query = '';
   final _searchCtrl = TextEditingController();
+  final _searchFocusNode = FocusNode();
 
   @override
   void dispose() {
+    if (AppKeyboardController.instance.currentFocusNode == _searchFocusNode) {
+      AppKeyboardController.instance.hide();
+    }
+    _searchFocusNode.dispose();
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -412,6 +418,20 @@ class _ExpenseHistoryTabState extends State<_ExpenseHistoryTab> {
               sliver: SliverToBoxAdapter(
                 child: TextField(
                   controller: _searchCtrl,
+                  focusNode: _searchFocusNode,
+                  keyboardType: TextInputType.none,
+                  showCursor: true,
+                  onTap: () {
+                    AppKeyboardController.instance.attach(
+                      controller: _searchCtrl,
+                      focusNode: _searchFocusNode,
+                      type: AppKeyboardType.text,
+                      action: AppKeyboardAction.search,
+                      label: 'Search Expenses',
+                      onChanged: (v) => setState(() => _query = v),
+                      onAction: () => AppKeyboardController.instance.hide(),
+                    );
+                  },
                   onChanged: (v) => setState(() => _query = v),
                   decoration: InputDecoration(
                     hintText: 'Search expenses...',
@@ -451,7 +471,7 @@ class _ExpenseHistoryTabState extends State<_ExpenseHistoryTab> {
                         color: Theme.of(context)
                             .colorScheme
                             .onSurfaceVariant
-                            .withOpacity( 0.6),
+                            .withValues( alpha: 0.6),
                         fontSize: 13,
                       ),
                     ),
@@ -473,7 +493,7 @@ class _ExpenseHistoryTabState extends State<_ExpenseHistoryTab> {
                           color: Theme.of(context)
                               .colorScheme
                               .onSurfaceVariant
-                              .withOpacity( 0.2)),
+                              .withValues( alpha: 0.2)),
                       const SizedBox(height: 16),
                       Text(
                         'No expenses found',
@@ -481,7 +501,7 @@ class _ExpenseHistoryTabState extends State<_ExpenseHistoryTab> {
                             color: Theme.of(context)
                                 .colorScheme
                                 .onSurfaceVariant
-                                .withOpacity( 0.6)),
+                                .withValues( alpha: 0.6)),
                       ),
                     ],
                   ),
@@ -503,7 +523,7 @@ class _ExpenseHistoryTabState extends State<_ExpenseHistoryTab> {
                               Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: AppColors.error.withOpacity( 0.1),
+                                  color: AppColors.error.withValues( alpha: 0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: const Icon(LucideIcons.arrowUpRight,
@@ -532,7 +552,7 @@ class _ExpenseHistoryTabState extends State<_ExpenseHistoryTab> {
                                         color: Theme.of(context)
                                             .colorScheme
                                             .onSurfaceVariant
-                                            .withOpacity( 0.6),
+                                            .withValues( alpha: 0.6),
                                         fontSize: 11,
                                       ),
                                     ),
@@ -543,7 +563,7 @@ class _ExpenseHistoryTabState extends State<_ExpenseHistoryTab> {
                                           color: Theme.of(context)
                                               .colorScheme
                                               .onSurfaceVariant
-                                              .withOpacity( 0.5),
+                                              .withValues( alpha: 0.5),
                                           fontSize: 11,
                                           fontStyle: FontStyle.italic,
                                         ),
@@ -580,7 +600,7 @@ class _ExpenseHistoryTabState extends State<_ExpenseHistoryTab> {
                                           LucideIcons.trash2,
                                           size: 16,
                                           color:
-                                              AppColors.error.withOpacity( 0.6),
+                                              AppColors.error.withValues( alpha: 0.6),
                                         ),
                                       );
                                     },
@@ -620,8 +640,17 @@ class _ServiceCostTabState extends State<_ServiceCostTab> {
   final _descriptionCtrl = TextEditingController();
   DateTime _selectedDate = DateTime.now();
 
+  final _amountFocusNode = FocusNode();
+  final _descriptionFocusNode = FocusNode();
+
   @override
   void dispose() {
+    if (AppKeyboardController.instance.currentFocusNode == _amountFocusNode ||
+        AppKeyboardController.instance.currentFocusNode == _descriptionFocusNode) {
+      AppKeyboardController.instance.hide();
+    }
+    _amountFocusNode.dispose();
+    _descriptionFocusNode.dispose();
     _amountCtrl.dispose();
     _descriptionCtrl.dispose();
     super.dispose();
@@ -669,6 +698,7 @@ class _ServiceCostTabState extends State<_ServiceCostTab> {
       createdBy,
     );
     if (mounted) {
+      AppKeyboardController.instance.hide();
       _amountCtrl.clear();
       _descriptionCtrl.clear();
       setState(() => _selectedDate = DateTime.now());
@@ -733,8 +763,30 @@ class _ServiceCostTabState extends State<_ServiceCostTab> {
                         const SizedBox(height: 16),
                         TextFormField(
                           controller: _amountCtrl,
-                          keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true),
+                          focusNode: _amountFocusNode,
+                          keyboardType: TextInputType.none,
+                          showCursor: true,
+                          onTap: () {
+                            AppKeyboardController.instance.attach(
+                              controller: _amountCtrl,
+                              focusNode: _amountFocusNode,
+                              type: AppKeyboardType.number,
+                              action: AppKeyboardAction.next,
+                              label: 'Service Cost Amount',
+                              onAction: () {
+                                _descriptionFocusNode.requestFocus();
+                                AppKeyboardController.instance.attach(
+                                  controller: _descriptionCtrl,
+                                  focusNode: _descriptionFocusNode,
+                                  type: AppKeyboardType.text,
+                                  action: AppKeyboardAction.done,
+                                  label: 'Service Description',
+                                  onAction: () =>
+                                      AppKeyboardController.instance.hide(),
+                                );
+                              },
+                            );
+                          },
                           validator: (v) {
                             if (v == null || v.trim().isEmpty) {
                               return 'Amount is required';
@@ -754,6 +806,20 @@ class _ServiceCostTabState extends State<_ServiceCostTab> {
                         const SizedBox(height: 16),
                         TextFormField(
                           controller: _descriptionCtrl,
+                          focusNode: _descriptionFocusNode,
+                          keyboardType: TextInputType.none,
+                          showCursor: true,
+                          onTap: () {
+                            AppKeyboardController.instance.attach(
+                              controller: _descriptionCtrl,
+                              focusNode: _descriptionFocusNode,
+                              type: AppKeyboardType.text,
+                              action: AppKeyboardAction.done,
+                              label: 'Service Description',
+                              onAction: () =>
+                                  AppKeyboardController.instance.hide(),
+                            );
+                          },
                           decoration: const InputDecoration(
                             labelText: 'Service Description (Optional)',
                             prefixIcon: Icon(LucideIcons.text),
@@ -769,13 +835,13 @@ class _ServiceCostTabState extends State<_ServiceCostTab> {
                               color: Theme.of(context)
                                   .colorScheme
                                   .surface
-                                  .withOpacity( 0.1),
+                                  .withValues( alpha: 0.1),
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
                                 color: Theme.of(context)
                                     .colorScheme
                                     .outline
-                                    .withOpacity( 0.1),
+                                    .withValues( alpha: 0.1),
                               ),
                             ),
                             child: Row(
@@ -792,7 +858,7 @@ class _ServiceCostTabState extends State<_ServiceCostTab> {
                                         color: Theme.of(context)
                                             .colorScheme
                                             .onSurfaceVariant
-                                            .withOpacity( 0.6),
+                                            .withValues( alpha: 0.6),
                                         fontSize: 11,
                                       ),
                                     ),
@@ -815,7 +881,7 @@ class _ServiceCostTabState extends State<_ServiceCostTab> {
                                     color: Theme.of(context)
                                         .colorScheme
                                         .onSurfaceVariant
-                                        .withOpacity( 0.6)),
+                                        .withValues( alpha: 0.6)),
                               ],
                             ),
                           ),
@@ -865,9 +931,14 @@ class _ServiceCostHistoryTab extends StatefulWidget {
 class _ServiceCostHistoryTabState extends State<_ServiceCostHistoryTab> {
   String _query = '';
   final _searchCtrl = TextEditingController();
+  final _searchFocusNode = FocusNode();
 
   @override
   void dispose() {
+    if (AppKeyboardController.instance.currentFocusNode == _searchFocusNode) {
+      AppKeyboardController.instance.hide();
+    }
+    _searchFocusNode.dispose();
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -946,6 +1017,20 @@ class _ServiceCostHistoryTabState extends State<_ServiceCostHistoryTab> {
               sliver: SliverToBoxAdapter(
                 child: TextField(
                   controller: _searchCtrl,
+                  focusNode: _searchFocusNode,
+                  keyboardType: TextInputType.none,
+                  showCursor: true,
+                  onTap: () {
+                    AppKeyboardController.instance.attach(
+                      controller: _searchCtrl,
+                      focusNode: _searchFocusNode,
+                      type: AppKeyboardType.text,
+                      action: AppKeyboardAction.search,
+                      label: 'Search Service Costs',
+                      onChanged: (v) => setState(() => _query = v),
+                      onAction: () => AppKeyboardController.instance.hide(),
+                    );
+                  },
                   onChanged: (v) => setState(() => _query = v),
                   decoration: InputDecoration(
                     hintText: 'Search descriptions or creators...',
@@ -985,7 +1070,7 @@ class _ServiceCostHistoryTabState extends State<_ServiceCostHistoryTab> {
                         color: Theme.of(context)
                             .colorScheme
                             .onSurfaceVariant
-                            .withOpacity( 0.6),
+                            .withValues( alpha: 0.6),
                         fontSize: 13,
                       ),
                     ),
@@ -1007,7 +1092,7 @@ class _ServiceCostHistoryTabState extends State<_ServiceCostHistoryTab> {
                           color: Theme.of(context)
                               .colorScheme
                               .onSurfaceVariant
-                              .withOpacity( 0.2)),
+                              .withValues( alpha: 0.2)),
                       const SizedBox(height: 16),
                       Text(
                         'No service costs found',
@@ -1015,7 +1100,7 @@ class _ServiceCostHistoryTabState extends State<_ServiceCostHistoryTab> {
                             color: Theme.of(context)
                                 .colorScheme
                                 .onSurfaceVariant
-                                .withOpacity( 0.6)),
+                                .withValues( alpha: 0.6)),
                       ),
                     ],
                   ),
@@ -1038,7 +1123,7 @@ class _ServiceCostHistoryTabState extends State<_ServiceCostHistoryTab> {
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
                                   color:
-                                      AppColors.error.withOpacity( 0.1),
+                                      AppColors.error.withValues( alpha: 0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: const Icon(LucideIcons.arrowUpRight,
@@ -1066,7 +1151,7 @@ class _ServiceCostHistoryTabState extends State<_ServiceCostHistoryTab> {
                                         color: Theme.of(context)
                                             .colorScheme
                                             .onSurfaceVariant
-                                            .withOpacity( 0.6),
+                                            .withValues( alpha: 0.6),
                                         fontSize: 11,
                                       ),
                                     ),
@@ -1101,7 +1186,7 @@ class _ServiceCostHistoryTabState extends State<_ServiceCostHistoryTab> {
                                           LucideIcons.trash2,
                                           size: 16,
                                           color: AppColors.error
-                                              .withOpacity( 0.6),
+                                              .withValues( alpha: 0.6),
                                         ),
                                       );
                                     },
@@ -1152,7 +1237,7 @@ class _SummaryCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: color.withOpacity( 0.1),
+                color: color.withValues( alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: color, size: 20),

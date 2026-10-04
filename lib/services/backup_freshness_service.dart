@@ -1,15 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
-import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import 'google_drive_service.dart';
 import 'json_restore_service.dart';
-import 'json_backup_service.dart';
-import 'google_drive_json_backup_service.dart';
 import 'auto_backup_manager.dart';
 import '../database/db_helper.dart';
 import '../providers/loan_provider.dart';
@@ -280,9 +277,9 @@ class _NewerBackupDialogContentState extends State<_NewerBackupDialogContent> {
       setState(() {
         _isRestoring = false;
       });
-      if (tempFile != null && await tempFile!.exists()) {
+      if (tempFile != null && await tempFile.exists()) {
         try {
-          await tempFile!.delete();
+          await tempFile.delete();
         } catch (_) {}
       }
     }

@@ -20,7 +20,6 @@ import '../utils/app_colors.dart';
 import '../utils/date_parser.dart';
 import '../widgets/premium_card.dart';
 import '../widgets/progress_dialog.dart';
-import '../widgets/sync_status_indicator.dart';
 import '../providers/loan_provider.dart';
 
 class BackupRestoreScreen extends StatefulWidget {
@@ -36,7 +35,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
   final _autoBackupManager = AutoBackupManager();
 
   // Excel states
-  bool _isExporting = false;
+  final bool _isExporting = false;
   bool _isImporting = false;
   String? _lastExcelBackupDate;
 
@@ -44,7 +43,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
   bool _isDriveConnected = false;
   String? _driveEmail;
   bool _isDriveLoading = false;
-  bool _isDriveSyncing = false;
+  final bool _isDriveSyncing = false;
   bool _backupPending = false;
   String? _lastGDriveBackupDate;
   String? _lastGDriveBackupSize;
@@ -191,7 +190,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     );
   }
 
-  List<String> _restoreLogs = [];
+  final List<String> _restoreLogs = [];
   StateSetter? _dialogStateSetter;
 
   void _addRestoreLog(String message) {
@@ -532,12 +531,12 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
               ],
             ),
             const SizedBox(height: 4),
-            Text('Date: ${DateFormat('dd MMM yyyy, hh:mm a').format(timestamp)}', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.8))),
+            Text('Date: ${DateFormat('dd MMM yyyy, hh:mm a').format(timestamp)}', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.8))),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity( 0.06),
+                color: Theme.of(context).colorScheme.onSurface.withValues( alpha: 0.06),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
@@ -706,7 +705,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity( 0.06),
+                color: Theme.of(context).colorScheme.onSurface.withValues( alpha: 0.06),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
@@ -778,13 +777,13 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
   }
 
   Future<void> _pickAndImportExcel() async {
-    final result = await FilePicker.platform.pickFiles(
+    final files = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['xlsx'],
       dialogTitle: 'Select Excel Backup File',
     );
-    if (result == null || result.files.isEmpty) return;
-    final path = result.files.first.path;
+    if (files.isEmpty) return;
+    final path = files.first.path;
     if (path == null) return;
 
     setState(() => _isImporting = true);
@@ -823,7 +822,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity( 0.06),
+                color: Theme.of(context).colorScheme.onSurface.withValues( alpha: 0.06),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
@@ -956,7 +955,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity( 0.06),
+                color: Theme.of(context).colorScheme.onSurface.withValues( alpha: 0.06),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -1044,9 +1043,9 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 20),
                       child: PremiumCard(
-                        color: isReadOnly ? AppColors.warning.withOpacity(0.1) : AppColors.error.withOpacity(0.1),
+                        color: isReadOnly ? AppColors.warning.withValues(alpha: 0.1) : AppColors.error.withValues(alpha: 0.1),
                         border: Border.all(
-                          color: isReadOnly ? AppColors.warning.withOpacity(0.3) : AppColors.error.withOpacity(0.3),
+                          color: isReadOnly ? AppColors.warning.withValues(alpha: 0.3) : AppColors.error.withValues(alpha: 0.3),
                         ),
                         padding: const EdgeInsets.all(16),
                         child: Row(
@@ -1075,7 +1074,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                                         ? "Internet Required"
                                         : "A newer backup is available. Please restore to continue.",
                                     style: TextStyle(
-                                      color: onSurfaceVariant.withOpacity(0.8),
+                                      color: onSurfaceVariant.withValues(alpha: 0.8),
                                       fontSize: 12,
                                       height: 1.4,
                                     ),
@@ -1125,7 +1124,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                                 _isDriveConnected && _driveEmail != null
                                     ? _driveEmail!
                                     : 'Not Connected',
-                                style: TextStyle(color: onSurfaceVariant.withOpacity( 0.8), fontSize: 12),
+                                style: TextStyle(color: onSurfaceVariant.withValues( alpha: 0.8), fontSize: 12),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ],
@@ -1135,7 +1134,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                             ? Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                 decoration: BoxDecoration(
-                                  color: AppColors.success.withOpacity( 0.15),
+                                  color: AppColors.success.withValues( alpha: 0.15),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: const Text(
@@ -1150,7 +1149,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                             : Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                 decoration: BoxDecoration(
-                                  color: AppColors.error.withOpacity( 0.15),
+                                  color: AppColors.error.withValues( alpha: 0.15),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: const Text(
@@ -1176,7 +1175,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Last Backup', style: TextStyle(fontSize: 12, color: onSurfaceVariant.withOpacity( 0.6))),
+                              Text('Last Backup', style: TextStyle(fontSize: 12, color: onSurfaceVariant.withValues( alpha: 0.6))),
                               const SizedBox(height: 2),
                               Text(_formatDate(_lastGDriveBackupDate), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                             ],
@@ -1184,7 +1183,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              Text('Backup Size', style: TextStyle(fontSize: 12, color: onSurfaceVariant.withOpacity( 0.6))),
+                              Text('Backup Size', style: TextStyle(fontSize: 12, color: onSurfaceVariant.withValues( alpha: 0.6))),
                               const SizedBox(height: 2),
                               Text(_lastGDriveBackupSize ?? 'N/A', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                             ],
@@ -1250,7 +1249,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                       // Disconnected state
                       Text(
                         'Backup data to cloud storage. Backups are encrypted for privacy.',
-                        style: TextStyle(fontSize: 12, height: 1.5, color: onSurfaceVariant.withOpacity( 0.8)),
+                        style: TextStyle(fontSize: 12, height: 1.5, color: onSurfaceVariant.withValues( alpha: 0.8)),
                       ),
                       const SizedBox(height: 20),
                       SizedBox(
@@ -1293,14 +1292,14 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                       title: Text('Export Report & Backup', style: TextStyle(fontWeight: FontWeight.bold, color: onSurface)),
                       subtitle: Text(
                         'Generate human-readable Excel report & local backup.',
-                        style: TextStyle(color: onSurfaceVariant.withOpacity( 0.7), fontSize: 12),
+                        style: TextStyle(color: onSurfaceVariant.withValues( alpha: 0.7), fontSize: 12),
                       ),
                       trailing: _isExporting
                           ? null
-                          : Icon(LucideIcons.chevronRight, size: 18, color: onSurfaceVariant.withOpacity( 0.5)),
+                          : Icon(LucideIcons.chevronRight, size: 18, color: onSurfaceVariant.withValues( alpha: 0.5)),
                       onTap: (isGlobalLoading || isReadOnly || _areBackupsBlocked) ? null : _exportExcelBackup,
                     ),
-                    Divider(height: 1, color: Theme.of(context).dividerColor.withOpacity( 0.1)),
+                    Divider(height: 1, color: Theme.of(context).dividerColor.withValues( alpha: 0.1)),
                     ListTile(
                       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                       leading: _isImporting
@@ -1309,11 +1308,11 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                       title: Text('Import Backup', style: TextStyle(fontWeight: FontWeight.bold, color: onSurface)),
                       subtitle: Text(
                         'Restore app data from Excel backup file.',
-                        style: TextStyle(color: onSurfaceVariant.withOpacity( 0.7), fontSize: 12),
+                        style: TextStyle(color: onSurfaceVariant.withValues( alpha: 0.7), fontSize: 12),
                       ),
                       trailing: _isImporting
                           ? null
-                          : Icon(LucideIcons.chevronRight, size: 18, color: onSurfaceVariant.withOpacity( 0.5)),
+                          : Icon(LucideIcons.chevronRight, size: 18, color: onSurfaceVariant.withValues( alpha: 0.5)),
                       onTap: isGlobalLoading ? null : _pickAndImportExcel,
                     ),
                   ],
@@ -1326,7 +1325,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 6),
                   child: Text(
                     'Last Backup: ${_formatDate(_lastExcelBackupDate)}',
-                    style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6)),
+                    style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues( alpha: 0.6)),
                   ),
                 ),
               ],
@@ -1341,7 +1340,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                 child: Center(
                   child: Text(
                     'All backups are encrypted and stored securely.',
-                    style: TextStyle(fontSize: 11, color: onSurfaceVariant.withOpacity(0.5)),
+                    style: TextStyle(fontSize: 11, color: onSurfaceVariant.withValues(alpha: 0.5)),
                   ),
                 ),
               ),
@@ -1350,7 +1349,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           // Global loading spinner overlays
           if (isGlobalLoading)
             Container(
-              color: Colors.black.withOpacity( 0.25),
+              color: Colors.black.withValues( alpha: 0.25),
               child: Center(
                 child: PremiumCard(
                   padding: const EdgeInsets.all(24),

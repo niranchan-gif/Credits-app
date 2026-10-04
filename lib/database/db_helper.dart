@@ -38,7 +38,7 @@ class DBHelper {
     return "loan_manager.db";
   }
 
-  static const _databaseVersion = 15;
+
   static Database? _database;
   static bool isRestoring = false;
 
@@ -226,7 +226,7 @@ class DBHelper {
         "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='restore_meta'"
       )) ?? 0;
       if (restoreMetaExists == 0) {
-        print('restore_meta missing - repairing');
+        debugPrint('restore_meta missing - repairing');
         await db.execute('''
           CREATE TABLE IF NOT EXISTS restore_meta (
             key TEXT PRIMARY KEY,
@@ -651,7 +651,7 @@ class DBHelper {
     // Migrate to version 14: Add sync_id and relational sync_ids
     if (oldVersion < 14) {
       debugPrint('DBHelper ▶ Migrating to version 14 (Adding sync_id UUID to all tables)');
-      final uuid = const Uuid();
+      const uuid = Uuid();
       final tables = ['borrowers', 'loans', 'payments', 'investments', 'expenses', 'service_costs'];
       
       for (final table in tables) {
@@ -1929,10 +1929,18 @@ class DBHelper {
     ''', [startStr, endStr]);
 
     final transactions = <Map<String, dynamic>>[];
-    for (final r in loansList) transactions.add(Map<String, dynamic>.from(r));
-    for (final r in paymentsList) transactions.add(Map<String, dynamic>.from(r));
-    for (final r in expensesList) transactions.add(Map<String, dynamic>.from(r));
-    for (final r in serviceCostsList) transactions.add(Map<String, dynamic>.from(r));
+    for (final r in loansList) {
+      transactions.add(Map<String, dynamic>.from(r));
+    }
+    for (final r in paymentsList) {
+      transactions.add(Map<String, dynamic>.from(r));
+    }
+    for (final r in expensesList) {
+      transactions.add(Map<String, dynamic>.from(r));
+    }
+    for (final r in serviceCostsList) {
+      transactions.add(Map<String, dynamic>.from(r));
+    }
 
     int getEffectiveCreatedAt(Map<String, dynamic> tx) {
       final c = tx['created_at'];

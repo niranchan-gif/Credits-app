@@ -5,7 +5,6 @@ import '../models/loan.dart';
 import '../models/payment.dart';
 import '../models/expense.dart';
 import '../models/service_cost.dart';
-import '../services/auto_backup_manager.dart';
 
 class LoanProvider extends ChangeNotifier {
   final DBHelper _db = DBHelper();

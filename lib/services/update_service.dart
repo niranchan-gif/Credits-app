@@ -35,7 +35,8 @@ class UpdateService {
     int currentBuild = 1;
     try {
       final localJsonString = await rootBundle.loadString('update.json');
-      final localJsonMap = json.decode(localJsonString);
+      final sanitized = localJsonString.replaceAll(RegExp(r',\s*([\]\}])'), r'$1');
+      final localJsonMap = json.decode(sanitized);
       final rawBuild = localJsonMap['buildNumber'] ?? localJsonMap['version'] ?? localJsonMap['build_number'];
       if (rawBuild is int) {
         currentBuild = rawBuild;

@@ -8,6 +8,7 @@ import '../providers/loan_provider.dart';
 import '../utils/fmt.dart';
 import '../utils/date_parser.dart';
 import '../utils/app_colors.dart';
+import '../widgets/app_keyboard/app_keyboard.dart';
 
 enum _TimeFilter { all, thisMonth, thisYear }
 
@@ -21,7 +22,12 @@ class InvestmentScreen extends StatefulWidget {
 class _InvestmentScreenState extends State<InvestmentScreen> {
   _TimeFilter _activeFilter = _TimeFilter.all;
   final TextEditingController _searchCtrl = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   String _searchQuery = '';
+  final TextEditingController _addAmountCtrl = TextEditingController();
+  final TextEditingController _addNotesCtrl = TextEditingController();
+  final FocusNode _addAmountFocusNode = FocusNode();
+  final FocusNode _addNotesFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -36,7 +42,17 @@ class _InvestmentScreenState extends State<InvestmentScreen> {
 
   @override
   void dispose() {
+    if (AppKeyboardController.instance.currentFocusNode == _searchFocusNode ||
+        AppKeyboardController.instance.currentFocusNode == _addAmountFocusNode ||
+        AppKeyboardController.instance.currentFocusNode == _addNotesFocusNode) {
+      AppKeyboardController.instance.hide();
+    }
+    _searchFocusNode.dispose();
     _searchCtrl.dispose();
+    _addAmountCtrl.dispose();
+    _addNotesCtrl.dispose();
+    _addAmountFocusNode.dispose();
+    _addNotesFocusNode.dispose();
     super.dispose();
   }
 
@@ -45,8 +61,8 @@ class _InvestmentScreenState extends State<InvestmentScreen> {
   // ───────────────────────────────────────────────────────────────────────────
 
   void _showAddInvestmentSheet() {
-    final amountCtrl = TextEditingController();
-    final notesCtrl = TextEditingController();
+    _addAmountCtrl.clear();
+    _addNotesCtrl.clear();
     DateTime selectedDate = DateTime.now();
     bool isSubmitting = false;
 
@@ -61,6 +77,20 @@ class _InvestmentScreenState extends State<InvestmentScreen> {
         final surfaceColor = Theme.of(ctx).colorScheme.surface;
         final onSurface = Theme.of(ctx).colorScheme.onSurface;
         final onSurfaceVariant = Theme.of(ctx).colorScheme.onSurfaceVariant;
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_addAmountFocusNode.canRequestFocus && !_addAmountFocusNode.hasFocus) {
+            _addAmountFocusNode.requestFocus();
+            AppKeyboardController.instance.attach(
+              controller: _addAmountCtrl,
+              focusNode: _addAmountFocusNode,
+              type: AppKeyboardType.number,
+              action: AppKeyboardAction.next,
+              label: 'Investment Amount',
+              onAction: () => _addNotesFocusNode.requestFocus(),
+            );
+          }
+        });
 
         return StatefulBuilder(
           builder: (modalCtx, setModalState) {
@@ -139,9 +169,20 @@ class _InvestmentScreenState extends State<InvestmentScreen> {
 
                     // Amount Input
                     TextField(
-                      controller: amountCtrl,
-                      autofocus: true,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      controller: _addAmountCtrl,
+                      focusNode: _addAmountFocusNode,
+                      keyboardType: TextInputType.none,
+                      showCursor: true,
+                      onTap: () {
+                        AppKeyboardController.instance.attach(
+                          controller: _addAmountCtrl,
+                          focusNode: _addAmountFocusNode,
+                          type: AppKeyboardType.number,
+                          action: AppKeyboardAction.next,
+                          label: 'Investment Amount',
+                          onAction: () => _addNotesFocusNode.requestFocus(),
+                        );
+                      },
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -238,7 +279,20 @@ class _InvestmentScreenState extends State<InvestmentScreen> {
 
                     // Notes Input
                     TextField(
-                      controller: notesCtrl,
+                      controller: _addNotesCtrl,
+                      focusNode: _addNotesFocusNode,
+                      keyboardType: TextInputType.none,
+                      showCursor: true,
+                      onTap: () {
+                        AppKeyboardController.instance.attach(
+                          controller: _addNotesCtrl,
+                          focusNode: _addNotesFocusNode,
+                          type: AppKeyboardType.text,
+                          action: AppKeyboardAction.done,
+                          label: 'Notes / Source',
+                          onAction: () => AppKeyboardController.instance.hide(),
+                        );
+                      },
                       style: TextStyle(fontSize: 14, color: onSurface),
                       decoration: InputDecoration(
                         labelText: 'Notes / Source (Optional)',
@@ -286,7 +340,7 @@ class _InvestmentScreenState extends State<InvestmentScreen> {
                           side: BorderSide(color: onSurfaceVariant.withValues(alpha: 0.15)),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           onPressed: () {
-                            notesCtrl.text = note;
+                            _addNotesCtrl.text = note;
                             setModalState(() {});
                           },
                         );
@@ -320,7 +374,7 @@ class _InvestmentScreenState extends State<InvestmentScreen> {
                         onPressed: isSubmitting
                             ? null
                             : () async {
-                                final amount = double.tryParse(amountCtrl.text.trim()) ?? 0;
+                                final amount = double.tryParse(_addAmountCtrl.text.trim()) ?? 0;
                                 if (amount <= 0) {
                                   HapticFeedback.vibrate();
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -338,10 +392,11 @@ class _InvestmentScreenState extends State<InvestmentScreen> {
                                 await Provider.of<LoanProvider>(context, listen: false).addInvestment(
                                   amount,
                                   selectedDate,
-                                  notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim(),
+                                  _addNotesCtrl.text.trim().isEmpty ? null : _addNotesCtrl.text.trim(),
                                 );
 
                                 if (modalCtx.mounted) {
+                                  AppKeyboardController.instance.hide();
                                   Navigator.pop(modalCtx);
                                 }
                                 if (mounted) {
@@ -650,7 +705,22 @@ class _InvestmentScreenState extends State<InvestmentScreen> {
           ),
           child: TextField(
             controller: _searchCtrl,
+            focusNode: _searchFocusNode,
+            keyboardType: TextInputType.none,
+            showCursor: true,
             style: const TextStyle(fontSize: 13),
+            onTap: () {
+              AppKeyboardController.instance.attach(
+                controller: _searchCtrl,
+                focusNode: _searchFocusNode,
+                type: AppKeyboardType.text,
+                action: AppKeyboardAction.search,
+                label: 'Search investments',
+                onChanged: (v) => setState(() => _searchQuery = v),
+                onAction: () => AppKeyboardController.instance.hide(),
+              );
+            },
+            onChanged: (v) => setState(() => _searchQuery = v),
             decoration: InputDecoration(
               hintText: 'Search notes or amount...',
               hintStyle: TextStyle(fontSize: 13, color: onSurfaceVariant.withValues(alpha: 0.7)),

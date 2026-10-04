@@ -41,7 +41,7 @@ class LoanManagerApp extends StatelessWidget {
             color: const Color(0xFF021711),
             debugShowCheckedModeBanner: false,
             navigatorKey: navigatorKey,
-            navigatorObservers: [routeObserver],
+            navigatorObservers: [routeObserver, AppKeyboardNavigatorObserver()],
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: themeProvider.themeMode,

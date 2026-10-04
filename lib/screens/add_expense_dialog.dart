@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/expense.dart';
 import '../providers/loan_provider.dart';
+import '../widgets/app_keyboard/app_keyboard.dart';
 
 class AddExpenseDialog extends StatefulWidget {
   const AddExpenseDialog({super.key});
@@ -15,6 +16,8 @@ class _AddExpenseDialogState extends State<AddExpenseDialog>
     with SingleTickerProviderStateMixin {
   final _amountCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
+  final _amountFocusNode = FocusNode();
+  final _notesFocusNode = FocusNode();
   String _selectedCategory = 'General';
   DateTime _selectedDate = DateTime.now();
   bool _isSaving = false;
@@ -42,11 +45,31 @@ class _AddExpenseDialogState extends State<AddExpenseDialog>
             begin: const Offset(0, 0.15), end: Offset.zero)
         .animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
     _animCtrl.forward();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _amountFocusNode.requestFocus();
+        AppKeyboardController.instance.attach(
+          controller: _amountCtrl,
+          focusNode: _amountFocusNode,
+          type: AppKeyboardType.number,
+          action: AppKeyboardAction.next,
+          label: 'Expense Amount',
+          onAction: () => _notesFocusNode.requestFocus(),
+        );
+      }
+    });
   }
 
   @override
   void dispose() {
+    if (AppKeyboardController.instance.currentFocusNode == _amountFocusNode ||
+        AppKeyboardController.instance.currentFocusNode == _notesFocusNode) {
+      AppKeyboardController.instance.hide();
+    }
     _animCtrl.dispose();
+    _amountFocusNode.dispose();
+    _notesFocusNode.dispose();
     _amountCtrl.dispose();
     _notesCtrl.dispose();
     super.dispose();
@@ -85,6 +108,7 @@ class _AddExpenseDialogState extends State<AddExpenseDialog>
       await context.read<LoanProvider>().addExpense(expense);
 
       if (mounted) {
+        AppKeyboardController.instance.hide();
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -134,9 +158,12 @@ class _AddExpenseDialogState extends State<AddExpenseDialog>
                       ),
                       IconButton(
                         icon: Icon(Icons.close, color: cs.onSurfaceVariant),
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () {
+                          AppKeyboardController.instance.hide();
+                          Navigator.pop(context);
+                        },
                         style: IconButton.styleFrom(
-                          backgroundColor: cs.onSurface.withOpacity( 0.06),
+                          backgroundColor: cs.onSurface.withValues( alpha: 0.06),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10)),
                         ),
@@ -148,13 +175,23 @@ class _AddExpenseDialogState extends State<AddExpenseDialog>
                   // Amount field
                   TextField(
                     controller: _amountCtrl,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
+                    focusNode: _amountFocusNode,
+                    keyboardType: TextInputType.none,
+                    showCursor: true,
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(
                           RegExp(r'^\d+\.?\d{0,2}'))
                     ],
-                    autofocus: true,
+                    onTap: () {
+                      AppKeyboardController.instance.attach(
+                        controller: _amountCtrl,
+                        focusNode: _amountFocusNode,
+                        type: AppKeyboardType.number,
+                        action: AppKeyboardAction.next,
+                        label: 'Expense Amount',
+                        onAction: () => _notesFocusNode.requestFocus(),
+                      );
+                    },
                     style: TextStyle(color: cs.onSurface),
                     decoration: InputDecoration(
                       labelText: 'Amount',
@@ -212,6 +249,19 @@ class _AddExpenseDialogState extends State<AddExpenseDialog>
                   // Notes field
                   TextField(
                     controller: _notesCtrl,
+                    focusNode: _notesFocusNode,
+                    keyboardType: TextInputType.none,
+                    showCursor: true,
+                    onTap: () {
+                      AppKeyboardController.instance.attach(
+                        controller: _notesCtrl,
+                        focusNode: _notesFocusNode,
+                        type: AppKeyboardType.text,
+                        action: AppKeyboardAction.done,
+                        label: 'Notes',
+                        onAction: () => AppKeyboardController.instance.hide(),
+                      );
+                    },
                     style: TextStyle(color: cs.onSurface),
                     decoration: InputDecoration(
                       labelText: 'Notes (optional)',
@@ -228,7 +278,10 @@ class _AddExpenseDialogState extends State<AddExpenseDialog>
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: () => Navigator.pop(context),
+                          onPressed: () {
+                            AppKeyboardController.instance.hide();
+                            Navigator.pop(context);
+                          },
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(

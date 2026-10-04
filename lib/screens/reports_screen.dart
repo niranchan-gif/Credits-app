@@ -478,11 +478,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Widget _buildWarningCard(double totalLoanedEver) {
     return PremiumCard(
-      color: AppColors.error.withOpacity( 0.1),
+      color: AppColors.error.withValues( alpha: 0.1),
       margin: const EdgeInsets.only(bottom: 24),
       padding: const EdgeInsets.all(16),
       borderRadius: 16,
-      border: Border.all(color: AppColors.error.withOpacity( 0.3)),
+      border: Border.all(color: AppColors.error.withValues( alpha: 0.3)),
       child: Row(
         children: [
           const Icon(LucideIcons.alertTriangle, color: AppColors.error, size: 24),
@@ -517,7 +517,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               children: [
                 Container(
                   padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: color.withOpacity( 0.1), borderRadius: BorderRadius.circular(12)),
+                  decoration: BoxDecoration(color: color.withValues( alpha: 0.1), borderRadius: BorderRadius.circular(12)),
                   child: Icon(icon, color: color, size: 20),
                 ),
                 const SizedBox(height: 16),
@@ -553,7 +553,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(color: AppColors.accent.withOpacity( 0.1), borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(color: AppColors.accent.withValues( alpha: 0.1), borderRadius: BorderRadius.circular(8)),
                   child: Text(b.displayBorrowerCode, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.accent)),
                 ),
                 const SizedBox(width: 12),
@@ -573,7 +573,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             const SizedBox(height: 20),
             Stack(
               children: [
-                Container(height: 6, decoration: BoxDecoration(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.08), borderRadius: BorderRadius.circular(3))),
+                Container(height: 6, decoration: BoxDecoration(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(3))),
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 1000),
                   height: 6,
@@ -589,7 +589,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Progress', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6), fontSize: 11)),
+                Text('Progress', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues( alpha: 0.6), fontSize: 11)),
                 Text('${(progress * 100).toStringAsFixed(0)}%', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 11, fontWeight: FontWeight.bold)),
               ],
             ),
@@ -603,7 +603,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6))),
+        Text(label, style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues( alpha: 0.6))),
         const SizedBox(height: 2),
         Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Theme.of(context).colorScheme.onSurface)),
       ],

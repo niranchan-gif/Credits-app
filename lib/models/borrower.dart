@@ -53,7 +53,6 @@ class Borrower {
     return {
       'sync_id': syncId,
       'id': id,
-      'sync_id': syncId,
       'borrower_code': borrowerCode,
       'name': name,
       'phone': phone,

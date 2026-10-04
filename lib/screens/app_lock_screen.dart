@@ -201,11 +201,11 @@ class _AppLockScreenState extends State<AppLockScreen>
           height: 80,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: Colors.white.withOpacity( 0.12),
-            border: Border.all(color: Colors.white.withOpacity( 0.2), width: 1.5),
+            color: Colors.white.withValues( alpha: 0.12),
+            border: Border.all(color: Colors.white.withValues( alpha: 0.2), width: 1.5),
             boxShadow: [
               BoxShadow(
-                color: Colors.white.withOpacity( 0.05),
+                color: Colors.white.withValues( alpha: 0.05),
                 blurRadius: 20,
                 spreadRadius: 5,
               ),
@@ -247,7 +247,7 @@ class _AppLockScreenState extends State<AppLockScreen>
         style: TextStyle(
           color: _isError || _lockoutSeconds > 0
               ? const Color(0xFFFF8A80)
-              : Colors.white.withOpacity( 0.65),
+              : Colors.white.withValues( alpha: 0.65),
           fontSize: 14,
           fontWeight: _isError ? FontWeight.w600 : FontWeight.normal,
         ),
@@ -279,9 +279,9 @@ class _AppLockScreenState extends State<AppLockScreen>
               shape: BoxShape.circle,
               color: filled
                   ? (_isError ? const Color(0xFFFF8A80) : Colors.white)
-                  : Colors.white.withOpacity( 0.25),
+                  : Colors.white.withValues( alpha: 0.25),
               boxShadow: filled
-                  ? [BoxShadow(color: Colors.white.withOpacity( 0.3), blurRadius: 8, spreadRadius: 1)]
+                  ? [BoxShadow(color: Colors.white.withValues( alpha: 0.3), blurRadius: 8, spreadRadius: 1)]
                   : null,
             ),
           );
@@ -310,7 +310,7 @@ class _AppLockScreenState extends State<AppLockScreen>
                       child: Icon(
                         Icons.fingerprint_rounded,
                         color: _lockoutSeconds > 0
-                            ? Colors.white.withOpacity( 0.3)
+                            ? Colors.white.withValues( alpha: 0.3)
                             : Colors.white,
                         size: 34,
                       ),
@@ -322,7 +322,7 @@ class _AppLockScreenState extends State<AppLockScreen>
                 child: Icon(
                   Icons.backspace_rounded,
                   color: _pin.isEmpty || _lockoutSeconds > 0
-                      ? Colors.white.withOpacity( 0.3)
+                      ? Colors.white.withValues( alpha: 0.3)
                       : Colors.white,
                   size: 26,
                 ),
@@ -348,7 +348,7 @@ class _AppLockScreenState extends State<AppLockScreen>
       child: Text(
         num,
         style: TextStyle(
-          color: disabled ? Colors.white.withOpacity( 0.3) : Colors.white,
+          color: disabled ? Colors.white.withValues( alpha: 0.3) : Colors.white,
           fontSize: 26,
           fontWeight: FontWeight.w500,
         ),
@@ -370,15 +370,15 @@ class _AppLockScreenState extends State<AppLockScreen>
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: isAction
-              ? Colors.white.withOpacity( 0.06)
-              : Colors.white.withOpacity( 0.10),
+              ? Colors.white.withValues( alpha: 0.06)
+              : Colors.white.withValues( alpha: 0.10),
           border: Border.all(
-            color: Colors.white.withOpacity( isAction ? 0.08 : 0.15),
+            color: Colors.white.withValues( alpha: isAction ? 0.08 : 0.15),
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity( 0.15),
+              color: Colors.black.withValues( alpha: 0.15),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -396,16 +396,16 @@ class _CircleDecorPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..style = PaintingStyle.stroke;
 
-    paint.color = Colors.white.withOpacity( 0.04);
+    paint.color = Colors.white.withValues( alpha: 0.04);
     paint.strokeWidth = 1;
     canvas.drawCircle(Offset(size.width * 0.85, size.height * 0.1), 120, paint);
     canvas.drawCircle(Offset(size.width * 0.1, size.height * 0.85), 160, paint);
 
-    paint.color = Colors.white.withOpacity( 0.03);
+    paint.color = Colors.white.withValues( alpha: 0.03);
     paint.strokeWidth = 1.5;
     canvas.drawCircle(Offset(size.width * 0.5, size.height * 0.5), 220, paint);
 
-    paint.color = Colors.white.withOpacity( 0.06);
+    paint.color = Colors.white.withValues( alpha: 0.06);
     paint.strokeWidth = 0.8;
     canvas.drawCircle(Offset(size.width * 0.15, size.height * 0.2), 80, paint);
   }

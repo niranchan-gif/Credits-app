@@ -6,6 +6,7 @@ import '../database/db_helper.dart';
 import '../utils/app_colors.dart';
 import '../utils/fmt.dart';
 import '../widgets/premium_card.dart';
+import '../widgets/app_keyboard/app_keyboard.dart';
 
 class CompletedLoansScreen extends StatefulWidget {
   const CompletedLoansScreen({super.key});
@@ -20,6 +21,7 @@ class _CompletedLoansScreenState extends State<CompletedLoansScreen> {
   bool _loading = true;
   String _query = '';
   final _searchCtrl = TextEditingController();
+  final _searchFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -29,6 +31,10 @@ class _CompletedLoansScreenState extends State<CompletedLoansScreen> {
 
   @override
   void dispose() {
+    if (AppKeyboardController.instance.currentFocusNode == _searchFocusNode) {
+      AppKeyboardController.instance.hide();
+    }
+    _searchFocusNode.dispose();
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -91,6 +97,20 @@ class _CompletedLoansScreenState extends State<CompletedLoansScreen> {
                   padding: const EdgeInsets.all(16.0),
                   child: TextField(
                     controller: _searchCtrl,
+                    focusNode: _searchFocusNode,
+                    keyboardType: TextInputType.none,
+                    showCursor: true,
+                    onTap: () {
+                      AppKeyboardController.instance.attach(
+                        controller: _searchCtrl,
+                        focusNode: _searchFocusNode,
+                        type: AppKeyboardType.text,
+                        action: AppKeyboardAction.search,
+                        label: 'Search completed loans',
+                        onChanged: _filter,
+                        onAction: () => AppKeyboardController.instance.hide(),
+                      );
+                    },
                     onChanged: _filter,
                     decoration: InputDecoration(
                       hintText: "Search name or code...",
@@ -113,12 +133,12 @@ class _CompletedLoansScreenState extends State<CompletedLoansScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(LucideIcons.checkSquare, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.2)),
+                              Icon(LucideIcons.checkSquare, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.2)),
                               const SizedBox(height: 16),
                               Text(
                                 _query.isEmpty ? "No completed loans found" : "No matching completed loans",
                                 style: TextStyle(
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                                   fontSize: 16,
                                 ),
                               ),
@@ -168,7 +188,7 @@ class _CompletedLoansScreenState extends State<CompletedLoansScreen> {
                                             Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                               decoration: BoxDecoration(
-                                                color: AppColors.accent.withOpacity(0.1),
+                                                color: AppColors.accent.withValues(alpha: 0.1),
                                                 borderRadius: BorderRadius.circular(8),
                                               ),
                                               child: Text(
@@ -232,7 +252,7 @@ class _CompletedLoansScreenState extends State<CompletedLoansScreen> {
                                               Text(
                                                 "Lent: ${df.format(loanDate)}",
                                                 style: TextStyle(
-                                                  color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+                                                  color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                                                   fontSize: 11,
                                                 ),
                                               ),

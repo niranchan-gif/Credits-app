@@ -8,6 +8,7 @@ import '../utils/fmt.dart';
 import '../utils/app_colors.dart';
 import '../widgets/premium_card.dart';
 import '../services/google_drive_service.dart';
+import '../widgets/app_keyboard/app_keyboard.dart';
 
 class ServiceCostScreen extends StatefulWidget {
   const ServiceCostScreen({super.key});
@@ -20,12 +21,23 @@ class _ServiceCostScreenState extends State<ServiceCostScreen> {
   final _formKey = GlobalKey<FormState>();
   final _amountCtrl = TextEditingController();
   final _descriptionCtrl = TextEditingController();
+  final _searchCtrl = TextEditingController();
+  final _amountFocusNode = FocusNode();
+  final _descriptionFocusNode = FocusNode();
+  final _searchFocusNode = FocusNode();
   DateTime _selectedDate = DateTime.now();
   String _query = '';
-  final _searchCtrl = TextEditingController();
 
   @override
   void dispose() {
+    if (AppKeyboardController.instance.currentFocusNode == _amountFocusNode ||
+        AppKeyboardController.instance.currentFocusNode == _descriptionFocusNode ||
+        AppKeyboardController.instance.currentFocusNode == _searchFocusNode) {
+      AppKeyboardController.instance.hide();
+    }
+    _amountFocusNode.dispose();
+    _descriptionFocusNode.dispose();
+    _searchFocusNode.dispose();
     _amountCtrl.dispose();
     _descriptionCtrl.dispose();
     _searchCtrl.dispose();
@@ -81,6 +93,7 @@ class _ServiceCostScreenState extends State<ServiceCostScreen> {
     );
 
     if (mounted) {
+      AppKeyboardController.instance.hide();
       _amountCtrl.clear();
       _descriptionCtrl.clear();
       setState(() {
@@ -179,7 +192,19 @@ class _ServiceCostScreenState extends State<ServiceCostScreen> {
                           const SizedBox(height: 16),
                           TextFormField(
                             controller: _amountCtrl,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            focusNode: _amountFocusNode,
+                            keyboardType: TextInputType.none,
+                            showCursor: true,
+                            onTap: () {
+                              AppKeyboardController.instance.attach(
+                                controller: _amountCtrl,
+                                focusNode: _amountFocusNode,
+                                type: AppKeyboardType.number,
+                                action: AppKeyboardAction.next,
+                                label: 'Service Cost Amount',
+                                onAction: () => _descriptionFocusNode.requestFocus(),
+                              );
+                            },
                             validator: (v) {
                               if (v == null || v.trim().isEmpty) return 'Amount is required';
                               final amt = double.tryParse(v.trim());
@@ -195,6 +220,19 @@ class _ServiceCostScreenState extends State<ServiceCostScreen> {
                           const SizedBox(height: 16),
                           TextFormField(
                             controller: _descriptionCtrl,
+                            focusNode: _descriptionFocusNode,
+                            keyboardType: TextInputType.none,
+                            showCursor: true,
+                            onTap: () {
+                              AppKeyboardController.instance.attach(
+                                controller: _descriptionCtrl,
+                                focusNode: _descriptionFocusNode,
+                                type: AppKeyboardType.text,
+                                action: AppKeyboardAction.done,
+                                label: 'Service Description',
+                                onAction: () => AppKeyboardController.instance.hide(),
+                              );
+                            },
                             decoration: const InputDecoration(
                               labelText: 'Service Description (Optional)',
                               prefixIcon: Icon(LucideIcons.text),
@@ -207,10 +245,10 @@ class _ServiceCostScreenState extends State<ServiceCostScreen> {
                             child: Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.surface.withOpacity( 0.1),
+                                color: Theme.of(context).colorScheme.surface.withValues( alpha: 0.1),
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
-                                  color: Theme.of(context).colorScheme.outline.withOpacity( 0.1),
+                                  color: Theme.of(context).colorScheme.outline.withValues( alpha: 0.1),
                                 ),
                               ),
                               child: Row(
@@ -223,7 +261,7 @@ class _ServiceCostScreenState extends State<ServiceCostScreen> {
                                       Text(
                                         'Service Cost Date',
                                         style: TextStyle(
-                                          color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6),
+                                          color: Theme.of(context).colorScheme.onSurfaceVariant.withValues( alpha: 0.6),
                                           fontSize: 11,
                                         ),
                                       ),
@@ -238,7 +276,7 @@ class _ServiceCostScreenState extends State<ServiceCostScreen> {
                                     ],
                                   ),
                                   const Spacer(),
-                                  Icon(LucideIcons.chevronRight, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6)),
+                                  Icon(LucideIcons.chevronRight, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues( alpha: 0.6)),
                                 ],
                               ),
                             ),
@@ -262,6 +300,20 @@ class _ServiceCostScreenState extends State<ServiceCostScreen> {
                 sliver: SliverToBoxAdapter(
                   child: TextField(
                     controller: _searchCtrl,
+                    focusNode: _searchFocusNode,
+                    keyboardType: TextInputType.none,
+                    showCursor: true,
+                    onTap: () {
+                      AppKeyboardController.instance.attach(
+                        controller: _searchCtrl,
+                        focusNode: _searchFocusNode,
+                        type: AppKeyboardType.text,
+                        action: AppKeyboardAction.search,
+                        label: 'Search Service Costs',
+                        onChanged: (v) => setState(() => _query = v),
+                        onAction: () => AppKeyboardController.instance.hide(),
+                      );
+                    },
                     onChanged: (v) => setState(() => _query = v),
                     decoration: InputDecoration(
                       hintText: "Search descriptions or creators...",
@@ -298,7 +350,7 @@ class _ServiceCostScreenState extends State<ServiceCostScreen> {
                       Text(
                         '${costs.length} entries',
                         style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant.withValues( alpha: 0.6),
                           fontSize: 13,
                         ),
                       ),
@@ -317,11 +369,11 @@ class _ServiceCostScreenState extends State<ServiceCostScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(LucideIcons.receipt, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.2)),
+                          Icon(LucideIcons.receipt, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues( alpha: 0.2)),
                           const SizedBox(height: 16),
                           Text(
                             'No service costs found',
-                            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6)),
+                            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues( alpha: 0.6)),
                           ),
                         ],
                       ),
@@ -344,7 +396,7 @@ class _ServiceCostScreenState extends State<ServiceCostScreen> {
                                 Container(
                                   padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(
-                                    color: AppColors.error.withOpacity( 0.1),
+                                    color: AppColors.error.withValues( alpha: 0.1),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: const Icon(LucideIcons.arrowUpRight, color: AppColors.error, size: 20),
@@ -366,7 +418,7 @@ class _ServiceCostScreenState extends State<ServiceCostScreen> {
                                       Text(
                                         'By ${sc.createdBy ?? "Unknown"} • ${DateFormat('dd MMM yyyy').format(sc.dateCreated)}',
                                         style: TextStyle(
-                                          color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6),
+                                          color: Theme.of(context).colorScheme.onSurfaceVariant.withValues( alpha: 0.6),
                                           fontSize: 11,
                                         ),
                                       ),
@@ -395,7 +447,7 @@ class _ServiceCostScreenState extends State<ServiceCostScreen> {
                                       child: Icon(
                                         LucideIcons.trash2,
                                         size: 16,
-                                        color: AppColors.error.withOpacity( 0.6),
+                                        color: AppColors.error.withValues( alpha: 0.6),
                                       ),
                                     ),
                                   ],
@@ -425,7 +477,7 @@ class _ServiceCostScreenState extends State<ServiceCostScreen> {
           children: [
             Container(
               padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: color.withOpacity( 0.1), borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(color: color.withValues( alpha: 0.1), borderRadius: BorderRadius.circular(12)),
               child: Icon(icon, color: color, size: 20),
             ),
             const SizedBox(height: 16),

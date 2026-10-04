@@ -8,7 +8,6 @@ import 'dart:math';
 import '../services/auth_service.dart';
 import '../services/google_drive_service.dart';
 import '../services/backup_freshness_service.dart';
-import '../services/auto_backup_manager.dart';
 import '../providers/theme_provider.dart';
 import '../providers/loan_provider.dart';
 import '../utils/app_colors.dart';
@@ -22,6 +21,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'backup_restore_screen.dart';
 import 'auth/sign_in_screen.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -257,13 +257,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadBuildNumber() async {
     try {
-      final json = await rootBundle.loadString('update.json');
-      final map = jsonDecode(json) as Map<String, dynamic>;
-      final raw = map['buildNumber'];
+      final jsonStr = await rootBundle.loadString('update.json');
+      final sanitized = jsonStr.replaceAll(RegExp(r',\s*([\]\}])'), r'$1');
+      final map = jsonDecode(sanitized) as Map<String, dynamic>;
+      final raw = map['buildNumber'] ?? map['version'] ?? map['build_number'];
       if (mounted) {
         setState(() => _buildNumber = raw is int ? raw : int.tryParse(raw.toString()) ?? 0);
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('SettingsScreen: Error reading update.json: $e');
+      try {
+        final info = await PackageInfo.fromPlatform();
+        if (mounted) {
+          setState(() => _buildNumber = int.tryParse(info.buildNumber) ?? 0);
+        }
+      } catch (_) {}
+    }
   }
 
   Future<void> _loadSettings() async {
@@ -365,7 +374,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         shape: BoxShape.circle,
                         color: filled
                             ? (mismatch ? AppColors.error : AppColors.accent)
-                            : Theme.of(context).colorScheme.onSurface.withOpacity( 0.12),
+                            : Theme.of(context).colorScheme.onSurface.withValues( alpha: 0.12),
                       ),
                     );
                   }),
@@ -400,7 +409,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         width: 52, height: 52,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: Theme.of(ctx).colorScheme.onSurface.withOpacity( 0.06),
+          color: Theme.of(ctx).colorScheme.onSurface.withValues( alpha: 0.06),
         ),
         child: Center(child: Text(n, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600))),
       ),
@@ -621,7 +630,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onChanged: isReadOnly ? null : _toggleLock,
                     ),
                     if (_isLockEnabled) ...[
-                      Divider(height: 1, color: Theme.of(context).dividerColor.withOpacity( 0.1)),
+                      Divider(height: 1, color: Theme.of(context).dividerColor.withValues( alpha: 0.1)),
                       if (_hasBiometricHardware)
                         _buildSwitchTile(
                           icon: LucideIcons.fingerprint,
@@ -630,7 +639,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           value: _isBiometricEnabled,
                           onChanged: isReadOnly ? null : _toggleBiometric,
                         ),
-                      Divider(height: 1, color: Theme.of(context).dividerColor.withOpacity( 0.1)),
+                      Divider(height: 1, color: Theme.of(context).dividerColor.withValues( alpha: 0.1)),
                       _buildListTile(
                         icon: LucideIcons.key,
                         title: 'Change PIN',
@@ -671,8 +680,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                       leading: const Icon(LucideIcons.archive, color: AppColors.accent),
                       title: Text('Backup & Restore', style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface)),
-                      subtitle: Text('Backup and restore options', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.7), fontSize: 12)),
-                      trailing: Icon(LucideIcons.chevronRight, size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.5)),
+                      subtitle: Text('Backup and restore options', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues( alpha: 0.7), fontSize: 12)),
+                      trailing: Icon(LucideIcons.chevronRight, size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues( alpha: 0.5)),
                       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BackupRestoreScreen())),
                     ),
                   ],
@@ -712,7 +721,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         title: Text('Generate 500 Test Borrowers', style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface)),
                         onTap: (isReadOnly || _isGenerating) ? null : _generateTestBorrowers,
                       ),
-                      Divider(height: 1, color: Theme.of(context).dividerColor.withOpacity( 0.1)),
+                      Divider(height: 1, color: Theme.of(context).dividerColor.withValues( alpha: 0.1)),
                       ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                         leading: const Icon(LucideIcons.trash2, color: AppColors.error),
@@ -720,7 +729,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         subtitle: const Text('Deletes all local records permanently', style: TextStyle(fontSize: 12)),
                         onTap: (isReadOnly || _isGenerating) ? null : () => _confirmClearLocalDatabase(context),
                       ),
-                      Divider(height: 1, color: Theme.of(context).dividerColor.withOpacity( 0.1)),
+                      Divider(height: 1, color: Theme.of(context).dividerColor.withValues( alpha: 0.1)),
                       ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                         leading: const Icon(LucideIcons.alertTriangle, color: AppColors.error),
@@ -737,7 +746,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Center(
             child: Text(
               'Build No : $_buildNumber',
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity( 0.6), fontSize: 12),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues( alpha: 0.6), fontSize: 12),
             ),
           ),
         ],
@@ -757,9 +766,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildSwitchTile({required IconData icon, required String title, required String subtitle, required bool value, required Function(bool)? onChanged}) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-      leading: Icon(icon, color: onChanged == null ? AppColors.accent.withOpacity(0.5) : AppColors.accent),
-      title: Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: onChanged == null ? Theme.of(context).colorScheme.onSurface.withOpacity(0.5) : Theme.of(context).colorScheme.onSurface)),
-      subtitle: Text(subtitle, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(onChanged == null ? 0.3 : 0.6), fontSize: 12)),
+      leading: Icon(icon, color: onChanged == null ? AppColors.accent.withValues(alpha: 0.5) : AppColors.accent),
+      title: Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: onChanged == null ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5) : Theme.of(context).colorScheme.onSurface)),
+      subtitle: Text(subtitle, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: onChanged == null ? 0.3 : 0.6), fontSize: 12)),
       trailing: Switch.adaptive(
         value: value,
         onChanged: onChanged,
@@ -772,9 +781,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final disabled = onTap == null;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-      leading: Icon(icon, color: disabled ? (color ?? AppColors.accent).withOpacity(0.5) : (color ?? AppColors.accent)),
-      title: Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: disabled ? Theme.of(context).colorScheme.onSurface.withOpacity(0.5) : color)),
-      trailing: Icon(LucideIcons.chevronRight, size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(disabled ? 0.3 : 0.6)),
+      leading: Icon(icon, color: disabled ? (color ?? AppColors.accent).withValues(alpha: 0.5) : (color ?? AppColors.accent)),
+      title: Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: disabled ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5) : color)),
+      trailing: Icon(LucideIcons.chevronRight, size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: disabled ? 0.3 : 0.6)),
       onTap: onTap,
     );
   }

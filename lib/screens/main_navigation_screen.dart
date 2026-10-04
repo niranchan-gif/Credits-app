@@ -13,6 +13,7 @@ import '../services/auto_backup_manager.dart';
 import '../widgets/progress_dialog.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/app_keyboard/app_keyboard.dart';
+import '../widgets/smooth_animated_indexed_stack.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -138,7 +139,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               children: [
                 if (isReadOnly) const ReadOnlyBanner(),
                 Expanded(
-                  child: IndexedStack(
+                  child: SmoothAnimatedIndexedStack(
                     index: _currentIndex,
                     children: _pages,
                   ),
@@ -255,6 +256,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
+        if (AppKeyboardController.instance.isVisible) {
+          AppKeyboardController.instance.hide();
+        }
         setState(() => _currentIndex = index);
       },
       behavior: HitTestBehavior.opaque,

@@ -10,7 +10,6 @@ import '../models/borrower.dart';
 import '../models/payment.dart';
 import '../utils/fmt.dart';
 import '../utils/app_colors.dart';
-import '../utils/app_decorations.dart';
 import '../widgets/premium_card.dart';
 import '../widgets/sync_status_indicator.dart';
 import '../widgets/quick_add_dialog.dart';
@@ -31,6 +30,8 @@ class _HomeScreenState extends State<HomeScreen> {
   int _tab = 0;
   final _searchCtrl = TextEditingController();
   final _searchFocusNode = FocusNode();
+  final _searchFilterCtrl = TextEditingController();
+  final _searchFilterFocusNode = FocusNode();
   String _query = '';
   String? _selectedAddress;
   bool _filter10PlusDays = false;
@@ -44,6 +45,8 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _searchCtrl.dispose();
     _searchFocusNode.dispose();
+    _searchFilterCtrl.dispose();
+    _searchFilterFocusNode.dispose();
     super.dispose();
   }
 
@@ -771,7 +774,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _showFilterModal(List<String> addresses, Map<String, int> counts, LoanProvider provider) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final searchFilterCtrl = TextEditingController();
+    _searchFilterCtrl.clear();
     String filterQuery = '';
 
     showModalBottomSheet(
@@ -788,7 +791,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
             return Container(
               constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.75,
+                maxHeight: MediaQuery.of(context).size.height * 0.85,
               ),
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF1A231F) : Colors.white,
@@ -850,6 +853,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         if (_selectedAddress != null)
                           TextButton(
                             onPressed: () {
+                              AppKeyboardController.instance.hide();
                               setState(() => _selectedAddress = null);
                               Navigator.pop(ctx);
                             },
@@ -864,11 +868,34 @@ class _HomeScreenState extends State<HomeScreen> {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: TextField(
-                        controller: searchFilterCtrl,
+                        controller: _searchFilterCtrl,
+                        focusNode: _searchFilterFocusNode,
+                        keyboardType: TextInputType.none,
+                        showCursor: true,
+                        onTap: () {
+                          AppKeyboardController.instance.attach(
+                            controller: _searchFilterCtrl,
+                            focusNode: _searchFilterFocusNode,
+                            type: AppKeyboardType.text,
+                            action: AppKeyboardAction.search,
+                            label: 'Search addresses',
+                            onChanged: (val) => setModalState(() => filterQuery = val),
+                            onAction: () => AppKeyboardController.instance.hide(),
+                          );
+                        },
                         onChanged: (val) => setModalState(() => filterQuery = val),
                         decoration: InputDecoration(
                           hintText: "Search addresses...",
                           prefixIcon: const Icon(LucideIcons.search, size: 18),
+                          suffixIcon: filterQuery.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(LucideIcons.x, size: 16),
+                                  onPressed: () {
+                                    _searchFilterCtrl.clear();
+                                    setModalState(() => filterQuery = '');
+                                  },
+                                )
+                              : null,
                           isDense: true,
                           contentPadding: const EdgeInsets.symmetric(vertical: 10),
                           filled: true,
@@ -893,7 +920,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: TextStyle(fontSize: 12),
                     ),
                     value: _filter10PlusDays,
-                    activeColor: AppColors.accent,
+                    activeThumbColor: AppColors.accent,
                     onChanged: (val) {
                       setState(() => _filter10PlusDays = val);
                       setModalState(() {});
@@ -966,6 +993,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ],
                           ),
                           onTap: () {
+                            AppKeyboardController.instance.hide();
                             setState(() => _selectedAddress = null);
                             Navigator.pop(ctx);
                           },
@@ -1025,6 +1053,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ],
                             ),
                             onTap: () {
+                              AppKeyboardController.instance.hide();
                               setState(() {
                                 _selectedAddress = isSelected ? null : addr;
                               });
@@ -1136,7 +1165,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _tabItem(int index, String label, String topText, Color color, double width) {
     final isSelected = _tab == index;
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return GestureDetector(
       onTap: () {

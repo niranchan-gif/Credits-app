@@ -271,7 +271,7 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(color: AppColors.accent.withOpacity( 0.1), borderRadius: BorderRadius.circular(12)),
+                          decoration: BoxDecoration(color: AppColors.accent.withValues( alpha: 0.1), borderRadius: BorderRadius.circular(12)),
                           child: Text(
                             'Ends on: ${DateFormat('dd MMM yyyy').format(_calculatedEndDate!)}',
                             textAlign: TextAlign.center,

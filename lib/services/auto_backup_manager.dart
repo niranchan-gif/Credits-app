@@ -6,8 +6,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'google_drive_service.dart';
 import 'notification_service.dart';
-import '../database/db_helper.dart';
-import 'backup_freshness_service.dart';
 import 'google_drive_json_backup_service.dart';
 import 'json_backup_service.dart';
 

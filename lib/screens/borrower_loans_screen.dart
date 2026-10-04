@@ -14,7 +14,6 @@ import '../providers/loan_provider.dart';
 import '../utils/actions.dart';
 import '../utils/fmt.dart';
 import '../utils/app_colors.dart';
-import '../widgets/premium_card.dart';
 import '../widgets/glass_card.dart';
 import 'add_borrower_screen.dart';
 import 'add_loan_screen.dart';

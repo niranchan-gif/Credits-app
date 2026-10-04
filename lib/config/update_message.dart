@@ -7,6 +7,7 @@
 /// Whenever you want to change what users see when an update is available,
 /// simply edit the title, message, and list of release notes below!
 /// ============================================================================
+library;
 
 class UpdateMessageConfig {
   /// The main headline shown at the top of the update screen.

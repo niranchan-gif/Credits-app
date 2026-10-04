@@ -1,3 +1,4 @@
+// ignore_for_file: uri_does_not_exist, avoid_print, undefined_function
 import "dart:io";
 
 import 'package:html/parser.dart' show parse;

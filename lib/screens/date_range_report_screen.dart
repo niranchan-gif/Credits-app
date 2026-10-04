@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart';
@@ -616,7 +615,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
                       TabBar(
                         controller: _tabController,
                         labelColor: AppColors.accent,
-                        unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
+                        unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                         indicatorColor: AppColors.accent,
                         indicatorSize: TabBarIndicatorSize.tab,
                         tabs: const [
@@ -680,7 +679,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.08)),
+          border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.08)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -690,7 +689,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
                 Container(
                   padding: const EdgeInsets.all(5),
                   decoration: BoxDecoration(
-                    color: AppColors.accent.withOpacity(0.12),
+                    color: AppColors.accent.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(LucideIcons.arrowUpDown, size: 14, color: AppColors.accent),
@@ -704,7 +703,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w500,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                       ),
                     ),
                     Text(
@@ -725,7 +724,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: AppColors.accent.withOpacity(0.08),
+                  color: AppColors.accent.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -786,8 +785,8 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? AppColors.accent.withOpacity(0.15)
-                        : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                        ? AppColors.accent.withValues(alpha: 0.15)
+                        : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -805,7 +804,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
                 ),
                 subtitle: Text(
                   order.description,
-                  style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7)),
+                  style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7)),
                 ),
                 trailing: isSelected ? const Icon(LucideIcons.check, color: AppColors.accent) : null,
                 onTap: () {
@@ -832,7 +831,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1)),
+            border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -864,7 +863,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(icon, color: color, size: 16),
@@ -904,7 +903,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
       return Center(
         child: Text(
           "No transactions recorded in this period",
-          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5)),
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
         ),
       );
     }
@@ -970,7 +969,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
                 Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
+                    color: color.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(icon, color: color, size: 16),
@@ -1001,7 +1000,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
                       const SizedBox(height: 2),
                       Text(
                         formattedDate,
-                        style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7)),
+                        style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7)),
                       ),
                     ],
                   ),
@@ -1035,7 +1034,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
       return Center(
         child: Text(
           "No new borrowers added in this period",
-          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5)),
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
         ),
       );
     }
@@ -1068,7 +1067,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                           decoration: BoxDecoration(
-                            color: AppColors.accent.withOpacity(0.1),
+                            color: AppColors.accent.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
@@ -1085,7 +1084,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
                     ),
                     Text(
                       df.format(addedDate),
-                      style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7)),
+                      style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7)),
                     ),
                   ],
                 ),
@@ -1121,7 +1120,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
       return Center(
         child: Text(
           "No loans completed/closed in this period",
-          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5)),
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
         ),
       );
     }
@@ -1157,7 +1156,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                           decoration: BoxDecoration(
-                            color: AppColors.accent.withOpacity(0.1),
+                            color: AppColors.accent.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
@@ -1174,7 +1173,7 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
                     ),
                     Text(
                       dateCleared != null ? df.format(dateCleared) : endStr,
-                      style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7)),
+                      style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7)),
                     ),
                   ],
                 ),

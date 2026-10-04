@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../services/backup_freshness_service.dart';
-import '../services/auto_backup_manager.dart';
 import 'app_lock_screen.dart';
 
 class AppLockWrapper extends StatefulWidget {
@@ -84,9 +83,25 @@ class _AppLockWrapperState extends State<AppLockWrapper> with WidgetsBindingObse
 
   @override
   Widget build(BuildContext context) {
-    if (_isChecking) return const Scaffold(backgroundColor: Color(0xFF1E3A5F));
-    if (_isLocked) return AppLockScreen(onUnlocked: _onUnlocked);
-    return widget.child;
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      child: _isChecking
+          ? const Scaffold(
+              key: ValueKey('checking'),
+              backgroundColor: Color(0xFF1E3A5F),
+            )
+          : _isLocked
+              ? AppLockScreen(
+                  key: const ValueKey('locked'),
+                  onUnlocked: _onUnlocked,
+                )
+              : KeyedSubtree(
+                  key: const ValueKey('unlocked'),
+                  child: widget.child,
+                ),
+    );
   }
 }
 

@@ -178,8 +178,11 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
     final start = selection.isValid && selection.start >= 0 ? selection.start : text.length;
     final end = selection.isValid && selection.end >= 0 ? selection.end : text.length;
 
-    // Disallow decimal point for borrower code
-    if (_activeField == _QuickAddField.code && key == '.') return;
+    // Disallow non-numeric characters for borrower code
+    if (_activeField == _QuickAddField.code && !RegExp(r'^[0-9]$').hasMatch(key)) return;
+
+    // Disallow anything other than digits and '.' for amount
+    if (_activeField == _QuickAddField.amount && !RegExp(r'^[0-9.]$').hasMatch(key)) return;
 
     // Disallow multiple decimal points for amount
     if (key == '.' && text.contains('.')) return;
@@ -786,13 +789,17 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
     Color? customTextColor,
     Border? customBorder,
     required bool isDark,
+    bool isSymbol = false,
+    double height = 48,
   }) {
-    final bgColor = customBg ?? (isDark ? const Color(0xFF2E3138) : Colors.white);
+    final bgColor = customBg ?? (isSymbol
+        ? (isDark ? const Color(0xFF262930) : const Color(0xFFD6DBE4))
+        : (isDark ? const Color(0xFF2E3138) : Colors.white));
     final textColor = customTextColor ?? (isDark ? Colors.white : const Color(0xFF0F172A));
 
     return Expanded(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 3.5, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 2.5, vertical: 2.5),
         child: Material(
           color: bgColor,
           elevation: isDark ? 1 : 2,
@@ -807,7 +814,7 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
             splashColor: AppColors.accent.withValues(alpha: 0.35),
             highlightColor: AppColors.accent.withValues(alpha: 0.2),
             child: Container(
-              height: 52,
+              height: height,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(14),
                 border: customBorder ?? Border.all(
@@ -821,7 +828,7 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
               child: child ?? Text(
                 text,
                 style: TextStyle(
-                  fontSize: 24,
+                  fontSize: isSymbol ? 22 : 24,
                   fontWeight: FontWeight.w700,
                   color: textColor,
                 ),
@@ -832,6 +839,7 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
       ),
     );
   }
+
 
   Widget _buildNumPad(bool isDark) {
     final isCode = _activeField == _QuickAddField.code;
@@ -882,10 +890,19 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
               _buildNumKey(text: '9', onTap: () => _onKeyPress('9'), isDark: isDark),
             ],
           ),
-          // Row 4: Backspace, 0, Action (Next / Save)
+          // Row 4: ., 0, ⌫ (backspace)
           Row(
             children: [
-              // Bottom-Left: Backspace
+              _buildNumKey(
+                text: '.',
+                onTap: isCode ? null : () => _onKeyPress('.'),
+                isDark: isDark,
+                isSymbol: true,
+                customTextColor: isCode
+                    ? (isDark ? Colors.white24 : Colors.black26)
+                    : null,
+              ),
+              _buildNumKey(text: '0', onTap: () => _onKeyPress('0'), isDark: isDark),
               _buildNumKey(
                 text: '',
                 onTap: _onBackspace,
@@ -899,48 +916,60 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
                   width: 1.2,
                 ),
                 child: Icon(
-                  Icons.backspace_rounded,
-                  size: 22,
+                  Icons.backspace_outlined,
+                  size: 21,
                   color: isDark ? const Color(0xFFF87171) : const Color(0xFFDC2626),
                 ),
               ),
-              // Middle: 0
-              _buildNumKey(text: '0', onTap: () => _onKeyPress('0'), isDark: isDark),
-              // Bottom-Right: Next / Save Action
-              _buildNumKey(
-                text: '',
-                onTap: _onNext,
-                isDark: isDark,
-                customBg: _isInactive ? Colors.grey : AppColors.accent,
-                customBorder: Border.all(
-                  color: _isInactive ? Colors.grey : AppColors.accent,
-                  width: 1.2,
-                ),
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        isCode ? 'Next' : 'Save',
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
+            ],
+          ),
+          const SizedBox(height: 4),
+          // Action button (Next / Save)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2.5, vertical: 2.5),
+            child: SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: Material(
+                color: _isInactive ? Colors.grey : AppColors.accent,
+                borderRadius: BorderRadius.circular(14),
+                elevation: isDark ? 1 : 2,
+                child: InkWell(
+                  onTap: _onNext,
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: _isInactive ? Colors.grey : AppColors.accent,
+                        width: 1.2,
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          isCode ? 'Next' : 'Save',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Icon(
+                          isCode ? LucideIcons.arrowRight : LucideIcons.checkCircle,
+                          size: 18,
                           color: Colors.white,
                         ),
-                      ),
-                      const SizedBox(width: 4),
-                      Icon(
-                        isCode ? LucideIcons.arrowRight : LucideIcons.checkCircle,
-                        size: 17,
-                        color: Colors.white,
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ],
+            ),
           ),
         ],
       ),

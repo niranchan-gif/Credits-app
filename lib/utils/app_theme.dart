@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
+import 'smooth_page_transition.dart';
 
 class AppTheme {
   static ThemeData get lightTheme {
@@ -144,8 +144,11 @@ class AppTheme {
       ),
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
-          TargetPlatform.android: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.android: SmoothGlassPageTransitionsBuilder(),
+          TargetPlatform.iOS: SmoothGlassPageTransitionsBuilder(),
+          TargetPlatform.windows: SmoothGlassPageTransitionsBuilder(),
+          TargetPlatform.linux: SmoothGlassPageTransitionsBuilder(),
+          TargetPlatform.macOS: SmoothGlassPageTransitionsBuilder(),
         },
       ),
       dialogTheme: DialogThemeData(
@@ -305,8 +308,11 @@ class AppTheme {
       ),
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
-          TargetPlatform.android: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.android: SmoothGlassPageTransitionsBuilder(),
+          TargetPlatform.iOS: SmoothGlassPageTransitionsBuilder(),
+          TargetPlatform.windows: SmoothGlassPageTransitionsBuilder(),
+          TargetPlatform.linux: SmoothGlassPageTransitionsBuilder(),
+          TargetPlatform.macOS: SmoothGlassPageTransitionsBuilder(),
         },
       ),
       dialogTheme: DialogThemeData(

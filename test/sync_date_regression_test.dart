@@ -55,15 +55,15 @@ void main() {
     
     final bSheet = excel['Borrowers'];
     bSheet.appendRow([TextCellValue('id'), TextCellValue('sync_id'), TextCellValue('borrower_code'), TextCellValue('name'), TextCellValue('phone'), TextCellValue('updated_at'), TextCellValue('created_at')]);
-    bSheet.appendRow([IntCellValue(1), TextCellValue(borrowerSyncId), TextCellValue('B1'), TextCellValue('Test'), TextCellValue('1234567890'), IntCellValue(1000), IntCellValue(1000)]);
+    bSheet.appendRow([const IntCellValue(1), TextCellValue(borrowerSyncId), TextCellValue('B1'), TextCellValue('Test'), TextCellValue('1234567890'), const IntCellValue(1000), const IntCellValue(1000)]);
     
     final lSheet = excel['Loans'];
     lSheet.appendRow([TextCellValue('id'), TextCellValue('sync_id'), TextCellValue('borrower_id'), TextCellValue('loan_amount'), TextCellValue('interest_amount'), TextCellValue('updated_at'), TextCellValue('created_at'), TextCellValue('status')]);
-    lSheet.appendRow([IntCellValue(1), TextCellValue(loanSyncId), IntCellValue(1), DoubleCellValue(100.0), DoubleCellValue(0.0), IntCellValue(1000), IntCellValue(1000), TextCellValue('active')]);
+    lSheet.appendRow([const IntCellValue(1), TextCellValue(loanSyncId), const IntCellValue(1), const DoubleCellValue(100.0), const DoubleCellValue(0.0), const IntCellValue(1000), const IntCellValue(1000), TextCellValue('active')]);
     
     final pSheet = excel['Payments'];
     pSheet.appendRow([TextCellValue('id'), TextCellValue('sync_id'), TextCellValue('loan_id'), TextCellValue('amount'), TextCellValue('payment_date'), TextCellValue('updated_at'), TextCellValue('created_at'), TextCellValue('is_deleted')]);
-    pSheet.appendRow([IntCellValue(1), TextCellValue(syncId), IntCellValue(1), DoubleCellValue(50.0), TextCellValue('2023-08-09T00:00:00.000'), IntCellValue(2000), IntCellValue(1000), IntCellValue(0)]);
+    pSheet.appendRow([const IntCellValue(1), TextCellValue(syncId), const IntCellValue(1), const DoubleCellValue(50.0), TextCellValue('2023-08-09T00:00:00.000'), const IntCellValue(2000), const IntCellValue(1000), const IntCellValue(0)]);
     
     final bytes = excel.encode()!;
 
@@ -105,15 +105,15 @@ void main() {
     
     final bSheet = excel['Borrowers'];
     bSheet.appendRow([TextCellValue('id'), TextCellValue('sync_id'), TextCellValue('borrower_code'), TextCellValue('name')]);
-    bSheet.appendRow([IntCellValue(1), TextCellValue('b-sync'), TextCellValue('B1'), TextCellValue('Test')]);
+    bSheet.appendRow([const IntCellValue(1), TextCellValue('b-sync'), TextCellValue('B1'), TextCellValue('Test')]);
     
     final lSheet = excel['Loans'];
     lSheet.appendRow([TextCellValue('id'), TextCellValue('sync_id'), TextCellValue('borrower_id'), TextCellValue('loan_amount'), TextCellValue('interest_amount')]);
-    lSheet.appendRow([IntCellValue(1), TextCellValue('l-sync'), IntCellValue(1), DoubleCellValue(100.0), DoubleCellValue(0.0)]);
+    lSheet.appendRow([const IntCellValue(1), TextCellValue('l-sync'), const IntCellValue(1), const DoubleCellValue(100.0), const DoubleCellValue(0.0)]);
     
     final pSheet = excel['Payments'];
     pSheet.appendRow([TextCellValue('id'), TextCellValue('sync_id'), TextCellValue('loan_id'), TextCellValue('amount'), TextCellValue('payment_date'), TextCellValue('updated_at'), TextCellValue('created_at')]);
-    pSheet.appendRow([IntCellValue(1), TextCellValue(syncId), IntCellValue(1), DoubleCellValue(50.0), TextCellValue('2023-08-09T00:00:00.000'), IntCellValue(2000), IntCellValue(1000)]);
+    pSheet.appendRow([const IntCellValue(1), TextCellValue(syncId), const IntCellValue(1), const DoubleCellValue(50.0), TextCellValue('2023-08-09T00:00:00.000'), const IntCellValue(2000), const IntCellValue(1000)]);
     
     final bytes = excel.encode()!;
 
@@ -158,7 +158,7 @@ void main() {
     
     final pSheet = excel['Payments'];
     pSheet.appendRow([TextCellValue('id'), TextCellValue('sync_id'), TextCellValue('loan_id'), TextCellValue('amount'), TextCellValue('payment_date'), TextCellValue('updated_at'), TextCellValue('created_at'), TextCellValue('is_deleted')]);
-    pSheet.appendRow([IntCellValue(1), TextCellValue(syncId), IntCellValue(1), DoubleCellValue(50.0), TextCellValue('2023-08-15T00:00:00.000'), IntCellValue(2000), IntCellValue(1000), IntCellValue(0)]);
+    pSheet.appendRow([const IntCellValue(1), TextCellValue(syncId), const IntCellValue(1), const DoubleCellValue(50.0), TextCellValue('2023-08-15T00:00:00.000'), const IntCellValue(2000), const IntCellValue(1000), const IntCellValue(0)]);
     
     final bytes = excel.encode()!;
 

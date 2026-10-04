@@ -533,61 +533,65 @@ class AppKeyboardView extends StatelessWidget {
     );
   }
 
-  // ==========================================
-  // NUMPAD LAYOUT (Maximized 62dp Large Keys)
-  // ==========================================
   Widget _buildNumpadLayout(bool isDark, AppKeyboardController controller) {
     return Column(
       key: const ValueKey('numpad_layout'),
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Row 1: 1, 2, 3
+        // Row 1: 1, 2, 3, -
         Row(
           children: [
             _buildLargeNumKey(text: '1', onTap: () => controller.insertText('1'), isDark: isDark),
             _buildLargeNumKey(text: '2', onTap: () => controller.insertText('2'), isDark: isDark),
             _buildLargeNumKey(text: '3', onTap: () => controller.insertText('3'), isDark: isDark),
+            _buildLargeNumKey(text: '-', onTap: () => controller.insertText('-'), isDark: isDark, isSymbol: true),
           ],
         ),
 
-        // Row 2: 4, 5, 6
+        // Row 2: 4, 5, 6, ␣ (space)
         Row(
           children: [
             _buildLargeNumKey(text: '4', onTap: () => controller.insertText('4'), isDark: isDark),
             _buildLargeNumKey(text: '5', onTap: () => controller.insertText('5'), isDark: isDark),
             _buildLargeNumKey(text: '6', onTap: () => controller.insertText('6'), isDark: isDark),
+            _buildLargeSpecialKey(
+              isDark: isDark,
+              onTap: () => controller.insertText(' '),
+              child: Icon(
+                Icons.space_bar_rounded,
+                size: 26,
+                color: isDark ? Colors.white.withValues(alpha: 0.9) : const Color(0xFF0F172A),
+              ),
+            ),
           ],
         ),
 
-        // Row 3: 7, 8, 9
+        // Row 3: 7, 8, 9, ⌫ (backspace)
         Row(
           children: [
             _buildLargeNumKey(text: '7', onTap: () => controller.insertText('7'), isDark: isDark),
             _buildLargeNumKey(text: '8', onTap: () => controller.insertText('8'), isDark: isDark),
             _buildLargeNumKey(text: '9', onTap: () => controller.insertText('9'), isDark: isDark),
-          ],
-        ),
-
-        // Row 4: Backspace, 0, Action
-        Row(
-          children: [
-            // Backspace with repeat hold-to-delete
             _buildLargeSpecialKey(
               isDark: isDark,
               isRepeatable: true,
               onTap: controller.backspace,
               onLongPress: controller.clearAll,
               child: Icon(
-                Icons.backspace_rounded,
-                size: 24,
-                color: isDark ? const Color(0xFFF87171) : const Color(0xFFDC2626),
+                Icons.backspace_outlined,
+                size: 22,
+                color: isDark ? Colors.white.withValues(alpha: 0.9) : const Color(0xFF0F172A),
               ),
             ),
+          ],
+        ),
 
-            // 0
+        // Row 4: ., 0, ,, ➔ (action)
+        Row(
+          children: [
+            _buildLargeNumKey(text: '.', onTap: () => controller.insertText('.'), isDark: isDark, isSymbol: true),
             _buildLargeNumKey(text: '0', onTap: () => controller.insertText('0'), isDark: isDark),
-
-            // Action (Done / Next)
+            _buildLargeNumKey(text: ',', onTap: () => controller.insertText(','), isDark: isDark, isSymbol: true),
             _buildLargeActionKey(isDark: isDark, controller: controller),
           ],
         ),
@@ -768,13 +772,17 @@ class AppKeyboardView extends StatelessWidget {
     required String text,
     required VoidCallback onTap,
     required bool isDark,
+    bool isSymbol = false,
   }) {
     return Expanded(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 3.5, vertical: 3.5),
+        padding: const EdgeInsets.symmetric(horizontal: 2.5, vertical: 2.5),
         child: _InstantKeySurface(
           isDark: isDark,
-          height: 62,
+          height: 56,
+          customBg: isSymbol
+              ? (isDark ? const Color(0xFF2E323A) : const Color(0xFFD3D8E2))
+              : null,
           onTap: () {
             HapticFeedback.selectionClick();
             onTap();
@@ -784,8 +792,8 @@ class AppKeyboardView extends StatelessWidget {
             child: Text(
               text,
               style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w700,
+                fontSize: isSymbol ? 24 : 26,
+                fontWeight: isSymbol ? FontWeight.w600 : FontWeight.w700,
                 color: isDark ? Colors.white : const Color(0xFF0F172A),
               ),
             ),
@@ -804,10 +812,10 @@ class AppKeyboardView extends StatelessWidget {
   }) {
     return Expanded(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 3.5, vertical: 3.5),
+        padding: const EdgeInsets.symmetric(horizontal: 2.5, vertical: 2.5),
         child: _InstantKeySurface(
           isDark: isDark,
-          height: 62,
+          height: 56,
           isRepeatable: isRepeatable,
           customBg: isDark ? const Color(0xFF353942) : const Color(0xFFDFE3EA),
           onTap: () {
@@ -825,42 +833,29 @@ class AppKeyboardView extends StatelessWidget {
     required bool isDark,
     required AppKeyboardController controller,
   }) {
-    final (label, icon) = switch (controller.action) {
-      AppKeyboardAction.next => ('Next', LucideIcons.arrowRight),
-      AppKeyboardAction.search => ('Search', LucideIcons.search),
-      _ => ('Done', LucideIcons.checkCircle),
+    final icon = switch (controller.action) {
+      AppKeyboardAction.search => LucideIcons.search,
+      AppKeyboardAction.done => LucideIcons.check,
+      _ => LucideIcons.arrowRight,
     };
 
     return Expanded(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 3.5, vertical: 3.5),
+        padding: const EdgeInsets.symmetric(horizontal: 2.5, vertical: 2.5),
         child: _InstantKeySurface(
           isDark: isDark,
-          height: 62,
-          customBg: AppColors.accent,
-          customBorder: Border.all(color: AppColors.accent, width: 1.2),
+          height: 56,
+          customBg: isDark ? const Color(0xFF384656) : AppColors.accent,
+          customBorder: Border.all(
+            color: isDark ? const Color(0xFF4C5D70) : AppColors.accent,
+            width: 1.2,
+          ),
           onTap: () {
             HapticFeedback.heavyImpact();
             controller.performAction();
           },
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(width: 5),
-                Icon(icon, size: 18, color: Colors.white),
-              ],
-            ),
+          child: Center(
+            child: Icon(icon, size: 24, color: Colors.white),
           ),
         ),
       ),
