@@ -30,6 +30,7 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
   late TextEditingController _interestAmountCtrl;
   late TextEditingController _installmentDaysCtrl;
   late TextEditingController _notesCtrl;
+  late TextEditingController _loanDateCtrl;
 
   DateTime _loanDate = DateTime.now();
   bool _isSaving = false;
@@ -56,6 +57,7 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
     _interestAmountCtrl = TextEditingController();
     _installmentDaysCtrl = TextEditingController();
     _notesCtrl = TextEditingController(text: b?.notes ?? '');
+    _loanDateCtrl = TextEditingController(text: DateFormat('dd MMMM yyyy').format(_loanDate));
 
     if (b == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -75,6 +77,7 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
     _interestAmountCtrl.dispose();
     _installmentDaysCtrl.dispose();
     _notesCtrl.dispose();
+    _loanDateCtrl.dispose();
     super.dispose();
   }
 
@@ -99,7 +102,10 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
       },
     );
     if (picked != null) {
-      setState(() => _loanDate = picked);
+      setState(() {
+        _loanDate = picked;
+        _loanDateCtrl.text = DateFormat('dd MMMM yyyy').format(_loanDate);
+      });
     }
   }
 
@@ -251,7 +257,7 @@ class _AddBorrowerScreenState extends State<AddBorrowerScreen> {
                         onTap: _pickDate,
                         child: AbsorbPointer(
                           child: _buildField(
-                            controller: TextEditingController(text: DateFormat('dd MMMM yyyy').format(_loanDate)),
+                            controller: _loanDateCtrl,
                             label: 'Loan Date',
                             icon: LucideIcons.calendar,
                             readOnly: true,

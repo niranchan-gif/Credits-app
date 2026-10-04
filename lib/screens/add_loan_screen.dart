@@ -26,6 +26,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
   late TextEditingController _interestAmountCtrl;
   late TextEditingController _installmentDaysCtrl;
   late TextEditingController _notesCtrl;
+  late TextEditingController _loanDateCtrl;
 
   DateTime _loanDate = DateTime.now();
   bool _isSaving = false;
@@ -45,6 +46,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
     _interestAmountCtrl = TextEditingController();
     _installmentDaysCtrl = TextEditingController();
     _notesCtrl = TextEditingController();
+    _loanDateCtrl = TextEditingController(text: DateFormat('dd MMMM yyyy').format(_loanDate));
   }
 
   @override
@@ -53,6 +55,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
     _interestAmountCtrl.dispose();
     _installmentDaysCtrl.dispose();
     _notesCtrl.dispose();
+    _loanDateCtrl.dispose();
     super.dispose();
   }
 
@@ -64,7 +67,12 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
       lastDate: DateTime.now(),
       builder: (context, child) => Theme(data: Theme.of(context).copyWith(colorScheme: Theme.of(context).colorScheme.copyWith(primary: AppColors.accent, surface: Theme.of(context).colorScheme.surface)), child: child!),
     );
-    if (picked != null) setState(() => _loanDate = picked);
+    if (picked != null) {
+      setState(() {
+        _loanDate = picked;
+        _loanDateCtrl.text = DateFormat('dd MMMM yyyy').format(_loanDate);
+      });
+    }
   }
 
   Future<void> _save() async {
@@ -117,7 +125,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                     onTap: _pickDate,
                     child: AbsorbPointer(
                       child: _buildField(
-                        controller: TextEditingController(text: DateFormat('dd MMMM yyyy').format(_loanDate)),
+                        controller: _loanDateCtrl,
                         label: 'Loan Date',
                         icon: LucideIcons.calendar,
                         readOnly: true,
