@@ -1,10 +1,10 @@
 {
-  "buildNumber": 7,
+  "buildNumber": 2,
   "apkUrl": "https://github.com/niranchan-gif/Credits-app/releases/download/Creditsv3/app-release.apk",
   "title": "Upgrade to the new version of our app",
   "message": "What's new in this update:",
   "releaseNotes": [
-    "Create new loan issue fixed",
-    "Security updated"
+    "Tamil keyboard",
+    "UI fixed"
   ]
 }
