@@ -10,6 +10,7 @@ enum AppKeyboardType {
 /// The current visual layout mode of the keyboard.
 enum AppKeyboardMode {
   qwerty,
+  tamil,
   symbols,
   numeric, // Large tactile numpad (same as Quick Add)
 }

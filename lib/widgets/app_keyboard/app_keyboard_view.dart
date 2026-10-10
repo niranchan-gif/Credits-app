@@ -11,17 +11,19 @@ import 'app_keyboard_types.dart';
 /// The visual keyboard component matching the Quick Add aesthetic with
 /// maximized key sizes, instantaneous touch responsiveness, and synced haptics.
 class AppKeyboardView extends StatelessWidget {
-  const AppKeyboardView({super.key});
+  final AppKeyboardController? controller;
+
+  const AppKeyboardView({super.key, this.controller});
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final controller = AppKeyboardController.instance;
+    final activeController = this.controller ?? AppKeyboardController.instance;
 
     return AnimatedBuilder(
-      animation: controller,
+      animation: activeController,
       builder: (context, _) {
-        if (!controller.isVisible) {
+        if (!activeController.isVisible) {
           return const SizedBox.shrink();
         }
 
@@ -52,23 +54,24 @@ class AppKeyboardView extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 // 1. Top Utility Toolbar
-                _buildToolbar(context, isDark, controller),
+                _buildToolbar(context, isDark, activeController),
 
                 // 2. Main Keyboard Area according to mode
                 Padding(
                   padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 160),
-                    child: controller.isVoiceTyping
+                    child: activeController.isVoiceTyping
                         ? _VoiceTypingStudioWidget(
                             key: const ValueKey('voice_typing_studio'),
                             isDark: isDark,
-                            controller: controller,
+                            controller: activeController,
                           )
-                        : switch (controller.currentMode) {
-                            AppKeyboardMode.qwerty => _buildQwertyLayout(isDark, controller),
-                            AppKeyboardMode.symbols => _buildSymbolsLayout(isDark, controller),
-                            AppKeyboardMode.numeric => _buildNumpadLayout(isDark, controller),
+                        : switch (activeController.currentMode) {
+                            AppKeyboardMode.qwerty => _buildQwertyLayout(isDark, activeController),
+                            AppKeyboardMode.tamil => _buildTamilLayout(isDark, activeController),
+                            AppKeyboardMode.symbols => _buildSymbolsLayout(isDark, activeController),
+                            AppKeyboardMode.numeric => _buildNumpadLayout(isDark, activeController),
                           },
                   ),
                 ),
@@ -113,6 +116,12 @@ class AppKeyboardView extends StatelessWidget {
                   label: 'ABC',
                   isActive: controller.currentMode == AppKeyboardMode.qwerty,
                   onTap: () => controller.setMode(AppKeyboardMode.qwerty),
+                  isDark: isDark,
+                ),
+                _buildModeTab(
+                  label: 'தமிழ்',
+                  isActive: controller.currentMode == AppKeyboardMode.tamil,
+                  onTap: () => controller.setMode(AppKeyboardMode.tamil),
                   isDark: isDark,
                 ),
                 _buildModeTab(
@@ -404,6 +413,204 @@ class AppKeyboardView extends StatelessWidget {
   // ==========================================
   // SYMBOLS LAYOUT (Clean, balanced 10-key grid!)
   // ==========================================
+
+  // ==========================================
+  // EXACT TAMIL LAYOUT (Based on Screenshots)
+  // ==========================================
+  Widget _buildTamilLayout(bool isDark, AppKeyboardController controller) {
+    // 1. Determine active consonant
+    String activeConsonant = '';
+    if (controller.currentController != null) {
+      final text = controller.currentController!.text;
+      final selection = controller.currentController!.selection;
+      if (selection.isValid && selection.start > 0) {
+        final beforeCursor = text.substring(0, selection.start);
+        if (beforeCursor.isNotEmpty) {
+          final lastGrapheme = beforeCursor.characters.last;
+          const baseConsonants = [
+            'க', 'ங', 'ச', 'ஞ', 'ட', 'ண',
+            'த', 'ந', 'ப', 'ம', 'ய', 'ர',
+            'ல', 'வ', 'ழ', 'ள', 'ற', 'ன',
+            'ஷ', 'ஸ', 'ஜ', 'ஹ', 'க்ஷ'
+          ];
+          if (baseConsonants.contains(lastGrapheme)) {
+            activeConsonant = lastGrapheme;
+          }
+        }
+      }
+    }
+
+    final isCombo = activeConsonant.isNotEmpty && !controller.isShifted;
+
+    // Vowel matrix logic
+    String getVowelLabel(int row, int col) {
+      if (isCombo) {
+        final sign = [
+          ['்', 'ா', 'ி'],
+          ['ீ', 'ு', 'ூ'],
+          ['ெ', 'ே', 'ை'],
+          ['ொ', 'ோ', 'ௌ'],
+        ][row][col];
+        return '$activeConsonant$sign';
+      } else {
+        return [
+          ['அ', 'ஆ', 'இ'],
+          ['ஈ', 'உ', 'ஊ'],
+          ['எ', 'ஏ', 'ஐ'],
+          ['ஒ', 'ஓ', 'ஔ'],
+        ][row][col];
+      }
+    }
+
+    String getVowelValue(int row, int col) {
+      if (isCombo) {
+        return [
+          ['்', 'ா', 'ி'],
+          ['ீ', 'ு', 'ூ'],
+          ['ெ', 'ே', 'ை'],
+          ['ொ', 'ோ', 'ௌ'],
+        ][row][col];
+      } else {
+        return [
+          ['அ', 'ஆ', 'இ'],
+          ['ஈ', 'உ', 'ஊ'],
+          ['எ', 'ஏ', 'ஐ'],
+          ['ஒ', 'ஓ', 'ஔ'],
+        ][row][col];
+      }
+    }
+
+    final row1Consonants = ['க', 'ங', 'ச', 'ஞ', 'ட', 'ண'];
+    final row2Consonants = ['த', 'ந', 'ப', 'ம', 'ய', 'ர'];
+    final row3Consonants = ['ல', 'வ', 'ழ', 'ள', 'ற', 'ன'];
+    final row4Consonants = ['ஷ', 'ஸ', 'ஜ', 'ஹ', 'க்ஷ'];
+
+    Widget buildRow(int rowIndex, List<String> rightChars) {
+      // Distinct background color for vowels to differentiate from consonants
+      final vowelBg = isDark ? const Color(0xFF383B43) : const Color(0xFFD6DBE1);
+      
+      return Row(
+        children: [
+          for (int i = 0; i < 3; i++)
+            _buildKey(
+              flex: 10,
+              text: getVowelLabel(rowIndex, i),
+              onTap: () => controller.insertText(getVowelValue(rowIndex, i)),
+              isDark: isDark,
+              customBg: vowelBg,
+            ),
+          for (final char in rightChars)
+            _buildKey(
+              flex: 10,
+              text: char,
+              onTap: () => controller.insertText(char),
+              isDark: isDark,
+            ),
+          if (rowIndex == 3) // Row 4 has backspace instead of 6th char
+            _buildSpecialKey(
+              flex: 10,
+              isDark: isDark,
+              isRepeatable: true,
+              onTap: controller.backspace,
+              onLongPress: controller.clearAll,
+              child: Icon(
+                Icons.backspace_rounded,
+                size: 20,
+                color: isDark ? const Color(0xFFF87171) : const Color(0xFFDC2626),
+              ),
+            ),
+        ],
+      );
+    }
+
+    return Column(
+      key: const ValueKey('tamil_layout'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        buildRow(0, row1Consonants),
+        buildRow(1, row2Consonants),
+        buildRow(2, row3Consonants),
+        buildRow(3, row4Consonants),
+
+        // Row 5: ?123, ஃ, ஸ்ரீ, Emoji, Space, Cursor, Period, Action
+        Row(
+          children: [
+            _buildSpecialKey(
+              flex: 12,
+              isDark: isDark,
+              text: '?123',
+              onTap: () => controller.setMode(AppKeyboardMode.symbols),
+            ),
+            _buildKey(
+              flex: 9,
+              text: 'ஃ',
+              onTap: () => controller.insertText('ஃ'),
+              isDark: isDark,
+            ),
+            _buildKey(
+              flex: 9,
+              text: 'ஸ்ரீ',
+              onTap: () => controller.insertText('ஸ்ரீ'),
+              isDark: isDark,
+            ),
+            _buildSpecialKey(
+              flex: 9,
+              isDark: isDark,
+              onTap: () => {}, // Emojis handled elsewhere
+              child: Icon(
+                LucideIcons.smile,
+                size: 20,
+                color: isDark ? Colors.grey[400] : Colors.grey[600],
+              ),
+            ),
+            Expanded(
+              flex: 34,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2.2, vertical: 2.5),
+                child: _InstantKeySurface(
+                  isDark: isDark,
+                  height: 54,
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    controller.insertText(' ');
+                  },
+                  child: Text(
+                    'தமிழ்',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            _buildSpecialKey(
+              flex: 10,
+              isDark: isDark,
+              onTap: controller.toggleShift,
+              child: Text(
+                'அ',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: controller.isShifted ? (isDark ? Colors.white : AppColors.accent) : (isDark ? Colors.grey[400] : Colors.grey[600]),
+                ),
+              ),
+            ),
+            _buildKey(
+              flex: 10,
+              text: '.',
+              onTap: () => controller.insertText('.'),
+              isDark: isDark,
+            ),
+            _buildActionButton(flex: 13, isDark: isDark, controller: controller),
+          ],
+        ),
+      ],
+    );
+  }
+
   Widget _buildSymbolsLayout(bool isDark, AppKeyboardController controller) {
     const row1 = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
     const row2 = ['@', '#', '₹', '%', '&', '-', '+', '(', ')', '/'];
@@ -607,6 +814,7 @@ class AppKeyboardView extends StatelessWidget {
     required VoidCallback onTap,
     required bool isDark,
     int flex = 1,
+    Color? customBg,
   }) {
     return Expanded(
       flex: flex,
@@ -615,6 +823,7 @@ class AppKeyboardView extends StatelessWidget {
         child: _InstantKeySurface(
           isDark: isDark,
           height: 54,
+          customBg: customBg,
           onTap: () {
             HapticFeedback.selectionClick();
             onTap();

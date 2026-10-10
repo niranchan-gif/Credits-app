@@ -58,6 +58,7 @@ class _AppKeyboardOverlayState extends State<AppKeyboardOverlay> with WidgetsBin
       case AppKeyboardMode.numeric:
         return 295.0; // 4 rows of 56px + toolbar + margins
       case AppKeyboardMode.qwerty:
+      case AppKeyboardMode.tamil:
       case AppKeyboardMode.symbols:
         return 315.0; // 4 rows of 54px + toolbar + margins
     }

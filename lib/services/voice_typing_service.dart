@@ -175,8 +175,8 @@ class VoiceTypingService extends ChangeNotifier {
         },
         listenOptions: stt.SpeechListenOptions(
           localeId: _currentLocaleId,
-          listenFor: const Duration(seconds: 45),
-          pauseFor: const Duration(seconds: 4),
+          listenFor: const Duration(seconds: 120),
+          pauseFor: const Duration(seconds: 10),
           cancelOnError: true,
           partialResults: true,
           listenMode: stt.ListenMode.dictation,

@@ -162,12 +162,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       borderRadius: 32,
       blur: 35,
       color: isDark
-          ? Colors.black.withValues(alpha: 0.5)
-          : Colors.white.withValues(alpha: 0.75),
+          ? AppColors.accent.withValues(alpha: 0.95)
+          : AppColors.accent.withValues(alpha: 0.95),
       border: Border.all(
-        color: isDark
-            ? Colors.white.withValues(alpha: 0.15)
-            : Colors.black.withValues(alpha: 0.08),
+        color: Colors.white.withValues(alpha: 0.2),
         width: 1.0,
       ),
       boxShadow: [
@@ -204,25 +202,25 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                               colors: [
-                                Colors.white.withValues(alpha: isDark ? 0.2 : 0.6),
-                                Colors.white.withValues(alpha: isDark ? 0.05 : 0.15),
+                                Colors.white.withValues(alpha: 0.15),
+                                Colors.white.withValues(alpha: 0.05),
                               ],
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.white.withValues(alpha: isDark ? 0.15 : 0.9),
+                                color: Colors.white.withValues(alpha: 0.1),
                                 blurRadius: 10,
                                 spreadRadius: -5,
                                 offset: const Offset(0, -5),
                               ),
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.08),
+                                color: Colors.black.withValues(alpha: 0.1),
                                 blurRadius: 8,
                                 offset: const Offset(0, 4),
                               ),
                             ],
                             border: Border.all(
-                              color: Colors.white.withValues(alpha: isDark ? 0.3 : 0.9),
+                              color: Colors.white.withValues(alpha: 0.2),
                               width: 1.2,
                             ),
                           ),
@@ -249,9 +247,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   Widget _navItem(IconData icon, String label, int index, double width) {
     final isSelected = _currentIndex == index;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final activeColor = isDark ? AppColors.accentLight : AppColors.accent;
-    final inactiveColor = isDark ? AppColors.textTertiaryDark : AppColors.textSecondary;
+    final activeColor = Colors.white;
+    final inactiveColor = Colors.white.withValues(alpha: 0.6);
 
     return GestureDetector(
       onTap: () {

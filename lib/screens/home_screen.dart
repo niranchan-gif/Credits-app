@@ -18,7 +18,8 @@ import 'add_borrower_screen.dart';
 import 'borrower_loans_screen.dart';
 import '../services/backup_freshness_service.dart';
 import '../widgets/app_keyboard/app_keyboard.dart';
-
+import '../widgets/app_keyboard/app_text_field.dart';
+import '../widgets/app_keyboard/app_keyboard_types.dart';
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -1522,6 +1523,8 @@ class _HomeScreenState extends State<HomeScreen> {
       final paidTodayLoanIds = await provider.getLoanIdsPaidToday(b.id ?? 0);
       
       final amountCtrl = TextEditingController();
+      final amountFocus = FocusNode();
+      amountFocus.bindAppKeyboard(controller: amountCtrl, type: AppKeyboardType.number);
       int? selectedLoanId = activeLoans.length == 1 ? activeLoans.first.id : null;
       
       if (selectedLoanId != null) {
@@ -1583,7 +1586,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 12),
                   TextField(
                     controller: amountCtrl,
-                    keyboardType: TextInputType.number,
+                    focusNode: amountFocus,
+                    keyboardType: TextInputType.none,
                     autofocus: activeLoans.length == 1,
                     decoration: const InputDecoration(
                       labelText: 'Amount (₹)',
