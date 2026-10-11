@@ -22,6 +22,21 @@ class GoogleDriveService {
   /// Get current signed-in Google account
   GoogleSignInAccount? get currentUser => _googleSignIn.currentUser;
 
+  /// Gets an access token from the already-authorized Google session for
+  /// Firebase telemetry. It performs silent sign-in only, requests no new
+  /// scopes, and does not alter Drive connection state or trigger UI.
+  Future<String?> getMonitoringAccessToken() async {
+    try {
+      final account = await _googleSignIn.signInSilently() ?? _googleSignIn.currentUser;
+      if (account == null) return null;
+      final authentication = await account.authentication;
+      return authentication.accessToken;
+    } catch (error) {
+      debugPrint('GoogleDriveService: Monitoring token unavailable: $error');
+      return null;
+    }
+  }
+
   /// Check if the user is connected
   Future<bool> isConnected() async {
     final prefs = await SharedPreferences.getInstance();
