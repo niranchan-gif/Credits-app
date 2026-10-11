@@ -10,6 +10,7 @@ import '../app_lock_wrapper.dart';
 import '../auth/sign_in_screen.dart';
 import '../main_navigation_screen.dart';
 import '../../services/update_service.dart';
+import '../../services/firebase_user_monitor_service.dart';
 import '../force_update_screen.dart';
 import '../../utils/app_colors.dart';
 import 'package:provider/provider.dart';
@@ -95,6 +96,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     );
 
     _animController.forward();
+
+    // Best-effort Firebase user/version telemetry; never blocks startup.
+    // It silently reuses the existing Drive Google account and does not show
+    // another sign-in prompt.
+    unawaited(FirebaseUserMonitorService.instance.trackCurrentDriveAccount());
 
     // Start background services asynchronously without blocking the animation ticker
     _initBackendConcurrently();

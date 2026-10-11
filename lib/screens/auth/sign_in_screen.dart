@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -10,6 +12,7 @@ import '../../providers/theme_provider.dart';
 import '../../providers/loan_provider.dart';
 import '../../database/db_helper.dart';
 import '../../services/google_drive_service.dart';
+import '../../services/firebase_user_monitor_service.dart';
 import '../../services/json_restore_service.dart';
 import '../../services/google_drive_json_backup_service.dart';
 import '../../utils/app_colors.dart';
@@ -92,6 +95,10 @@ class _SignInScreenState extends State<SignInScreen>
         });
         return;
       }
+
+      // Reuse the same successful Google account for Firebase monitoring.
+      // Firestore failures must never interrupt Drive backup/restore or sign-in.
+      unawaited(FirebaseUserMonitorService.instance.trackGoogleAccount(account));
 
       if (mounted) {
         HapticFeedback.lightImpact();

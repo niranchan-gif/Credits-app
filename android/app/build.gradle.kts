@@ -39,6 +39,13 @@ flutter {
     source = "../.."
 }
 
+// Firebase configuration is optional during development. Once
+// android/app/google-services.json is added from the Firebase Console,
+// apply the already-declared Google Services plugin to generate Firebase options.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
