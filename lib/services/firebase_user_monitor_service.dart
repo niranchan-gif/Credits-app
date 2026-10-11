@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -19,16 +17,19 @@ class FirebaseUserMonitorService {
       FirebaseUserMonitorService._();
 
   bool _initialized = false;
-  bool _initializationAttempted = false;
+  Future<bool>? _initialization;
 
   /// Initializes the default Firebase app. Firebase configuration is supplied
   /// by the platform configuration (for Android: google-services.json).
   /// Missing config simply disables monitoring; it never blocks app startup.
-  Future<bool> initialize() async {
-    if (_initialized) return true;
-    if (_initializationAttempted) return false;
-    _initializationAttempted = true;
+  Future<bool> initialize() {
+    if (_initialized) return Future<bool>.value(true);
+    // Share an in-flight initialization attempt so a sign-in completing while
+    // startup is still initializing Firebase does not silently skip tracking.
+    return _initialization ??= _initialize();
+  }
 
+  Future<bool> _initialize() async {
     try {
       if (Firebase.apps.isEmpty) {
         await Firebase.initializeApp();
