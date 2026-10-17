@@ -171,17 +171,21 @@ class _InvestmentScreenState extends State<InvestmentScreen> {
                     TextField(
                       controller: _addAmountCtrl,
                       focusNode: _addAmountFocusNode,
-                      keyboardType: TextInputType.none,
+                      keyboardType: AppKeyboardController.instance.useNativeKeyboard
+                          ? const TextInputType.numberWithOptions(decimal: true)
+                          : TextInputType.none,
                       showCursor: true,
                       onTap: () {
-                        AppKeyboardController.instance.attach(
-                          controller: _addAmountCtrl,
-                          focusNode: _addAmountFocusNode,
-                          type: AppKeyboardType.number,
-                          action: AppKeyboardAction.next,
-                          label: 'Investment Amount',
-                          onAction: () => _addNotesFocusNode.requestFocus(),
-                        );
+                        if (!AppKeyboardController.instance.useNativeKeyboard) {
+                          AppKeyboardController.instance.attach(
+                            controller: _addAmountCtrl,
+                            focusNode: _addAmountFocusNode,
+                            type: AppKeyboardType.number,
+                            action: AppKeyboardAction.next,
+                            label: 'Investment Amount',
+                            onAction: () => _addNotesFocusNode.requestFocus(),
+                          );
+                        }
                       },
                       style: TextStyle(
                         fontSize: 24,
@@ -281,17 +285,21 @@ class _InvestmentScreenState extends State<InvestmentScreen> {
                     TextField(
                       controller: _addNotesCtrl,
                       focusNode: _addNotesFocusNode,
-                      keyboardType: TextInputType.none,
+                      keyboardType: AppKeyboardController.instance.useNativeKeyboard
+                          ? TextInputType.text
+                          : TextInputType.none,
                       showCursor: true,
                       onTap: () {
-                        AppKeyboardController.instance.attach(
-                          controller: _addNotesCtrl,
-                          focusNode: _addNotesFocusNode,
-                          type: AppKeyboardType.text,
-                          action: AppKeyboardAction.done,
-                          label: 'Notes / Source',
-                          onAction: () => AppKeyboardController.instance.hide(),
-                        );
+                        if (!AppKeyboardController.instance.useNativeKeyboard) {
+                          AppKeyboardController.instance.attach(
+                            controller: _addNotesCtrl,
+                            focusNode: _addNotesFocusNode,
+                            type: AppKeyboardType.text,
+                            action: AppKeyboardAction.done,
+                            label: 'Notes / Source',
+                            onAction: () => AppKeyboardController.instance.hide(),
+                          );
+                        }
                       },
                       style: TextStyle(fontSize: 14, color: onSurface),
                       decoration: InputDecoration(
@@ -706,19 +714,23 @@ class _InvestmentScreenState extends State<InvestmentScreen> {
           child: TextField(
             controller: _searchCtrl,
             focusNode: _searchFocusNode,
-            keyboardType: TextInputType.none,
+            keyboardType: AppKeyboardController.instance.useNativeKeyboard
+                ? TextInputType.text
+                : TextInputType.none,
             showCursor: true,
             style: const TextStyle(fontSize: 13),
             onTap: () {
-              AppKeyboardController.instance.attach(
-                controller: _searchCtrl,
-                focusNode: _searchFocusNode,
-                type: AppKeyboardType.text,
-                action: AppKeyboardAction.search,
-                label: 'Search investments',
-                onChanged: (v) => setState(() => _searchQuery = v),
-                onAction: () => AppKeyboardController.instance.hide(),
-              );
+              if (!AppKeyboardController.instance.useNativeKeyboard) {
+                AppKeyboardController.instance.attach(
+                  controller: _searchCtrl,
+                  focusNode: _searchFocusNode,
+                  type: AppKeyboardType.text,
+                  action: AppKeyboardAction.search,
+                  label: 'Search investments',
+                  onChanged: (v) => setState(() => _searchQuery = v),
+                  onAction: () => AppKeyboardController.instance.hide(),
+                );
+              }
             },
             onChanged: (v) => setState(() => _searchQuery = v),
             decoration: InputDecoration(

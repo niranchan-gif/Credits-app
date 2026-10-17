@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../models/borrower.dart';
 import '../models/loan.dart';
 import '../models/payment.dart';
+import '../models/day_note.dart';
 import '../utils/date_parser.dart';
 import '../services/backup_freshness_service.dart';
 import '../services/json_backup_service.dart';
@@ -138,7 +139,7 @@ class DBHelper {
     debugPrint('Database: Opening at $path');
     return await openDatabase(
       path,
-      version: 15,
+      version: 16,
       onCreate: _createTables,
       onUpgrade: _upgradeTables,
       onOpen: (db) async {
@@ -152,6 +153,23 @@ class DBHelper {
         await db.execute('CREATE INDEX IF NOT EXISTS idx_borrowers_created ON borrowers(created_at)');
         await db.execute('CREATE INDEX IF NOT EXISTS idx_loans_created ON loans(created_at)');
         await db.execute('CREATE INDEX IF NOT EXISTS idx_payments_created ON payments(created_at)');
+        
+        // Ensure day_notes table and indexes exist
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS day_notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sync_id TEXT NOT NULL,
+            date TEXT NOT NULL,
+            notes TEXT NOT NULL,
+            updated_at INTEGER NOT NULL DEFAULT 0,
+            created_at INTEGER NOT NULL DEFAULT 0,
+            last_modified_device TEXT,
+            is_deleted INTEGER NOT NULL DEFAULT 0
+          )
+        ''');
+        await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_day_notes_sync_id ON day_notes(sync_id)');
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_day_notes_date ON day_notes(date)');
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_day_notes_created ON day_notes(created_at)');
         
         // Dynamic Schema Validation and Normalization (Run Once)
         try {
@@ -195,6 +213,10 @@ class DBHelper {
       ],
       'service_costs': [
         'id', 'sync_id', 'amount', 'description', 'dateCreated', 'createdBy', 'timestamp', 'is_deleted'
+      ],
+      'day_notes': [
+        'id', 'sync_id', 'date', 'notes',
+        'updated_at', 'created_at', 'last_modified_device', 'is_deleted'
       ],
     };
 
@@ -371,7 +393,7 @@ class DBHelper {
   Future<Database> createEmptyDatabase(String path) async {
     return await openDatabase(
       path,
-      version: 15,
+      version: 16,
       onCreate: _createTables,
     );
   }
@@ -477,6 +499,19 @@ class DBHelper {
     ''');
 
     await db.execute('''
+      CREATE TABLE day_notes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sync_id TEXT NOT NULL,
+        date TEXT NOT NULL,
+        notes TEXT NOT NULL,
+        updated_at INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL DEFAULT 0,
+        last_modified_device TEXT,
+        is_deleted INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+
+    await db.execute('''
       CREATE TABLE IF NOT EXISTS restore_meta (
         key TEXT PRIMARY KEY,
         value TEXT
@@ -491,6 +526,7 @@ class DBHelper {
     await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_investments_sync_id ON investments(sync_id)');
     await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_expenses_sync_id ON expenses(sync_id)');
     await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_service_costs_sync_id ON service_costs(sync_id)');
+    await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_day_notes_sync_id ON day_notes(sync_id)');
     
     await db.execute('CREATE INDEX IF NOT EXISTS idx_borrowers_code ON borrowers(borrower_code)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_borrowers_phone ON borrowers(phone)');
@@ -498,6 +534,8 @@ class DBHelper {
     await db.execute('CREATE INDEX IF NOT EXISTS idx_payments_loan ON payments(loan_id)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_payments_date ON payments(payment_date)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_service_costs_date ON service_costs(dateCreated)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_day_notes_date ON day_notes(date)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_day_notes_created ON day_notes(created_at)');
 
     debugPrint('DBHelper ▶ Tables and indexes created successfully.');
   }
@@ -696,6 +734,26 @@ class DBHelper {
     if (oldVersion < 15) {
       debugPrint('DBHelper ▶ Migrating to version 15 (Adding is_closed flag to borrowers)');
       await db.execute('ALTER TABLE borrowers ADD COLUMN is_closed INTEGER NOT NULL DEFAULT 0');
+    }
+
+    // Migrate to version 16: create day_notes table
+    if (oldVersion < 16) {
+      debugPrint('DBHelper ▶ Migrating to version 16 (Create day_notes table)');
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS day_notes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          sync_id TEXT NOT NULL,
+          date TEXT NOT NULL,
+          notes TEXT NOT NULL,
+          updated_at INTEGER NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL DEFAULT 0,
+          last_modified_device TEXT,
+          is_deleted INTEGER NOT NULL DEFAULT 0
+        )
+      ''');
+      await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_day_notes_sync_id ON day_notes(sync_id)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_day_notes_date ON day_notes(date)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_day_notes_created ON day_notes(created_at)');
     }
 
     debugPrint('DBHelper ▶ Migration completed successfully.');
@@ -1763,7 +1821,7 @@ class DBHelper {
           "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='restore_meta'"
         )) ?? 0;
         if (restoreMetaExists == 0) {
-          print('restore_meta missing - repairing');
+          debugPrint('restore_meta missing - repairing');
           await db.execute('''
             CREATE TABLE IF NOT EXISTS restore_meta (
               key TEXT PRIMARY KEY,
@@ -1972,6 +2030,108 @@ class DBHelper {
       'newBorrowers': List<Map<String, dynamic>>.from(newBorrowers),
       'closedLoans': List<Map<String, dynamic>>.from(closedLoans),
     };
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Day Notes Operations
+  // ─────────────────────────────────────────────────────────────
+
+  Future<DayNote?> getDayNote(DateTime date) async {
+    final db = await database;
+    final ymd = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    final result = await db.query(
+      'day_notes',
+      where: 'date = ? AND COALESCE(is_deleted, 0) = 0',
+      whereArgs: [ymd],
+      limit: 1,
+    );
+    if (result.isNotEmpty) {
+      return DayNote.fromMap(result.first);
+    }
+    return null;
+  }
+
+  Future<void> saveDayNote(DateTime date, String notesText) async {
+    await _checkReadOnly();
+    final db = await database;
+    final ymd = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    final trimmed = notesText.trim();
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+
+    final existing = await db.query(
+      'day_notes',
+      where: 'date = ?',
+      whereArgs: [ymd],
+      limit: 1,
+    );
+
+    if (existing.isNotEmpty) {
+      final id = existing.first['id'] as int;
+      if (trimmed.isEmpty) {
+        await db.update(
+          'day_notes',
+          {
+            'notes': '',
+            'is_deleted': 1,
+            'updated_at': nowMs,
+          },
+          where: 'id = ?',
+          whereArgs: [id],
+        );
+      } else {
+        await db.update(
+          'day_notes',
+          {
+            'notes': trimmed,
+            'is_deleted': 0,
+            'updated_at': nowMs,
+          },
+          where: 'id = ?',
+          whereArgs: [id],
+        );
+      }
+    } else {
+      if (trimmed.isNotEmpty) {
+        final newNote = DayNote(
+          date: ymd,
+          notes: trimmed,
+          createdAt: nowMs,
+          updatedAt: nowMs,
+        );
+        await db.insert('day_notes', newNote.toMap());
+      }
+    }
+
+    _notifyMutationChanged();
+  }
+
+  Future<void> deleteDayNote(DateTime date) async {
+    await _checkReadOnly();
+    final db = await database;
+    final ymd = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+
+    await db.update(
+      'day_notes',
+      {
+        'is_deleted': 1,
+        'updated_at': nowMs,
+      },
+      where: 'date = ?',
+      whereArgs: [ymd],
+    );
+
+    _notifyMutationChanged();
+  }
+
+  Future<List<DayNote>> getAllDayNotes() async {
+    final db = await database;
+    final result = await db.query(
+      'day_notes',
+      where: 'COALESCE(is_deleted, 0) = 0',
+      orderBy: 'date DESC, id DESC',
+    );
+    return result.map((m) => DayNote.fromMap(m)).toList();
   }
 }
 

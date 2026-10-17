@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -7,10 +8,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/loan_provider.dart';
 import '../models/borrower.dart';
+import '../models/day_note.dart';
 import '../utils/app_colors.dart';
 import '../utils/fmt.dart';
 import '../database/db_helper.dart';
 import '../utils/date_parser.dart';
+import '../services/google_drive_excel_backup_service.dart';
 
 class QuickAddDialog extends StatefulWidget {
   const QuickAddDialog({super.key});
@@ -37,13 +40,39 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
   static String? _persistedLastCode;
   String? _lastEnteredCode;
   double _dayTotal = 0.0;
+  bool _hasDayNote = false;
+
+  Timer? _paymentCheckTimer;
+  final Map<String, Borrower> _borrowerLookup = {};
+  List<Borrower>? _lastBorrowersRef;
+
+  void _rebuildBorrowerLookup(List<Borrower> borrowers) {
+    _borrowerLookup.clear();
+    for (final b in borrowers) {
+      if (b.isDummy) continue;
+      final code = b.borrowerCode.trim();
+      if (code.isNotEmpty) {
+        _borrowerLookup[code] = b;
+        final numCode = int.tryParse(code);
+        if (numCode != null) {
+          _borrowerLookup[numCode.toString()] = b;
+        }
+      }
+      final disp = b.displayBorrowerCode.trim();
+      if (disp.isNotEmpty) {
+        _borrowerLookup[disp] = b;
+        final numDisp = int.tryParse(disp);
+        if (numDisp != null) {
+          _borrowerLookup[numDisp.toString()] = b;
+        }
+      }
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     _lastEnteredCode = _persistedLastCode;
-    _amountController.addListener(_onFieldControllerChanged);
-    _codeController.addListener(_onFieldControllerChanged);
     _loadPersistedLastCode();
     // Fetch borrowers if empty just in case
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -51,6 +80,7 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
         context.read<LoanProvider>().loadBorrowers();
       }
       _loadDayTotal();
+      _loadDayNote();
       _codeFocusNode.requestFocus();
     });
   }
@@ -95,32 +125,54 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
     } catch (_) {}
   }
 
+  Future<void> _loadDayNote() async {
+    if (!mounted) return;
+    try {
+      final note = await context.read<LoanProvider>().getDayNote(_selectedDate);
+      if (mounted) {
+        setState(() {
+          _hasDayNote = note != null && note.notes.trim().isNotEmpty && !note.isDeleted;
+        });
+      }
+    } catch (_) {}
+  }
+
   bool _isToday(DateTime date) {
     final now = DateTime.now();
     return date.year == now.year && date.month == now.month && date.day == now.day;
   }
 
-  void _onFieldControllerChanged() {
-    if (mounted) setState(() {});
-  }
-
-  void _checkIfPaidOnSelectedDate() {
+  void _checkIfPaidOnSelectedDate({bool immediate = false}) {
+    _paymentCheckTimer?.cancel();
     if (_matchedBorrower == null || _isInactive) return;
     
-    final provider = context.read<LoanProvider>();
-    provider.hasPaymentOnDate(_matchedBorrower!.id ?? 0, _selectedDate).then((hasPaid) {
-      if (mounted && _matchedBorrower != null) {
-        setState(() {
-          _hasPaidToday = hasPaid;
-        });
-      }
-    });
+    final borrowerId = _matchedBorrower!.id ?? 0;
+    final date = _selectedDate;
+
+    void runQuery() {
+      if (!mounted) return;
+      final provider = context.read<LoanProvider>();
+      provider.hasPaymentOnDate(borrowerId, date).then((hasPaid) {
+        if (mounted && _matchedBorrower?.id == borrowerId && _selectedDate == date) {
+          if (_hasPaidToday != hasPaid) {
+            setState(() {
+              _hasPaidToday = hasPaid;
+            });
+          }
+        }
+      });
+    }
+
+    if (immediate) {
+      runQuery();
+    } else {
+      _paymentCheckTimer = Timer(const Duration(milliseconds: 180), runQuery);
+    }
   }
 
   @override
   void dispose() {
-    _amountController.removeListener(_onFieldControllerChanged);
-    _codeController.removeListener(_onFieldControllerChanged);
+    _paymentCheckTimer?.cancel();
     _codeController.dispose();
     _amountController.dispose();
     _codeFocusNode.dispose();
@@ -129,44 +181,50 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
   }
 
   void _onCodeChanged(String value) {
-    if (value.trim().isEmpty) {
-      setState(() {
-        _matchedBorrower = null;
-        _hasPaidToday = false;
-        _isInactive = false;
-      });
+    final code = value.trim();
+    if (code.isEmpty) {
+      _paymentCheckTimer?.cancel();
+      if (_matchedBorrower != null || _hasPaidToday || _isInactive) {
+        setState(() {
+          _matchedBorrower = null;
+          _hasPaidToday = false;
+          _isInactive = false;
+        });
+      }
       return;
     }
     
-    final provider = context.read<LoanProvider>();
-    final code = value.trim();
-    try {
-      final inputNum = int.tryParse(code);
-      final borrower = provider.borrowers.firstWhere(
-        (b) =>
-            (b.borrowerCode == code ||
-                b.displayBorrowerCode == code ||
-                (inputNum != null && int.tryParse(b.displayBorrowerCode) == inputNum)) &&
-            !b.isDummy,
-      );
-      
-      final inactive = borrower.isClosed || borrower.totalBalance <= 0;
-      
+    final inputNum = int.tryParse(code);
+    final borrower = _borrowerLookup[code] ??
+        (inputNum != null ? _borrowerLookup[inputNum.toString()] : null);
+    
+    if (borrower == null) {
+      _paymentCheckTimer?.cancel();
+      if (_matchedBorrower != null || _hasPaidToday || _isInactive) {
+        setState(() {
+          _matchedBorrower = null;
+          _hasPaidToday = false;
+          _isInactive = false;
+        });
+      }
+      return;
+    }
+
+    final inactive = borrower.isClosed || borrower.totalBalance <= 0;
+    final borrowerChanged = _matchedBorrower?.id != borrower.id || _isInactive != inactive;
+    
+    if (borrowerChanged) {
       setState(() {
         _matchedBorrower = borrower;
         _isInactive = inactive;
         _hasPaidToday = false;
       });
-      
-      if (!inactive) {
-        _checkIfPaidOnSelectedDate();
-      }
-    } catch (_) {
-      setState(() {
-        _matchedBorrower = null;
-        _hasPaidToday = false;
-        _isInactive = false;
-      });
+    }
+    
+    if (!inactive) {
+      _checkIfPaidOnSelectedDate();
+    } else {
+      _paymentCheckTimer?.cancel();
     }
   }
 
@@ -322,7 +380,8 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
       });
       
       _loadDayTotal();
-      _checkIfPaidOnSelectedDate();
+      _loadDayNote();
+      _checkIfPaidOnSelectedDate(immediate: true);
       
       // Move focus back to amount if a borrower is already matched
       if (_matchedBorrower != null) {
@@ -349,7 +408,7 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
           isDark: isDark,
           onChanged: () {
             _loadDayTotal();
-            _checkIfPaidOnSelectedDate();
+            _checkIfPaidOnSelectedDate(immediate: true);
           },
         );
       },
@@ -357,7 +416,8 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
 
     if (mounted) {
       _loadDayTotal();
-      _checkIfPaidOnSelectedDate();
+      _loadDayNote();
+      _checkIfPaidOnSelectedDate(immediate: true);
     }
   }
 
@@ -924,51 +984,58 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
             ],
           ),
           const SizedBox(height: 4),
-          // Action button (Next / Save)
+          // Action button row: Notes button + Next / Save button
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 2.5, vertical: 2.5),
-            child: SizedBox(
-              width: double.infinity,
-              height: 46,
-              child: Material(
-                color: _isInactive ? Colors.grey : AppColors.accent,
-                borderRadius: BorderRadius.circular(14),
-                elevation: isDark ? 1 : 2,
-                child: InkWell(
-                  onTap: _onNext,
-                  borderRadius: BorderRadius.circular(14),
-                  child: Container(
-                    decoration: BoxDecoration(
+            child: Row(
+              children: [
+                _buildNotesButton(isDark),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: SizedBox(
+                    height: 46,
+                    child: Material(
+                      color: _isInactive ? Colors.grey : AppColors.accent,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: _isInactive ? Colors.grey : AppColors.accent,
-                        width: 1.2,
-                      ),
-                    ),
-                    alignment: Alignment.center,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          isCode ? 'Next' : 'Save',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: 0.5,
+                      elevation: isDark ? 1 : 2,
+                      child: InkWell(
+                        onTap: _onNext,
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: _isInactive ? Colors.grey : AppColors.accent,
+                              width: 1.2,
+                            ),
+                          ),
+                          alignment: Alignment.center,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                isCode ? 'Next' : 'Save',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Icon(
+                                isCode ? LucideIcons.arrowRight : LucideIcons.checkCircle,
+                                size: 18,
+                                color: Colors.white,
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        Icon(
-                          isCode ? LucideIcons.arrowRight : LucideIcons.checkCircle,
-                          size: 18,
-                          color: Colors.white,
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
-              ),
+              ],
             ),
           ),
         ],
@@ -976,25 +1043,424 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
     );
   }
 
+  /// Keyboard Notes button matching tactile numpad styling with badge indicator
+  Widget _buildNotesButton(bool isDark) {
+    final hasNote = _hasDayNote;
+    return SizedBox(
+      width: 105,
+      height: 46,
+      child: Material(
+        color: hasNote
+            ? (isDark ? const Color(0xFF382E1E) : const Color(0xFFFEF3C7))
+            : (isDark ? const Color(0xFF2C3038) : const Color(0xFFDEE3EA)),
+        borderRadius: BorderRadius.circular(14),
+        elevation: isDark ? 1 : 2,
+        child: InkWell(
+          onTap: () => _showDayNotesDialog(context),
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: hasNote
+                    ? const Color(0xFFF59E0B)
+                    : (isDark
+                        ? Colors.white.withValues(alpha: 0.12)
+                        : Colors.black.withValues(alpha: 0.1)),
+                width: hasNote ? 1.4 : 1.2,
+              ),
+            ),
+            alignment: Alignment.center,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      LucideIcons.fileText,
+                      size: 17,
+                      color: hasNote
+                          ? const Color(0xFFF59E0B)
+                          : (isDark ? Colors.white.withValues(alpha: 0.9) : const Color(0xFF0F172A)),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      'Notes',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: hasNote
+                            ? (isDark ? const Color(0xFFFBBF24) : const Color(0xFFB45309))
+                            : (isDark ? Colors.white.withValues(alpha: 0.9) : const Color(0xFF0F172A)),
+                      ),
+                    ),
+                  ],
+                ),
+                if (hasNote)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      width: 7,
+                      height: 7,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF59E0B),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showDayNotesDialog(BuildContext parentContext) async {
+    HapticFeedback.mediumImpact();
+    final isDark = Theme.of(parentContext).brightness == Brightness.dark;
+    DateTime dialogDate = _selectedDate;
+    final loanProvider = parentContext.read<LoanProvider>();
+    final messenger = ScaffoldMessenger.of(parentContext);
+    
+    // Load initial note for dialogDate
+    DayNote? note = await loanProvider.getDayNote(dialogDate);
+    final notesController = TextEditingController(text: note?.notes ?? '');
+    
+    if (!parentContext.mounted) return;
+
+    await showModalBottomSheet<void>(
+      context: parentContext,
+      isScrollControlled: true,
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
+      builder: (modalContext) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final mediaQuery = MediaQuery.of(context);
+            final screenWidth = mediaQuery.size.width;
+            final bottomInset = mediaQuery.viewInsets.bottom;
+            final hasNote = note != null && note!.notes.trim().isNotEmpty && !note!.isDeleted;
+            
+            return Padding(
+              padding: EdgeInsets.only(bottom: bottomInset),
+              child: SizedBox(
+                width: screenWidth,
+                child: Material(
+                  color: isDark ? const Color(0xFF1C1E22) : Colors.white,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                  elevation: 12,
+                  child: SafeArea(
+                    top: false,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: mediaQuery.size.height * 0.85,
+                      ),
+                      child: SingleChildScrollView(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Drag handle
+                              Center(
+                                child: Container(
+                                  width: 38,
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                    color: isDark ? Colors.grey[700] : Colors.grey[300],
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+
+                              // Header Row
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: hasNote
+                                          ? const Color(0xFFF59E0B).withValues(alpha: 0.15)
+                                          : (isDark ? Colors.white.withValues(alpha: 0.08) : AppColors.accent.withValues(alpha: 0.1)),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      LucideIcons.edit3,
+                                      color: hasNote ? const Color(0xFFF59E0B) : (isDark ? Colors.white : AppColors.accent),
+                                      size: 20,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Day Closing Notes',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          DateFormat('EEEE, dd MMM yyyy').format(dialogDate),
+                                          style: TextStyle(
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w500,
+                                            color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  // Date Picker button to switch date if needed
+                                  OutlinedButton.icon(
+                                    onPressed: () async {
+                                      final picked = await showDatePicker(
+                                        context: modalContext,
+                                        initialDate: dialogDate,
+                                        firstDate: DateTime(2020),
+                                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                                      );
+                                      if (picked != null && picked != dialogDate) {
+                                        final newNote = await loanProvider.getDayNote(picked);
+                                        setModalState(() {
+                                          dialogDate = picked;
+                                          note = newNote;
+                                          notesController.text = newNote?.notes ?? '';
+                                        });
+                                      }
+                                    },
+                                    icon: const Icon(LucideIcons.calendar, size: 14),
+                                    label: const Text('Change Date', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      minimumSize: Size.zero,
+                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      side: BorderSide(
+                                        color: isDark ? Colors.white24 : Colors.black12,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Notes Text Field
+                              TextFormField(
+                                controller: notesController,
+                                minLines: 3,
+                                maxLines: 5,
+                                maxLength: 500,
+                                style: const TextStyle(fontSize: 14.5),
+                                decoration: InputDecoration(
+                                  hintText: 'Enter your notes for this day (e.g. closing tally, special borrower promises, reminders)...',
+                                  hintStyle: TextStyle(
+                                    fontSize: 13,
+                                    color: isDark ? Colors.grey[500] : Colors.grey[400],
+                                  ),
+                                  filled: true,
+                                  fillColor: isDark ? const Color(0xFF25282E) : const Color(0xFFF3F4F6),
+                                  contentPadding: const EdgeInsets.all(14),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                    borderSide: BorderSide(
+                                      color: isDark ? Colors.white12 : Colors.black12,
+                                    ),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                    borderSide: BorderSide(
+                                      color: isDark ? Colors.white12 : Colors.black12,
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                    borderSide: const BorderSide(
+                                      color: AppColors.accent,
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+
+                              // Buttons Row
+                              Row(
+                                children: [
+                                  if (hasNote) ...[
+                                    TextButton.icon(
+                                      onPressed: () async {
+                                        final confirm = await showDialog<bool>(
+                                          context: modalContext,
+                                          builder: (ctx) => AlertDialog(
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                            title: const Text('Delete Day Note?'),
+                                            content: Text('Are you sure you want to delete the note for ${DateFormat('dd MMM yyyy').format(dialogDate)}?'),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () => Navigator.of(ctx).pop(false),
+                                                style: TextButton.styleFrom(minimumSize: Size.zero),
+                                                child: const Text('Cancel'),
+                                              ),
+                                              TextButton(
+                                                onPressed: () => Navigator.of(ctx).pop(true),
+                                                style: TextButton.styleFrom(minimumSize: Size.zero),
+                                                child: const Text('Delete', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold)),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                        if (confirm == true) {
+                                          await loanProvider.deleteDayNote(dialogDate);
+                                          if (dialogDate.year == _selectedDate.year &&
+                                              dialogDate.month == _selectedDate.month &&
+                                              dialogDate.day == _selectedDate.day) {
+                                            _loadDayNote();
+                                          }
+                                          if (modalContext.mounted) {
+                                            Navigator.of(modalContext).pop();
+                                          }
+                                          if (mounted) {
+                                            messenger.showSnackBar(
+                                              SnackBar(
+                                                content: Text('Note deleted for ${DateFormat('dd MMM yyyy').format(dialogDate)}'),
+                                                behavior: SnackBarBehavior.floating,
+                                                duration: const Duration(seconds: 2),
+                                              ),
+                                            );
+                                          }
+                                        }
+                                      },
+                                      style: TextButton.styleFrom(
+                                        minimumSize: Size.zero,
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      ),
+                                      icon: const Icon(LucideIcons.trash2, size: 15, color: AppColors.error),
+                                      label: const Text('Delete', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold, fontSize: 13)),
+                                    ),
+                                    const Spacer(),
+                                  ] else ...[
+                                    const Spacer(),
+                                  ],
+                                  TextButton(
+                                    onPressed: () => Navigator.of(modalContext).pop(),
+                                    style: TextButton.styleFrom(
+                                      minimumSize: Size.zero,
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                    child: Text(
+                                      'Cancel',
+                                      style: TextStyle(
+                                        color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ElevatedButton.icon(
+                                    onPressed: () async {
+                                      final text = notesController.text.trim();
+                                      await loanProvider.saveDayNote(dialogDate, text);
+                                      
+                                      // Trigger immediate Drive Excel backup as well in background
+                                      try {
+                                        GoogleDriveExcelBackupService().performBackup();
+                                      } catch (_) {}
+
+                                      if (dialogDate.year == _selectedDate.year &&
+                                          dialogDate.month == _selectedDate.month &&
+                                          dialogDate.day == _selectedDate.day) {
+                                        _loadDayNote();
+                                      }
+
+                                      if (modalContext.mounted) {
+                                        Navigator.of(modalContext).pop();
+                                      }
+                                      if (mounted) {
+                                        messenger.showSnackBar(
+                                          SnackBar(
+                                            content: Row(
+                                              children: [
+                                                const Icon(LucideIcons.checkCircle, color: Colors.white, size: 17),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: Text(
+                                                    'Note saved for ${DateFormat('dd MMM yyyy').format(dialogDate)} & synced to GDrive',
+                                                    style: const TextStyle(fontWeight: FontWeight.w600),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            backgroundColor: const Color(0xFF059669),
+                                            behavior: SnackBarBehavior.floating,
+                                            duration: const Duration(seconds: 3),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                    icon: const Icon(LucideIcons.check, size: 16, color: Colors.white),
+                                    label: const Text('Save Note', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.accent,
+                                      foregroundColor: Colors.white,
+                                      minimumSize: Size.zero,
+                                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+    final borrowers = context.watch<LoanProvider>().borrowers;
+    if (!identical(_lastBorrowersRef, borrowers)) {
+      _rebuildBorrowerLookup(borrowers);
+      _lastBorrowersRef = borrowers;
+    }
+
     return Dialog.fullscreen(
       backgroundColor: isDark ? AppColors.backgroundDark : AppColors.background,
       child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Top Form Elements - All boxes are static with fixed dimensions
-                Expanded(
-                  child: SingleChildScrollView(
-                    physics: const ClampingScrollPhysics(),
-                    child: Column(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Top Form Elements - RepaintBoundary isolates form changes from numpad
+                    Expanded(
+                      child: RepaintBoundary(
+                        child: SingleChildScrollView(
+                          physics: const ClampingScrollPhysics(),
+                          child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         // Header
@@ -1239,6 +1705,9 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
                                     readOnly: true,
                                     showCursor: true,
                                     keyboardType: TextInputType.none,
+                                    textInputAction: TextInputAction.next,
+                                    onFieldSubmitted: (_) => _onNext(),
+                                    onChanged: _onCodeChanged,
                                     enableInteractiveSelection: false,
                                     textAlignVertical: TextAlignVertical.center,
                                     style: const TextStyle(
@@ -1372,6 +1841,9 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
                             readOnly: true,
                             showCursor: true,
                             keyboardType: TextInputType.none,
+                            textInputAction: TextInputAction.done,
+                            onFieldSubmitted: (_) => _onNext(),
+                            onChanged: (_) => setState(() {}),
                             enableInteractiveSelection: false,
                             textAlignVertical: TextAlignVertical.center,
                             style: const TextStyle(
@@ -1451,11 +1923,14 @@ class _QuickAddDialogState extends State<QuickAddDialog> {
                     ),
                   ),
                 ),
+              ),
                 const SizedBox(height: 8),
 
                 // FIXED IN PLACE AT BOTTOM:
                 // Custom Themed NumPad
-                _buildNumPad(isDark),
+                RepaintBoundary(
+                  child: _buildNumPad(isDark),
+                ),
               ],
             ),
           ),
@@ -1484,6 +1959,7 @@ class _DayTransactionsSheetState extends State<_DayTransactionsSheet> {
   List<Map<String, dynamic>> _transactions = [];
   bool _loading = true;
   double _totalCollected = 0.0;
+  DayNote? _dayNote;
 
   @override
   void initState() {
@@ -1496,6 +1972,7 @@ class _DayTransactionsSheetState extends State<_DayTransactionsSheet> {
     setState(() => _loading = true);
     try {
       final data = await DBHelper().getDateRangeReport(widget.selectedDate, widget.selectedDate);
+      final dn = await DBHelper().getDayNote(widget.selectedDate);
       if (mounted) {
         final list = List<Map<String, dynamic>>.from(data['transactions']);
         list.sort((a, b) {
@@ -1511,6 +1988,7 @@ class _DayTransactionsSheetState extends State<_DayTransactionsSheet> {
         setState(() {
           _transactions = list;
           _totalCollected = (data['totalCollected'] as num?)?.toDouble() ?? 0.0;
+          _dayNote = dn;
           _loading = false;
         });
       }
@@ -1729,6 +2207,55 @@ class _DayTransactionsSheetState extends State<_DayTransactionsSheet> {
             height: 1,
             color: isDark ? Colors.grey[800] : Colors.grey[200],
           ),
+
+          // Day Note Banner if present
+          if (_dayNote != null && _dayNote!.notes.trim().isNotEmpty && !_dayNote!.isDeleted)
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF2E2718) : const Color(0xFFFEF3C7),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.45),
+                  width: 1.2,
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(top: 2),
+                    child: Icon(LucideIcons.fileText, size: 16, color: Color(0xFFF59E0B)),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Day Closing Note',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFF59E0B),
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          _dayNote!.notes,
+                          style: TextStyle(
+                            fontSize: 13,
+                            height: 1.35,
+                            color: isDark ? Colors.grey[200] : const Color(0xFF78350F),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
           // Content List
           Flexible(

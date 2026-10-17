@@ -98,18 +98,22 @@ class _CompletedLoansScreenState extends State<CompletedLoansScreen> {
                   child: TextField(
                     controller: _searchCtrl,
                     focusNode: _searchFocusNode,
-                    keyboardType: TextInputType.none,
+                    keyboardType: AppKeyboardController.instance.useNativeKeyboard
+                        ? TextInputType.text
+                        : TextInputType.none,
                     showCursor: true,
                     onTap: () {
-                      AppKeyboardController.instance.attach(
-                        controller: _searchCtrl,
-                        focusNode: _searchFocusNode,
-                        type: AppKeyboardType.text,
-                        action: AppKeyboardAction.search,
-                        label: 'Search completed loans',
-                        onChanged: _filter,
-                        onAction: () => AppKeyboardController.instance.hide(),
-                      );
+                      if (!AppKeyboardController.instance.useNativeKeyboard) {
+                        AppKeyboardController.instance.attach(
+                          controller: _searchCtrl,
+                          focusNode: _searchFocusNode,
+                          type: AppKeyboardType.text,
+                          action: AppKeyboardAction.search,
+                          label: 'Search completed loans',
+                          onChanged: _filter,
+                          onAction: () => AppKeyboardController.instance.hide(),
+                        );
+                      }
                     },
                     onChanged: _filter,
                     decoration: InputDecoration(

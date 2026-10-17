@@ -5,6 +5,7 @@ import '../models/loan.dart';
 import '../models/payment.dart';
 import '../models/expense.dart';
 import '../models/service_cost.dart';
+import '../models/day_note.dart';
 
 class LoanProvider extends ChangeNotifier {
   final DBHelper _db = DBHelper();
@@ -371,6 +372,30 @@ class LoanProvider extends ChangeNotifier {
     await _db.deleteServiceCost(id);
     
     await loadBorrowers();
+  }
+
+  // ── Day Notes ────────────────────────────────────────────────
+
+  /// Retrieve the note for a specific date
+  Future<DayNote?> getDayNote(DateTime date) async {
+    return await _db.getDayNote(date);
+  }
+
+  /// Save or update a note for a specific date and sync to Google Drive
+  Future<void> saveDayNote(DateTime date, String notesText) async {
+    await _db.saveDayNote(date, notesText);
+    notifyListeners();
+  }
+
+  /// Delete a note for a specific date
+  Future<void> deleteDayNote(DateTime date) async {
+    await _db.deleteDayNote(date);
+    notifyListeners();
+  }
+
+  /// Get all active day notes
+  Future<List<DayNote>> getAllDayNotes() async {
+    return await _db.getAllDayNotes();
   }
 }
 

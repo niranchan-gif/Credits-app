@@ -176,21 +176,25 @@ class _AddExpenseDialogState extends State<AddExpenseDialog>
                   TextField(
                     controller: _amountCtrl,
                     focusNode: _amountFocusNode,
-                    keyboardType: TextInputType.none,
+                    keyboardType: AppKeyboardController.instance.useNativeKeyboard
+                        ? const TextInputType.numberWithOptions(decimal: true)
+                        : TextInputType.none,
                     showCursor: true,
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(
                           RegExp(r'^\d+\.?\d{0,2}'))
                     ],
                     onTap: () {
-                      AppKeyboardController.instance.attach(
-                        controller: _amountCtrl,
-                        focusNode: _amountFocusNode,
-                        type: AppKeyboardType.number,
-                        action: AppKeyboardAction.next,
-                        label: 'Expense Amount',
-                        onAction: () => _notesFocusNode.requestFocus(),
-                      );
+                      if (!AppKeyboardController.instance.useNativeKeyboard) {
+                        AppKeyboardController.instance.attach(
+                          controller: _amountCtrl,
+                          focusNode: _amountFocusNode,
+                          type: AppKeyboardType.number,
+                          action: AppKeyboardAction.next,
+                          label: 'Expense Amount',
+                          onAction: () => _notesFocusNode.requestFocus(),
+                        );
+                      }
                     },
                     style: TextStyle(color: cs.onSurface),
                     decoration: InputDecoration(
@@ -250,17 +254,21 @@ class _AddExpenseDialogState extends State<AddExpenseDialog>
                   TextField(
                     controller: _notesCtrl,
                     focusNode: _notesFocusNode,
-                    keyboardType: TextInputType.none,
+                    keyboardType: AppKeyboardController.instance.useNativeKeyboard
+                        ? TextInputType.text
+                        : TextInputType.none,
                     showCursor: true,
                     onTap: () {
-                      AppKeyboardController.instance.attach(
-                        controller: _notesCtrl,
-                        focusNode: _notesFocusNode,
-                        type: AppKeyboardType.text,
-                        action: AppKeyboardAction.done,
-                        label: 'Notes',
-                        onAction: () => AppKeyboardController.instance.hide(),
-                      );
+                      if (!AppKeyboardController.instance.useNativeKeyboard) {
+                        AppKeyboardController.instance.attach(
+                          controller: _notesCtrl,
+                          focusNode: _notesFocusNode,
+                          type: AppKeyboardType.text,
+                          action: AppKeyboardAction.done,
+                          label: 'Notes',
+                          onAction: () => AppKeyboardController.instance.hide(),
+                        );
+                      }
                     },
                     style: TextStyle(color: cs.onSurface),
                     decoration: InputDecoration(

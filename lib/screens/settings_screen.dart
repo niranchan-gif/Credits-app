@@ -22,6 +22,7 @@ import 'package:provider/provider.dart';
 import 'backup_restore_screen.dart';
 import 'auth/sign_in_screen.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import '../widgets/app_keyboard/app_keyboard_controller.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -35,6 +36,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isLockEnabled = false;
   bool _isBiometricEnabled = false;
   bool _hasBiometricHardware = false;
+  bool _useNativeKeyboard = false;
   bool _isLoading = true;
   bool _isGenerating = false;
   bool _developerModeEnabled = false;
@@ -279,9 +281,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _isLockEnabled = await _authService.isLockEnabled();
     _isBiometricEnabled = await _authService.isBiometricEnabled();
     _hasBiometricHardware = await _authService.hasBiometricHardware();
+    _useNativeKeyboard = AppKeyboardController.instance.useNativeKeyboard;
     if (mounted) {
       setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _toggleNativeKeyboard(bool val) async {
+    setState(() => _useNativeKeyboard = val);
+    await AppKeyboardController.instance.setUseNativeKeyboard(val);
   }
 
   Future<void> _toggleLock(bool val) async {
@@ -295,7 +303,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _toggleBiometric(bool val) async {
     await _authService.setBiometricEnabled(val);
     setState(() => _isBiometricEnabled = val);
-    
   }
 
   void _showSetupDialog() {
@@ -666,6 +673,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       
                     },
                   ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              _sectionLabel('Preferences'),
+              const SizedBox(height: 12),
+              PremiumCard(
+                padding: EdgeInsets.zero,
+                child: _buildSwitchTile(
+                  icon: LucideIcons.keyboard,
+                  title: 'Native Keyboard',
+                  subtitle: 'Use system keyboard instead of in-app custom keyboard',
+                  value: _useNativeKeyboard,
+                  onChanged: isReadOnly ? null : _toggleNativeKeyboard,
                 ),
               ),
               const SizedBox(height: 24),

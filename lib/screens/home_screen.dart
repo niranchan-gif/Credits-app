@@ -7,6 +7,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import '../providers/loan_provider.dart';
 import '../models/borrower.dart';
+import '../models/loan.dart';
 import '../models/payment.dart';
 import '../utils/fmt.dart';
 import '../utils/app_colors.dart';
@@ -18,8 +19,6 @@ import 'add_borrower_screen.dart';
 import 'borrower_loans_screen.dart';
 import '../services/backup_freshness_service.dart';
 import '../widgets/app_keyboard/app_keyboard.dart';
-import '../widgets/app_keyboard/app_text_field.dart';
-import '../widgets/app_keyboard/app_keyboard_types.dart';
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -627,17 +626,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: TextField(
                   controller: _searchCtrl,
                   focusNode: _searchFocusNode,
-                  keyboardType: TextInputType.none,
+                  keyboardType: AppKeyboardController.instance.useNativeKeyboard
+                      ? TextInputType.text
+                      : TextInputType.none,
                   showCursor: true,
                   onTap: () {
-                    AppKeyboardController.instance.attach(
-                      controller: _searchCtrl,
-                      focusNode: _searchFocusNode,
-                      type: AppKeyboardType.text,
-                      action: AppKeyboardAction.search,
-                      label: 'Search Borrowers',
-                      onChanged: (v) => setState(() => _query = v),
-                    );
+                    if (!AppKeyboardController.instance.useNativeKeyboard) {
+                      AppKeyboardController.instance.attach(
+                        controller: _searchCtrl,
+                        focusNode: _searchFocusNode,
+                        type: AppKeyboardType.text,
+                        action: AppKeyboardAction.search,
+                        label: 'Search Borrowers',
+                        onChanged: (v) => setState(() => _query = v),
+                      );
+                    }
                   },
                   onChanged: (v) => setState(() => _query = v),
                   decoration: InputDecoration(
@@ -871,18 +874,22 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: TextField(
                         controller: _searchFilterCtrl,
                         focusNode: _searchFilterFocusNode,
-                        keyboardType: TextInputType.none,
+                        keyboardType: AppKeyboardController.instance.useNativeKeyboard
+                            ? TextInputType.text
+                            : TextInputType.none,
                         showCursor: true,
                         onTap: () {
-                          AppKeyboardController.instance.attach(
-                            controller: _searchFilterCtrl,
-                            focusNode: _searchFilterFocusNode,
-                            type: AppKeyboardType.text,
-                            action: AppKeyboardAction.search,
-                            label: 'Search addresses',
-                            onChanged: (val) => setModalState(() => filterQuery = val),
-                            onAction: () => AppKeyboardController.instance.hide(),
-                          );
+                          if (!AppKeyboardController.instance.useNativeKeyboard) {
+                            AppKeyboardController.instance.attach(
+                              controller: _searchFilterCtrl,
+                              focusNode: _searchFilterFocusNode,
+                              type: AppKeyboardType.text,
+                              action: AppKeyboardAction.search,
+                              label: 'Search addresses',
+                              onChanged: (val) => setModalState(() => filterQuery = val),
+                              onAction: () => AppKeyboardController.instance.hide(),
+                            );
+                          }
                         },
                         onChanged: (val) => setModalState(() => filterQuery = val),
                         decoration: InputDecoration(
@@ -1521,95 +1528,15 @@ class _HomeScreenState extends State<HomeScreen> {
       }
       
       final paidTodayLoanIds = await provider.getLoanIdsPaidToday(b.id ?? 0);
-      
-      final amountCtrl = TextEditingController();
-      final amountFocus = FocusNode();
-      amountFocus.bindAppKeyboard(controller: amountCtrl, type: AppKeyboardType.number);
-      int? selectedLoanId = activeLoans.length == 1 ? activeLoans.first.id : null;
-      
-      if (selectedLoanId != null) {
-        final l = activeLoans.first;
-        if (l.installmentDays != null && l.installmentDays! > 0) {
-          amountCtrl.text = (l.totalDue() / l.installmentDays!).toStringAsFixed(0);
-        }
-      }
 
       if (!context.mounted) return false;
 
       final result = await showDialog<Map<String, dynamic>>(
         context: context,
-        builder: (ctx) => StatefulBuilder(
-          builder: (ctx, setDialogState) => AlertDialog(
-            title: Text('Quick Pay: ${b.name}'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (activeLoans.length > 1) ...[
-                    const Text('Select Loan:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    const SizedBox(height: 8),
-                    RadioGroup<int>(
-                      groupValue: selectedLoanId,
-                      onChanged: (val) {
-                        setDialogState(() {
-                          selectedLoanId = val;
-                          final l = activeLoans.firstWhere((l) => (l.id ?? 0) == val, orElse: () => activeLoans.first);
-                          if (l.installmentDays != null && l.installmentDays! > 0) {
-                            amountCtrl.text = (l.totalDue() / l.installmentDays!).toStringAsFixed(0);
-                          } else {
-                            amountCtrl.text = '';
-                          }
-                        });
-                      },
-                      child: Column(
-                        children: activeLoans.map((l) {
-                          final isLoanPaidToday = paidTodayLoanIds.contains(l.id);
-                          return RadioListTile<int>(
-                            value: l.id ?? 0,
-                            title: Row(
-                              children: [
-                                Text('Loan: ${fmtINR(l.loanAmount)}', style: const TextStyle(fontSize: 14)),
-                                if (isLoanPaidToday) ...[
-                                  const SizedBox(width: 8),
-                                  const Icon(LucideIcons.checkCircle, color: Colors.white, size: 14),
-                                ],
-                              ],
-                            ),
-                            subtitle: Text('Date: ${DateFormat('dd MMM').format(l.loanDate)}', style: const TextStyle(fontSize: 12)),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                    const Divider(),
-                  ],
-                  const Text('Amount Received:'),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: amountCtrl,
-                    focusNode: amountFocus,
-                    keyboardType: TextInputType.none,
-                    autofocus: activeLoans.length == 1,
-                    decoration: const InputDecoration(
-                      labelText: 'Amount (₹)',
-                      prefixIcon: Icon(LucideIcons.indianRupee),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-              ElevatedButton(
-                onPressed: selectedLoanId == null ? null : () {
-                  final amt = double.tryParse(amountCtrl.text);
-                  if (amt != null && amt > 0) {
-                    Navigator.pop(ctx, {'loanId': selectedLoanId, 'amount': amt});
-                  }
-                },
-                child: const Text('Confirm'),
-              ),
-            ],
-          ),
+        builder: (ctx) => _QuickPayDialog(
+          borrower: b,
+          activeLoans: activeLoans,
+          paidTodayLoanIds: paidTodayLoanIds,
         ),
       );
 
@@ -1694,3 +1621,158 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<T> _collectSafe<T>(List<T> list) => List<T>.from(list);
 }
+
+class _QuickPayDialog extends StatefulWidget {
+  final Borrower borrower;
+  final List<Loan> activeLoans;
+  final Set<int> paidTodayLoanIds;
+
+  const _QuickPayDialog({
+    required this.borrower,
+    required this.activeLoans,
+    required this.paidTodayLoanIds,
+  });
+
+  @override
+  State<_QuickPayDialog> createState() => _QuickPayDialogState();
+}
+
+class _QuickPayDialogState extends State<_QuickPayDialog> {
+  late final TextEditingController _amountCtrl;
+  late final FocusNode _amountFocus;
+  int? _selectedLoanId;
+
+  @override
+  void initState() {
+    super.initState();
+    _amountCtrl = TextEditingController();
+    _amountFocus = FocusNode();
+    _selectedLoanId = widget.activeLoans.length == 1 ? widget.activeLoans.first.id : null;
+
+    if (_selectedLoanId != null) {
+      final l = widget.activeLoans.first;
+      if (l.installmentDays != null && l.installmentDays! > 0) {
+        _amountCtrl.text = (l.totalDue() / l.installmentDays!).toStringAsFixed(0);
+      }
+    }
+
+    // Attach keyboard once on initial build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (widget.activeLoans.length == 1) {
+        if (AppKeyboardController.instance.useNativeKeyboard) {
+          _amountFocus.requestFocus();
+        } else {
+          AppKeyboardController.instance.attach(
+            controller: _amountCtrl,
+            focusNode: _amountFocus,
+            type: AppKeyboardType.number,
+            action: AppKeyboardAction.done,
+            onAction: _onConfirm,
+            label: 'Amount (₹)',
+          );
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    AppKeyboardController.instance.hide();
+    _amountCtrl.dispose();
+    _amountFocus.dispose();
+    super.dispose();
+  }
+
+  void _onConfirm() {
+    if (_selectedLoanId == null) return;
+    final amt = double.tryParse(_amountCtrl.text);
+    if (amt != null && amt > 0) {
+      AppKeyboardController.instance.hide();
+      Navigator.pop(context, {'loanId': _selectedLoanId, 'amount': amt});
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Quick Pay: ${widget.borrower.name}'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (widget.activeLoans.length > 1) ...[
+              const Text('Select Loan:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              const SizedBox(height: 8),
+              RadioGroup<int>(
+                groupValue: _selectedLoanId,
+                onChanged: (val) {
+                  setState(() {
+                    _selectedLoanId = val;
+                    final l = widget.activeLoans.firstWhere(
+                      (l) => (l.id ?? 0) == val,
+                      orElse: () => widget.activeLoans.first,
+                    );
+                    if (l.installmentDays != null && l.installmentDays! > 0) {
+                      _amountCtrl.text = (l.totalDue() / l.installmentDays!).toStringAsFixed(0);
+                    } else {
+                      _amountCtrl.text = '';
+                    }
+                  });
+                },
+                child: Column(
+                  children: widget.activeLoans.map((l) {
+                    final isLoanPaidToday = widget.paidTodayLoanIds.contains(l.id);
+                    return RadioListTile<int>(
+                      value: l.id ?? 0,
+                      title: Row(
+                        children: [
+                          Text('Loan: ${fmtINR(l.loanAmount)}', style: const TextStyle(fontSize: 14)),
+                          if (isLoanPaidToday) ...[
+                            const SizedBox(width: 8),
+                            const Icon(LucideIcons.checkCircle, color: Colors.white, size: 14),
+                          ],
+                        ],
+                      ),
+                      subtitle: Text(
+                        'Date: ${DateFormat('dd MMM').format(l.loanDate)}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              const Divider(),
+            ],
+            const Text('Amount Received:'),
+            const SizedBox(height: 12),
+            AppTextFormField(
+              controller: _amountCtrl,
+              focusNode: _amountFocus,
+              keyboardType: AppKeyboardType.number,
+              textInputAction: AppKeyboardAction.done,
+              autofocus: widget.activeLoans.length == 1,
+              labelText: 'Amount (₹)',
+              prefixIcon: LucideIcons.indianRupee,
+              onFieldSubmitted: _onConfirm,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            AppKeyboardController.instance.hide();
+            Navigator.pop(context);
+          },
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _selectedLoanId == null ? null : _onConfirm,
+          child: const Text('Confirm'),
+        ),
+      ],
+    );
+  }
+}
+

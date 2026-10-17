@@ -90,7 +90,7 @@ class JsonRestoreService {
       onProgress?.call(0.60, 'Creating validation database...');
       final tempDb = await dbHelper.createEmptyDatabase(tempDbPath);
       
-      final tables = ['borrowers', 'loans', 'payments', 'investments', 'expenses', 'service_costs'];
+      final tables = ['borrowers', 'loans', 'payments', 'investments', 'expenses', 'service_costs', 'day_notes'];
       
       onProgress?.call(0.65, 'Importing data...');
       final batch = tempDb.batch();

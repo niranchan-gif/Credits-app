@@ -515,6 +515,12 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
         : 'Select Date Range';
 
     final netCashFlow = _totalCollected + _totalServiceCosts - _totalLent - _totalExpenses;
+    final totalDays = _selectedRange != null
+        ? DateTime(_selectedRange!.end.year, _selectedRange!.end.month, _selectedRange!.end.day)
+                .difference(DateTime(_selectedRange!.start.year, _selectedRange!.start.month, _selectedRange!.start.day))
+                .inDays + 1
+        : 1;
+    final dailyAvgCollection = totalDays > 0 ? (_totalCollected / totalDays) : 0.0;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -566,7 +572,6 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
                     child: Column(
                       children: [
                         _buildDateSelector(dateRangeStr),
-                        _buildSortSelectorChip(),
                         // Summary Dashboard Area
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -600,6 +605,8 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
                               Row(
                                 children: [
                                   _statCard("Closed Loans", "${_closedLoans.length}", LucideIcons.checkSquare, AppColors.success),
+                                  const SizedBox(width: 12),
+                                  _statCard("Daily Avg Collection", fmtINR(dailyAvgCollection), LucideIcons.trendingUp, const Color(0xFF0D9488)),
                                 ],
                               ),
                             ],
@@ -667,155 +674,6 @@ class _DateRangeReportScreenState extends State<DateRangeReportScreen> with Sing
           ),
           if (isSelected) const Icon(LucideIcons.check, size: 16, color: AppColors.accent),
         ],
-      ),
-    );
-  }
-
-  Widget _buildSortSelectorChip() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.08)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(5),
-                  decoration: BoxDecoration(
-                    color: AppColors.accent.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(LucideIcons.arrowUpDown, size: 14, color: AppColors.accent),
-                ),
-                const SizedBox(width: 10),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Report Order",
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-                      ),
-                    ),
-                    Text(
-                      _sortOrder.label,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.accent,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            InkWell(
-              onTap: _showSortBottomSheet,
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: AppColors.accent.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Text(
-                      "Change",
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                    const SizedBox(width: 2),
-                    Icon(LucideIcons.chevronRight, size: 14, color: Theme.of(context).colorScheme.primary),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showSortBottomSheet() async {
-    await showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 16, 10),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    "Order History",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  IconButton(
-                    icon: const Icon(LucideIcons.x, size: 18),
-                    onPressed: () => Navigator.pop(ctx),
-                    splashRadius: 20,
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-            ...DateRangeSortOrder.values.map((order) {
-              final isSelected = _sortOrder == order;
-              return ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.accent.withValues(alpha: 0.15)
-                        : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    order.icon,
-                    size: 18,
-                    color: isSelected ? AppColors.accent : Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                title: Text(
-                  order.label,
-                  style: TextStyle(
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    color: isSelected ? AppColors.accent : null,
-                  ),
-                ),
-                subtitle: Text(
-                  order.description,
-                  style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7)),
-                ),
-                trailing: isSelected ? const Icon(LucideIcons.check, color: AppColors.accent) : null,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _changeSortOrder(order);
-                },
-              );
-            }),
-            const SizedBox(height: 12),
-          ],
-        ),
       ),
     );
   }

@@ -69,7 +69,7 @@ class JsonBackupService {
     AutoBackupManager.syncStatus.value = SyncStatus.syncing;
     
 
-    final tables = ['borrowers', 'loans', 'payments', 'investments', 'expenses', 'service_costs'];
+    final tables = ['borrowers', 'loans', 'payments', 'investments', 'expenses', 'service_costs', 'day_notes'];
     final data = <String, List<Map<String, dynamic>>>{};
     final recordCounts = <String, int>{};
     
@@ -84,7 +84,7 @@ class JsonBackupService {
 
     final jsonPayload = {
       'formatVersion': 1,
-      'schemaVersion': 15,
+      'schemaVersion': 16,
       'installationId': 'credit_app',
       'backupGeneration': DBHelper.databaseGeneration,
       'createdAt': DateTime.now().toUtc().toIso8601String(),

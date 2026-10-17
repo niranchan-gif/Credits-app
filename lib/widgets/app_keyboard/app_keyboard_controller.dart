@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/voice_typing_service.dart';
 import 'app_keyboard_types.dart';
 
 /// Central singleton controller for the custom in-app keyboard.
 class AppKeyboardController extends ChangeNotifier {
   static final AppKeyboardController instance = AppKeyboardController._();
-  AppKeyboardController._();
+  AppKeyboardController._() {
+    loadSettings();
+  }
 
+  bool _useNativeKeyboard = false;
   bool _isVisible = false;
   TextEditingController? _currentController;
   FocusNode? _currentFocusNode;
@@ -28,6 +32,7 @@ class AppKeyboardController extends ChangeNotifier {
   bool _isVoiceTyping = false;
 
   // Getters
+  bool get useNativeKeyboard => _useNativeKeyboard;
   bool get isVisible => _isVisible;
   TextEditingController? get currentController => _currentController;
   FocusNode? get currentFocusNode => _currentFocusNode;
@@ -39,6 +44,27 @@ class AppKeyboardController extends ChangeNotifier {
   bool get isShifted => _isShifted || _isCapsLock;
   bool get isCapsLock => _isCapsLock;
   String? get label => _label;
+
+  Future<void> loadSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _useNativeKeyboard = prefs.getBool('use_native_keyboard') ?? false;
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> setUseNativeKeyboard(bool value) async {
+    if (_useNativeKeyboard == value) return;
+    _useNativeKeyboard = value;
+    if (value) {
+      hide();
+    }
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('use_native_keyboard', value);
+    } catch (_) {}
+  }
 
   void _onFocusChanged() {
     if (_currentFocusNode != null && !_currentFocusNode!.hasFocus) {
@@ -83,6 +109,8 @@ class AppKeyboardController extends ChangeNotifier {
     void Function(String)? onChanged,
     String? label,
   }) {
+    if (_useNativeKeyboard) return;
+
     // If previously attached to another node, remove listener from it
     if (_currentFocusNode != null && _currentFocusNode != focusNode) {
       try {
@@ -148,9 +176,7 @@ class AppKeyboardController extends ChangeNotifier {
       } catch (_) {}
       WidgetsBinding.instance.addPostFrameCallback((_) {
         try {
-          if (node.hasFocus) {
-            node.unfocus();
-          }
+          node.unfocus();
         } catch (_) {}
       });
     }
@@ -241,64 +267,86 @@ class AppKeyboardController extends ChangeNotifier {
   void insertText(String text) {
     if (_currentController == null) return;
 
-    final controller = _currentController!;
-    final currentText = controller.text;
-    final selection = controller.selection;
+    try {
+      final controller = _currentController!;
+      final currentText = controller.text;
+      final selection = controller.selection;
 
-    final start = selection.isValid && selection.start >= 0 ? selection.start : currentText.length;
-    final end = selection.isValid && selection.end >= 0 ? selection.end : currentText.length;
+      int start = selection.isValid && selection.start >= 0 ? selection.start : currentText.length;
+      int end = selection.isValid && selection.end >= 0 ? selection.end : currentText.length;
 
-    // Apply casing if single letter and shifted
-    String charToInsert = text;
-    if (charToInsert.length == 1 && RegExp(r'[a-zA-Z]').hasMatch(charToInsert)) {
-      charToInsert = isShifted ? charToInsert.toUpperCase() : charToInsert.toLowerCase();
-    }
+      if (start > end) {
+        final temp = start;
+        start = end;
+        end = temp;
+      }
+      start = start.clamp(0, currentText.length);
+      end = end.clamp(0, currentText.length);
 
-    final newText = currentText.replaceRange(start, end, charToInsert);
-    final newOffset = start + charToInsert.length;
+      // Apply casing if single letter and shifted
+      String charToInsert = text;
+      if (charToInsert.length == 1 && RegExp(r'[a-zA-Z]').hasMatch(charToInsert)) {
+        charToInsert = isShifted ? charToInsert.toUpperCase() : charToInsert.toLowerCase();
+      }
 
-    controller.value = TextEditingValue(
-      text: newText,
-      selection: TextSelection.collapsed(offset: newOffset),
-    );
+      final newText = currentText.replaceRange(start, end, charToInsert);
+      final newOffset = start + charToInsert.length;
 
-    // Auto-reset shift if not in caps lock
-    if (_isShifted && !_isCapsLock) {
-      _isShifted = false;
-    }
+      controller.value = TextEditingValue(
+        text: newText,
+        selection: TextSelection.collapsed(offset: newOffset),
+      );
 
-    _onChanged?.call(newText);
-    notifyListeners();
+      // Auto-reset shift if not in caps lock
+      if (_isShifted && !_isCapsLock) {
+        _isShifted = false;
+      }
+
+      _onChanged?.call(newText);
+      notifyListeners();
+    } catch (_) {}
   }
 
   /// Backspace: deletes selection or character before cursor.
   void backspace() {
     if (_currentController == null) return;
 
-    final controller = _currentController!;
-    final currentText = controller.text;
-    final selection = controller.selection;
+    try {
+      final controller = _currentController!;
+      final currentText = controller.text;
+      if (currentText.isEmpty) return;
 
-    final start = selection.isValid && selection.start >= 0 ? selection.start : currentText.length;
-    final end = selection.isValid && selection.end >= 0 ? selection.end : currentText.length;
+      final selection = controller.selection;
 
-    if (start != end) {
-      final newText = currentText.replaceRange(start, end, '');
-      controller.value = TextEditingValue(
-        text: newText,
-        selection: TextSelection.collapsed(offset: start),
-      );
-      _onChanged?.call(newText);
-      notifyListeners();
-    } else if (start > 0) {
-      final newText = currentText.replaceRange(start - 1, start, '');
-      controller.value = TextEditingValue(
-        text: newText,
-        selection: TextSelection.collapsed(offset: start - 1),
-      );
-      _onChanged?.call(newText);
-      notifyListeners();
-    }
+      int start = selection.isValid && selection.start >= 0 ? selection.start : currentText.length;
+      int end = selection.isValid && selection.end >= 0 ? selection.end : currentText.length;
+
+      if (start > end) {
+        final temp = start;
+        start = end;
+        end = temp;
+      }
+      start = start.clamp(0, currentText.length);
+      end = end.clamp(0, currentText.length);
+
+      if (start != end) {
+        final newText = currentText.replaceRange(start, end, '');
+        controller.value = TextEditingValue(
+          text: newText,
+          selection: TextSelection.collapsed(offset: start),
+        );
+        _onChanged?.call(newText);
+        notifyListeners();
+      } else if (start > 0) {
+        final newText = currentText.replaceRange(start - 1, start, '');
+        controller.value = TextEditingValue(
+          text: newText,
+          selection: TextSelection.collapsed(offset: start - 1),
+        );
+        _onChanged?.call(newText);
+        notifyListeners();
+      }
+    } catch (_) {}
   }
 
   /// Clear entire field text.

@@ -193,17 +193,21 @@ class _ServiceCostScreenState extends State<ServiceCostScreen> {
                           TextFormField(
                             controller: _amountCtrl,
                             focusNode: _amountFocusNode,
-                            keyboardType: TextInputType.none,
+                            keyboardType: AppKeyboardController.instance.useNativeKeyboard
+                                ? const TextInputType.numberWithOptions(decimal: true)
+                                : TextInputType.none,
                             showCursor: true,
                             onTap: () {
-                              AppKeyboardController.instance.attach(
-                                controller: _amountCtrl,
-                                focusNode: _amountFocusNode,
-                                type: AppKeyboardType.number,
-                                action: AppKeyboardAction.next,
-                                label: 'Service Cost Amount',
-                                onAction: () => _descriptionFocusNode.requestFocus(),
-                              );
+                              if (!AppKeyboardController.instance.useNativeKeyboard) {
+                                AppKeyboardController.instance.attach(
+                                  controller: _amountCtrl,
+                                  focusNode: _amountFocusNode,
+                                  type: AppKeyboardType.number,
+                                  action: AppKeyboardAction.next,
+                                  label: 'Service Cost Amount',
+                                  onAction: () => _descriptionFocusNode.requestFocus(),
+                                );
+                              }
                             },
                             validator: (v) {
                               if (v == null || v.trim().isEmpty) return 'Amount is required';
@@ -221,17 +225,21 @@ class _ServiceCostScreenState extends State<ServiceCostScreen> {
                           TextFormField(
                             controller: _descriptionCtrl,
                             focusNode: _descriptionFocusNode,
-                            keyboardType: TextInputType.none,
+                            keyboardType: AppKeyboardController.instance.useNativeKeyboard
+                                ? TextInputType.text
+                                : TextInputType.none,
                             showCursor: true,
                             onTap: () {
-                              AppKeyboardController.instance.attach(
-                                controller: _descriptionCtrl,
-                                focusNode: _descriptionFocusNode,
-                                type: AppKeyboardType.text,
-                                action: AppKeyboardAction.done,
-                                label: 'Service Description',
-                                onAction: () => AppKeyboardController.instance.hide(),
-                              );
+                              if (!AppKeyboardController.instance.useNativeKeyboard) {
+                                AppKeyboardController.instance.attach(
+                                  controller: _descriptionCtrl,
+                                  focusNode: _descriptionFocusNode,
+                                  type: AppKeyboardType.text,
+                                  action: AppKeyboardAction.done,
+                                  label: 'Service Description',
+                                  onAction: () => AppKeyboardController.instance.hide(),
+                                );
+                              }
                             },
                             decoration: const InputDecoration(
                               labelText: 'Service Description (Optional)',
@@ -301,18 +309,22 @@ class _ServiceCostScreenState extends State<ServiceCostScreen> {
                   child: TextField(
                     controller: _searchCtrl,
                     focusNode: _searchFocusNode,
-                    keyboardType: TextInputType.none,
+                    keyboardType: AppKeyboardController.instance.useNativeKeyboard
+                        ? TextInputType.text
+                        : TextInputType.none,
                     showCursor: true,
                     onTap: () {
-                      AppKeyboardController.instance.attach(
-                        controller: _searchCtrl,
-                        focusNode: _searchFocusNode,
-                        type: AppKeyboardType.text,
-                        action: AppKeyboardAction.search,
-                        label: 'Search Service Costs',
-                        onChanged: (v) => setState(() => _query = v),
-                        onAction: () => AppKeyboardController.instance.hide(),
-                      );
+                      if (!AppKeyboardController.instance.useNativeKeyboard) {
+                        AppKeyboardController.instance.attach(
+                          controller: _searchCtrl,
+                          focusNode: _searchFocusNode,
+                          type: AppKeyboardType.text,
+                          action: AppKeyboardAction.search,
+                          label: 'Search Service Costs',
+                          onChanged: (v) => setState(() => _query = v),
+                          onAction: () => AppKeyboardController.instance.hide(),
+                        );
+                      }
                     },
                     onChanged: (v) => setState(() => _query = v),
                     decoration: InputDecoration(

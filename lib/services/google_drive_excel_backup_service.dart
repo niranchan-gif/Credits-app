@@ -19,6 +19,7 @@ class _ExcelGenerationParams {
   final List<Map<String, dynamic>> expenses;
   final List<Map<String, dynamic>> investments;
   final List<Map<String, dynamic>> serviceCosts;
+  final List<Map<String, dynamic>> dayNotes;
   final double outstanding;
   final Map<String, String> settings;
 
@@ -29,6 +30,7 @@ class _ExcelGenerationParams {
     required this.expenses,
     required this.investments,
     required this.serviceCosts,
+    required this.dayNotes,
     required this.outstanding,
     required this.settings,
   });
@@ -175,6 +177,7 @@ class GoogleDriveExcelBackupService {
     final expenses = await db.rawQuery('SELECT * FROM expenses ORDER BY id ASC');
     final investments = await db.rawQuery('SELECT * FROM investments ORDER BY id ASC');
     final serviceCosts = await db.rawQuery('SELECT * FROM service_costs ORDER BY id ASC');
+    final dayNotes = await db.rawQuery('SELECT * FROM day_notes ORDER BY id ASC');
 
     final buffer = StringBuffer();
     buffer.write(jsonEncode(borrowers));
@@ -183,6 +186,7 @@ class GoogleDriveExcelBackupService {
     buffer.write(jsonEncode(expenses));
     buffer.write(jsonEncode(investments));
     buffer.write(jsonEncode(serviceCosts));
+    buffer.write(jsonEncode(dayNotes));
 
     return sha256.convert(utf8.encode(buffer.toString())).toString();
   }
@@ -239,6 +243,7 @@ class GoogleDriveExcelBackupService {
       final expenses = await db.rawQuery('SELECT * FROM expenses');
       final investments = await db.rawQuery('SELECT * FROM investments');
       final serviceCosts = await db.rawQuery('SELECT * FROM service_costs');
+      final dayNotes = await db.rawQuery('SELECT * FROM day_notes');
       
       // Calculate outstanding value
       final activeLoansRes = await db.rawQuery("SELECT SUM(loan_amount + interest_amount) as total FROM loans WHERE status = 'active' AND COALESCE(is_deleted, 0) = 0");
@@ -270,6 +275,7 @@ class GoogleDriveExcelBackupService {
         expenses: expenses,
         investments: investments,
         serviceCosts: serviceCosts,
+        dayNotes: dayNotes,
         outstanding: outstanding,
         settings: settings,
       );
@@ -520,6 +526,19 @@ class GoogleDriveExcelBackupService {
       };
     }).toList();
     _exportTableStatic(excel['SERVICE_COSTS'], serviceCostsExport);
+
+    final dayNotesExport = params.dayNotes.map((dn) {
+      return {
+        'id': dn['id'],
+        'sync_id': dn['sync_id'],
+        'date': dn['date'],
+        'notes': dn['notes'],
+        'created_at': dn['created_at'],
+        'updated_at': dn['updated_at'],
+        'is_deleted': dn['is_deleted'],
+      };
+    }).toList();
+    _exportTableStatic(excel['DAY_NOTES'], dayNotesExport);
 
     excel.delete('Sheet1');
 

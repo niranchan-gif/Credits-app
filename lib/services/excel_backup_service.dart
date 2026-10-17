@@ -76,13 +76,15 @@ class ExcelBackupService {
     final expenses = await db.rawQuery('SELECT * FROM expenses ORDER BY expense_date ASC, id ASC');
     final investments = await db.rawQuery('SELECT * FROM investments ORDER BY inv_date ASC, id ASC');
     final serviceCosts = await db.rawQuery('SELECT * FROM service_costs ORDER BY dateCreated ASC, id ASC');
+    final dayNotes = await db.rawQuery('SELECT * FROM day_notes ORDER BY date ASC, id ASC');
 
     final totalRows = borrowers.length +
         loans.length +
         payments.length +
         expenses.length +
         investments.length +
-        serviceCosts.length;
+        serviceCosts.length +
+        dayNotes.length;
     final totalRowsVal = totalRows == 0 ? 1 : totalRows;
     int writtenRows = 0;
 
@@ -213,6 +215,7 @@ class ExcelBackupService {
     _addRow(metaSheet, ['expenses_count', expenses.length.toString()]);
     _addRow(metaSheet, ['investments_count', investments.length.toString()]);
     _addRow(metaSheet, ['service_costs_count', serviceCosts.length.toString()]);
+    _addRow(metaSheet, ['day_notes_count', dayNotes.length.toString()]);
 
     final themePrefs = await SharedPreferences.getInstance();
     final isDark = themePrefs.getBool('theme_mode') ?? false;
@@ -495,6 +498,32 @@ class ExcelBackupService {
         sc['sync_id']?.toString() ?? '',
         sc['timestamp']?.toString() ?? '',
         (sc['is_deleted'] as int? ?? 0).toString(),
+      ]);
+      handleRowWritten();
+    }
+
+    // ── SHEET 9: Day Notes ─────────────────────────────────────────
+    final dayNotesSheet = excel['Day Notes'];
+    final dayNoteHeaders = [
+      'Note ID',
+      'Date',
+      'Notes',
+      'Sync ID',
+      'Created At',
+      'Updated At',
+      'Is Deleted',
+    ];
+    _addHeader(dayNotesSheet, dayNoteHeaders);
+
+    for (final dn in dayNotes) {
+      _addRow(dayNotesSheet, [
+        dn['id']?.toString() ?? '',
+        dn['date']?.toString() ?? '',
+        dn['notes']?.toString() ?? '',
+        dn['sync_id']?.toString() ?? '',
+        _formatEpochDate(dn['created_at']),
+        _formatEpochDate(dn['updated_at']),
+        (dn['is_deleted'] as int? ?? 0).toString(),
       ]);
       handleRowWritten();
     }
@@ -1271,9 +1300,41 @@ class ExcelBackupService {
         }
       }
 
+      Future<void> importDayNotes() async {
+        final dnSheet = _getSheetCaseInsensitive(excel, 'Day Notes') ?? _getSheetCaseInsensitive(excel, 'DAY_NOTES');
+        if (dnSheet != null && dnSheet.maxRows > 1) {
+          final h = dnSheet.rows[0].map((c) => extractCellValue(c?.value)).toList();
+          for (int i = 1; i < dnSheet.maxRows; i++) {
+            final row = dnSheet.rows[i];
+            if (row.every((c) => c == null || c.value == null || c.value.toString().trim().isEmpty)) continue;
+            final map = _rowToMap(h, row);
+            final syncId = map['sync_id']?.toString() ?? const Uuid().v4();
+            final date = map['date']?.toString() ?? '';
+            final notes = map['notes']?.toString() ?? '';
+            if (date.isEmpty) continue;
+
+            final existing = await txn.query('day_notes', where: 'sync_id = ?', whereArgs: [syncId]);
+            final insertData = <String, dynamic>{
+              'sync_id': syncId,
+              'date': date,
+              'notes': notes,
+              'created_at': _parseEpoch(map['created_at']),
+              'updated_at': _parseEpoch(map['updated_at']),
+              'is_deleted': int.tryParse(map['is_deleted']?.toString() ?? '0') ?? 0,
+            };
+            if (existing.isNotEmpty) {
+              await txn.update('day_notes', insertData, where: 'sync_id = ?', whereArgs: [syncId]);
+            } else {
+              await txn.insert('day_notes', insertData);
+            }
+          }
+        }
+      }
+
       await importExpenses();
       await importInvestments();
       await importServiceCosts();
+      await importDayNotes();
     });
 
     // Run integrity validation
